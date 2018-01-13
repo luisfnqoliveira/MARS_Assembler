@@ -1,3 +1,5 @@
 *.class
 .DS_Store
 commitmsg.txt
+*.sublime-project
+*.sublime-workspace
