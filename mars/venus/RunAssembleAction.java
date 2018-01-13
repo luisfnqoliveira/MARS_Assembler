@@ -7,51 +7,51 @@
    import java.awt.*;
    import java.awt.event.*;
    import javax.swing.*;
- 
+
  /*
 Copyright (c) 2003-2010,  Pete Sanderson and Kenneth Vollmar
 
 Developed by Pete Sanderson (psanderson@otterbein.edu)
 and Kenneth Vollmar (kenvollmar@missouristate.edu)
 
-Permission is hereby granted, free of charge, to any person obtaining 
-a copy of this software and associated documentation files (the 
-"Software"), to deal in the Software without restriction, including 
-without limitation the rights to use, copy, modify, merge, publish, 
-distribute, sublicense, and/or sell copies of the Software, and to 
-permit persons to whom the Software is furnished to do so, subject 
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject
 to the following conditions:
 
-The above copyright notice and this permission notice shall be 
+The above copyright notice and this permission notice shall be
 included in all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, 
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
-IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR 
-ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF 
-CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION 
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR
+ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 (MIT license, http://www.opensource.org/licenses/mit-license.html)
  */
- 
+
    /**
     * Action class for the Run -> Assemble menu item (and toolbar icon)
     */
     public class RunAssembleAction extends GuiAction {
-   	 
+
       private static ArrayList MIPSprogramsToAssemble;
       private static boolean extendedAssemblerEnabled;
       private static boolean warningsAreErrors;
    	// Threshold for adding filename to printed message of files being assembled.
       private static final int LINE_LENGTH_LIMIT = 60;
-   	 
+
        public RunAssembleAction(String name, Icon icon, String descrip,
                              Integer mnemonic, KeyStroke accel, VenusUI gui) {
          super(name, icon, descrip, mnemonic, accel, gui);
       }
-       
+
    // These are both used by RunResetAction to re-assemble under identical conditions.
        static ArrayList getMIPSprogramsToAssemble() {
          return MIPSprogramsToAssemble;
@@ -59,11 +59,11 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
        static boolean getExtendedAssemblerEnabled() {
          return extendedAssemblerEnabled;
       }
-   	
+
        static boolean getWarningsAreErrors() {
          return warningsAreErrors;
       }
-   		
+
        public void actionPerformed(ActionEvent e) {
          String name = this.getValue(Action.NAME).toString();
          Component editPane = mainUI.getMainPane().getEditPane();
@@ -71,20 +71,20 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
          RegistersPane registersPane = mainUI.getRegistersPane();
          extendedAssemblerEnabled = Globals.getSettings().getExtendedAssemblerEnabled();
          warningsAreErrors = Globals.getSettings().getWarningsAreErrors();
-         if(FileStatus.getFile()!= null){  
+         if(FileStatus.getFile()!= null){
             if (FileStatus.get() == FileStatus.EDITED) {
                mainUI.editor.save();
             }
             try{
                Globals.program = new MIPSprogram();
                ArrayList filesToAssemble;
-               if (Globals.getSettings().getAssembleAllEnabled()) {// setting calls for multiple file assembly 
+               if (Globals.getSettings().getAssembleAllEnabled()) {// setting calls for multiple file assembly
                   filesToAssemble = FilenameFinder.getFilenameList(
                                new File(FileStatus.getName()).getParent(), Globals.fileExtensions);
-               } 
+               }
                else {
                   filesToAssemble = new ArrayList();
-                  filesToAssemble.add(FileStatus.getName());  
+                  filesToAssemble.add(FileStatus.getName());
                }
                String exceptionHandler = null;
                if (Globals.getSettings().getExceptionHandlerEnabled() &&
@@ -92,7 +92,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
                    Globals.getSettings().getExceptionHandler().length() > 0) {
                   exceptionHandler = Globals.getSettings().getExceptionHandler();
                }
-               MIPSprogramsToAssemble = Globals.program.prepareFilesForAssembly(filesToAssemble, FileStatus.getFile().getPath(), exceptionHandler);					
+               MIPSprogramsToAssemble = Globals.program.prepareFilesForAssembly(filesToAssemble, FileStatus.getFile().getPath(), exceptionHandler);
                mainUI.messagesPane.postMarsMessage(buildFileNameList(name+": assembling ", MIPSprogramsToAssemble));
                // added logic to receive any warnings and output them.... DPS 11/28/06
                ErrorList warnings = Globals.program.assemble(MIPSprogramsToAssemble, extendedAssemblerEnabled,
@@ -109,7 +109,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
                Coprocessor0.resetRegisters();
                executePane.getTextSegmentWindow().setupTable();
                executePane.getDataSegmentWindow().setupTable();
-               executePane.getDataSegmentWindow().highlightCellForAddress(Memory.dataBaseAddress); 
+               executePane.getDataSegmentWindow().highlightCellForAddress(Memory.dataBaseAddress);
                executePane.getDataSegmentWindow().clearHighlighting();
                executePane.getLabelsWindow().setupTable();
                executePane.getTextSegmentWindow().setCodeHighlighting(true);
@@ -120,10 +120,13 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
                mainUI.setReset(true);
                mainUI.setStarted(false);
                mainUI.getMainPane().setSelectedComponent(executePane);
-            	
+
+               if(Globals.getSettings().getClearRunIOOnAssemble())
+                 mainUI.getMessagesPane().getRunTextArea().setText("");
+
             // Aug. 24, 2005 Ken Vollmar
                SystemIO.resetFiles( );  // Ensure that I/O "file descriptors" are initialized for a new program run
-            
+
             }
                 catch (ProcessingException pe) {
                   String errorReport = pe.errors().generateErrorAndWarningReport();
@@ -138,7 +141,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 							if (em.getLine()==0 && em.getPosition()==0) {
 							   continue;
 							}
-                     if (!em.isWarning() || warningsAreErrors) { 
+                     if (!em.isWarning() || warningsAreErrors) {
                         Globals.getGui().getMessagesPane().selectErrorMessage(em.getFilename(), em.getLine(), em.getPosition());
                         // Bug workaround: Line selection does not work correctly for the JEditTextArea editor
                      	// when the file is opened then automatically assembled (assemble-on-open setting).
@@ -154,9 +157,9 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
                   FileStatus.setAssembled(false);
                   FileStatus.set(FileStatus.NOT_EDITED);
                }
-         }               
+         }
       }
-      
+
    	// Handy little utility for building comma-separated list of filenames
    	// while not letting line length get out of hand.
        private String buildFileNameList(String preamble, ArrayList programList) {
@@ -173,4 +176,4 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
          }
          return result + ((lineLength==0)?"":"\n") + "\n";
       }
-   }        
+   }
