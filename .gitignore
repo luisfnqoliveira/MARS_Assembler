@@ -3,3 +3,5 @@
 commitmsg.txt
 *.sublime-project
 *.sublime-workspace
+astyle*
+*.jar

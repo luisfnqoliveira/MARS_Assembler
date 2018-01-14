@@ -44,8 +44,8 @@ public class SyntaxDocument extends PlainDocument
 		tokenMarker = tm;
 		if(tm == null)
 			return;
-		tokenMarker.insertLines(0,getDefaultRootElement()
-			.getElementCount());
+		tokenMarker.insertLines(0, getDefaultRootElement()
+								.getElementCount());
 		tokenizeLines();
 	}
 
@@ -56,7 +56,7 @@ public class SyntaxDocument extends PlainDocument
 	 */
 	public void tokenizeLines()
 	{
-		tokenizeLines(0,getDefaultRootElement().getElementCount());
+		tokenizeLines(0, getDefaultRootElement().getElementCount());
 	}
 
 	/**
@@ -82,9 +82,9 @@ public class SyntaxDocument extends PlainDocument
 			{
 				Element lineElement = map.getElement(i);
 				int lineStart = lineElement.getStartOffset();
-				getText(lineStart,lineElement.getEndOffset()
-					- lineStart - 1,lineSegment);
-				tokenMarker.markTokens(lineSegment,i);
+				getText(lineStart, lineElement.getEndOffset()
+						- lineStart - 1, lineSegment);
+				tokenMarker.markTokens(lineSegment, i);
 			}
 		}
 		catch(BadLocationException bl)
@@ -131,18 +131,18 @@ public class SyntaxDocument extends PlainDocument
 		if(tokenMarker != null)
 		{
 			DocumentEvent.ElementChange ch = evt.getChange(
-				getDefaultRootElement());
+												 getDefaultRootElement());
 			if(ch != null)
 			{
 				tokenMarker.insertLines(ch.getIndex() + 1,
-					ch.getChildrenAdded().length -
-					ch.getChildrenRemoved().length);
+										ch.getChildrenAdded().length -
+										ch.getChildrenRemoved().length);
 			}
 		}
 
 		super.fireInsertUpdate(evt);
 	}
-	
+
 	/**
 	 * We overwrite this method to update the token marker
 	 * state immediately so that any event listeners get a
@@ -153,12 +153,12 @@ public class SyntaxDocument extends PlainDocument
 		if(tokenMarker != null)
 		{
 			DocumentEvent.ElementChange ch = evt.getChange(
-				getDefaultRootElement());
+												 getDefaultRootElement());
 			if(ch != null)
 			{
 				tokenMarker.deleteLines(ch.getIndex() + 1,
-					ch.getChildrenRemoved().length -
-					ch.getChildrenAdded().length);
+										ch.getChildrenRemoved().length -
+										ch.getChildrenAdded().length);
 			}
 		}
 

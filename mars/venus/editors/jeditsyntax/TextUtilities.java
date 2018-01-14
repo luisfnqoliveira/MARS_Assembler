@@ -28,23 +28,42 @@ public class TextUtilities
 	 * was attempted on the document text
 	 */
 	public static int findMatchingBracket(Document doc, int offset)
-		throws BadLocationException
+	throws BadLocationException
 	{
 		if(doc.getLength() == 0)
 			return -1;
-		char c = doc.getText(offset,1).charAt(0);
+		char c = doc.getText(offset, 1).charAt(0);
 		char cprime; // c` - corresponding character
 		boolean direction; // true = back, false = forward
 
 		switch(c)
 		{
-		case '(': cprime = ')'; direction = false; break;
-		case ')': cprime = '('; direction = true; break;
-		case '[': cprime = ']'; direction = false; break;
-		case ']': cprime = '['; direction = true; break;
-		case '{': cprime = '}'; direction = false; break;
-		case '}': cprime = '{'; direction = true; break;
-		default: return -1;
+			case '(':
+				cprime = ')';
+				direction = false;
+				break;
+			case ')':
+				cprime = '(';
+				direction = true;
+				break;
+			case '[':
+				cprime = ']';
+				direction = false;
+				break;
+			case ']':
+				cprime = '[';
+				direction = true;
+				break;
+			case '{':
+				cprime = '}';
+				direction = false;
+				break;
+			case '}':
+				cprime = '{';
+				direction = true;
+				break;
+			default:
+				return -1;
 		}
 
 		int count;
@@ -60,7 +79,7 @@ public class TextUtilities
 			count = 1;
 
 			// Get text[0,offset-1];
-			String text = doc.getText(0,offset);
+			String text = doc.getText(0, offset);
 
 			// Scan backwards
 			for(int i = offset - 1; i >= 0; i--)
@@ -96,7 +115,7 @@ public class TextUtilities
 			int len = doc.getLength() - offset;
 
 			// Get text[offset+1,len];
-			String text = doc.getText(offset,len);
+			String text = doc.getText(offset, len);
 
 			// Scan forwards
 			for(int i = 0; i < len; i++)
@@ -137,14 +156,14 @@ public class TextUtilities
 		if(noWordSep == null)
 			noWordSep = "";
 		boolean selectNoLetter = (!Character.isLetterOrDigit(ch)
-			&& noWordSep.indexOf(ch) == -1);
+								  && noWordSep.indexOf(ch) == -1);
 
 		int wordStart = 0;
 		for(int i = pos - 1; i >= 0; i--)
 		{
 			ch = line.charAt(i);
 			if(selectNoLetter ^ (!Character.isLetterOrDigit(ch) &&
-				noWordSep.indexOf(ch) == -1))
+								 noWordSep.indexOf(ch) == -1))
 			{
 				wordStart = i + 1;
 				break;
@@ -166,14 +185,14 @@ public class TextUtilities
 		if(noWordSep == null)
 			noWordSep = "";
 		boolean selectNoLetter = (!Character.isLetterOrDigit(ch)
-			&& noWordSep.indexOf(ch) == -1);
+								  && noWordSep.indexOf(ch) == -1);
 
 		int wordEnd = line.length();
 		for(int i = pos; i < line.length(); i++)
 		{
 			ch = line.charAt(i);
 			if(selectNoLetter ^ (!Character.isLetterOrDigit(ch) &&
-				noWordSep.indexOf(ch) == -1))
+								 noWordSep.indexOf(ch) == -1))
 			{
 				wordEnd = i;
 				break;
