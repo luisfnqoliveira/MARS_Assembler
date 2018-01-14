@@ -5,3 +5,4 @@ commitmsg.txt
 *.sublime-workspace
 astyle*
 *.jar
+*.asm
