@@ -215,14 +215,16 @@ public  class RegisterFile
 	{
 		Register reg = null;
 		if(Rname.charAt(0) == '$')
+		{
 			Rname = Rname.substring(1);
-		try
-		{
-			// check for register number 0-31.
-			reg = regFile[Binary.stringToInt(Rname)];    // KENV 1/6/05
-		}
-		catch(Exception e)
-		{
+			try
+			{
+				// check for register number 0-31.
+				reg = regFile[Binary.stringToInt(Rname)];    // KENV 1/6/05
+			}
+			catch(Exception e)
+			{
+			}
 		}
 
 		if(reg == null)
