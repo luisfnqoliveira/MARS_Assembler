@@ -88,10 +88,23 @@
 #                   $1 is used in the template specification, $1 ($at) is literally placed into the generated
 #                   instruction!  If you want the generated code to echo the source register, use RG1,RG2, etc.
 
-#######################  arithmetic and branch pseudo-ops #####################
+#######################  Jarrett's awesome pseudo-ops ##########################
 
 push $t1	addi $sp, $sp, -4	sw RG1, 0($sp)	#push $t1 onto the stack
 pop $t1		lw RG1, 0($sp)	addi $sp, $sp, 4	#pop $t1 from the stack
+
+# oh my god I am so fucking over teaching "destination is on the left EXCEPT STORES"
+sw ($t1),$t2	sw RG3,0(RG1)	#Store Word : Store $t1 contents into effective memory word address
+sw 100($t1),$t2	sw RG4, VL1U(RG3)	#Store Word : Store $t1 contents into effective memory word address
+sw label,$t1	lui $1, LH1	sw RG2, LL1($1)	COMPACT	sw RG2, LL1($0)	#Store Word : Store $t1 contents into memory word at label's address
+sh ($t1),$t2	sh RG3,0(RG1)	#Store Word : Store $t1 contents into effective memory word address
+sh 100($t1),$t2	sh RG4, VL1U(RG3)	#Store Word : Store $t1 contents into effective memory word address
+sh label,$t1	lui $1, LH1	sh RG2, LL1($1)	COMPACT	sh RG2, LL1($0)	#Store Word : Store $t1 contents into memory word at label's address
+sb ($t1),$t2	sb RG3,0(RG1)	#Store Word : Store $t1 contents into effective memory word address
+sb 100($t1),$t2	sb RG4, VL1U(RG3)	#Store Word : Store $t1 contents into effective memory word address
+sb label,$t1	lui $1, LH1	sb RG2, LL1($1)	COMPACT	sb RG2, LL1($0)	#Store Word : Store $t1 contents into memory word at label's address
+
+#######################  arithmetic and branch pseudo-ops #####################
 not $t1,$t2	nor RG1, RG2, $0	#Bitwise NOT (bit inversion)
 
 # Here are some "convenience" arithmetic pseduo-ops.  But do they encourage sloppy programming?
@@ -248,16 +261,8 @@ li $t1,-100	addiu RG1, $0, VL2	#Load Immediate : Set $t1 to 16-bit immediate (si
 li $t1,100	ori RG1, $0, VL2U	#Load Immediate : Set $t1 to unsigned 16-bit immediate (zero-extended)
 li $t1,100000	lui $1, VHL2	ori RG1, $1, VL2U	#Load Immediate : Set $t1 to 32-bit immediate
 
-#la $t1,($t2)	addi RG1, RG3, 0	#Load Address : Set $t1 to contents of $t2
-#la $t1,-100	addiu RG1, $0, VL2	#Load Address : Set $t1 to 16-bit immediate (sign-extended)
-#la $t1,100	ori RG1, $0, VL2U	#Load Address : Set $t1 to 16-bit immediate (zero-extended)
-#la $t1,100000	lui $1, VHL2	ori RG1, $1, VL2U	#Load Address : Set $t1 to 32-bit immediate
-#la $t1,100($t2)	ori $1, $0, VL2U	add RG1, RG4, $1	#Load Address : Set $t1 to sum (of $t2 and 16-bit immediate)
-#la $t1,100000($t2)	lui $1, VHL2	ori $1, $1, VL2U	add RG1, RG4, $1	#Load Address : Set $t1 to sum (of $t2 and 32-bit immediate)
 la $t1,label	lui $1, LHL	ori RG1, $1, LL2U	COMPACT	addi RG1, $0, LL2	#Load Address : Set $t1 to label's address
-#la $t1,label($t2)	lui $1, LHL	ori $1, $1, LL2U	add RG1, RG4, $1	COMPACT	addi RG1, RG4, LL2	#Load Address : Set $t1 to sum (of $t2 and label's address)
 la $t1,label+100000	lui $1, LHPN	ori RG1, $1, LLPU	#Load Address : Set $t1 to sum (of label's address and 32-bit immediate)
-#la $t1,label+100000($t2)	lui $1, LHPN	ori $1, $1, LLPU	add RG1, RG6, $1	#Load Address : Set $t1 to sum (of label's address, 32-bit immediate, and $t2)
 
 lw $t1,($t2)	lw RG1,0(RG3)	#Load Word : Set $t1 to contents of effective memory word address
 lw $t1,-100	lw RG1, VL2($0)	#Load Word : Set $t1 to contents of effective memory word address
