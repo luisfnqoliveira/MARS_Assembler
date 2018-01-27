@@ -10,6 +10,7 @@ import mars.*;
 import mars.util.*;
 import mars.tools.*;
 import mars.mips.hardware.*;
+import li.flor.nativejfilechooser.NativeJFileChooser;
 
 /*
 Copyright (c) 2003-2008,  Pete Sanderson and Kenneth Vollmar
@@ -352,7 +353,7 @@ public abstract class AbstractMarsToolAndApplication extends JFrame implements M
 		{
 			public void actionPerformed(ActionEvent e)
 			{
-				JFileChooser fileChooser = new JFileChooser();
+				JFileChooser fileChooser = new NativeJFileChooser();
 				JCheckBox multiFileAssembleChoose = new JCheckBox("Assemble all in selected file's directory", multiFileAssemble);
 				multiFileAssembleChoose.setToolTipText("If checked, selected file will be assembled first and all other assembly files in directory will be assembled also.");
 				fileChooser.setAccessory(multiFileAssembleChoose);

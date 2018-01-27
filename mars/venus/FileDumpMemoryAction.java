@@ -10,6 +10,7 @@ import javax.swing.border.*;
 import java.io.*;
 import java.util.*;
 import javax.swing.plaf.basic.*;
+import li.flor.nativejfilechooser.NativeJFileChooser;
 
 /*
 Copyright (c) 2003-2008,  Pete Sanderson and Kenneth Vollmar
@@ -238,7 +239,7 @@ public class FileDumpMemoryAction extends GuiAction
 		JFileChooser saveDialog = null;
 		boolean operationOK = false;
 
-		saveDialog = new JFileChooser(mainUI.getEditor().getCurrentSaveDirectory());
+		saveDialog = new NativeJFileChooser(mainUI.getEditor().getCurrentSaveDirectory());
 		saveDialog.setDialogTitle(title);
 		while(!operationOK)
 		{

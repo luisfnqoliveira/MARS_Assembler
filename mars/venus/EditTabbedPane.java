@@ -12,6 +12,7 @@ import java.util.*;
 import java.io.*;
 import java.beans.PropertyChangeListener;
 import javax.swing.filechooser.FileFilter;
+import li.flor.nativejfilechooser.NativeJFileChooser;
 
 /*
 Copyright (c) 2003-2010,  Pete Sanderson and Kenneth Vollmar
@@ -364,14 +365,14 @@ public class EditTabbedPane extends JTabbedPane
 				// If a new file (mipsN.asm), default to current save directory.
 				// DPS 13-July-2011
 				if(editPane.isNew())
-					saveDialog = new JFileChooser(editor.getCurrentSaveDirectory());
+					saveDialog = new NativeJFileChooser(editor.getCurrentSaveDirectory());
 				else
 				{
 					File f = new File(editPane.getPathname());
 					if(f != null)
-						saveDialog = new JFileChooser(f.getParent());
+						saveDialog = new NativeJFileChooser(f.getParent());
 					else
-						saveDialog = new JFileChooser(editor.getCurrentSaveDirectory());
+						saveDialog = new NativeJFileChooser(editor.getCurrentSaveDirectory());
 				}
 				String paneFile = editPane.getFilename();
 				if(paneFile != null) saveDialog.setSelectedFile(new File(paneFile));
@@ -586,7 +587,7 @@ public class EditTabbedPane extends JTabbedPane
 		{
 			this.mostRecentlyOpenedFile = null;
 			this.theEditor = theEditor;
-			this.fileChooser = new JFileChooser();
+			this.fileChooser = new NativeJFileChooser();
 			this.listenForUserAddedFileFilter = new ChoosableFileFilterChangeListener();
 			this.fileChooser.addPropertyChangeListener(this.listenForUserAddedFileFilter);
 
