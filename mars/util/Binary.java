@@ -426,6 +426,24 @@ public class Binary
 				}
 				result = binaryStringToInt(bitString);
 			}
+			else if(work.startsWith("0b"))
+			{
+				work = work.substring(2);
+
+				if(work.length() == 0 || work.length() > 32)
+					throw new NumberFormatException();
+
+				result = 0;
+
+				for(char c : work.toCharArray())
+				{
+					result <<= 1;
+					if(c == '1')
+						result++;
+					else if(c != '0')
+						throw new NumberFormatException();
+				}
+			}
 			/*  The following "else" composed by Jose Baiocchi Paredes, Oct 2009.  This new code
 			    will correctly translate a string representing an unsigned decimal (not hex)
 				 value whose signed value is negative.  This is the decimal equivalent of the
