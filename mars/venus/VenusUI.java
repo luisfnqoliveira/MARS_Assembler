@@ -424,7 +424,7 @@ public class VenusUI extends JFrame
 					"If set, assembler warnings will be interpreted as errors and prevent successful assembly.",
 					null, null,
 					mainUI);
-			settingsStartAtMainAction       = new SettingsStartAtMainAction("Initialize Program Counter to global 'main' if defined",
+			settingsStartAtMainAction       = new SettingsStartAtMainAction("Initialize Program Counter to global 'main'",
 					null,
 					"If set, assembler will initialize Program Counter to text address globally labeled 'main', if defined.",
 					null, null,

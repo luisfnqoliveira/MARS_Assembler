@@ -1,5 +1,6 @@
 package mars.assembler;
 import mars.*;
+import mars.mips.hardware.Memory;
 import java.util.*;
 
 /*
@@ -278,5 +279,18 @@ public class SymbolTable
 	public static String getStartLabel()
 	{
 		return startLabel;
+	}
+
+	/**
+	 * Gets the address of 'main' in the text/ktext segment, or SymbolTable.NOT_FOUND if invalid.
+	 **/
+
+	public static int getStartLabelAddr()
+	{
+		int mainAddr = Globals.symbolTable.getAddress(SymbolTable.getStartLabel());
+		if(mainAddr != NOT_FOUND && (Memory.inTextSegment(mainAddr) || Memory.inKernelTextSegment(mainAddr)))
+			return mainAddr;
+		else
+			return NOT_FOUND;
 	}
 }

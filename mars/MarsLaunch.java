@@ -1,4 +1,5 @@
 package mars;
+import mars.assembler.SymbolTable;
 import mars.venus.*;
 import mars.util.*;
 import mars.mips.dump.*;
@@ -560,19 +561,25 @@ public class MarsLaunch
 			ErrorList warnings = code.assemble(MIPSprogramsToAssemble, pseudo, warningsAreErrors);
 			if(warnings != null && warnings.warningsOccurred())
 				out.println(warnings.generateWarningReport());
-			RegisterFile.initializeProgramCounter(startAtMain); // DPS 3/9/09
-			if(simulate)
+
+			if(startAtMain && SymbolTable.getStartLabelAddr() == SymbolTable.NOT_FOUND)
+				out.println("If 'sm' is specified there must be a global 'main'.");
+			else
 			{
-				// store program args (if any) in MIPS memory
-				new ProgramArgumentList(programArgumentList).storeProgramArguments();
-				// establish observer if specified
-				establishObserver();
-				if(Globals.debug)
-					out.println("--------  SIMULATION BEGINS  -----------");
-				programRan = true;
-				boolean done = code.simulate(maxSteps);
-				if(!done)
-					out.println("\nProgram terminated when maximum step limit " + maxSteps + " reached.");
+				RegisterFile.initializeProgramCounter(startAtMain); // DPS 3/9/09
+				if(simulate)
+				{
+					// store program args (if any) in MIPS memory
+					new ProgramArgumentList(programArgumentList).storeProgramArguments();
+					// establish observer if specified
+					establishObserver();
+					if(Globals.debug)
+						out.println("--------  SIMULATION BEGINS  -----------");
+					programRan = true;
+					boolean done = code.simulate(maxSteps);
+					if(!done)
+						out.println("\nProgram terminated when maximum step limit " + maxSteps + " reached.");
+				}
 			}
 			if(Globals.debug)
 				out.println("\n--------  ALL PROCESSING COMPLETE  -----------");

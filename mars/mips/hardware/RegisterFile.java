@@ -265,9 +265,8 @@ public  class RegisterFile
 
 	public static void initializeProgramCounter(boolean startAtMain)
 	{
-		int mainAddr = Globals.symbolTable.getAddress(SymbolTable.getStartLabel());
-		if(startAtMain && mainAddr != SymbolTable.NOT_FOUND && (Memory.inTextSegment(mainAddr) || Memory.inKernelTextSegment(mainAddr)))
-			initializeProgramCounter(mainAddr);
+		if(startAtMain)
+			initializeProgramCounter(SymbolTable.getStartLabelAddr());
 		else
 			initializeProgramCounter(programCounter.getResetValue());
 	}
