@@ -597,7 +597,13 @@ public class Assembler
 		// token. If not, it is either a syntax error or the specified operator
 		// is not
 		// yet implemented.
-		if(!this.inDataSegment)
+		if(this.inDataSegment)
+		{
+			errors.add(new ErrorMessage(token.getSourceMIPSprogram(), token.getSourceLine(),
+				token.getStartPos(),
+				"Instruction found in .data segment. You forgot to switch back to .text or .ktext."));
+		}
+		else
 		{
 			ArrayList instrMatches = this.matchInstruction(token);
 			if(instrMatches == null)
