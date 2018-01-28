@@ -176,7 +176,10 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		MemoryAccessNotice notice = (MemoryAccessNotice) accessNotice;
 
 		if(notice.getAccessType() == AccessNotice.WRITE && notice.getAddress() == SCREEN_UPDATE)
+		{
+			((LEDDisplayPanel)displayPanel).shouldClear = notice.getValue() != 0;
 			displayPanel.repaint();
+		}
 	}
 
 	protected void reset()
@@ -236,6 +239,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		// private static int num = 0;
 	private class LEDDisplayPanel extends JPanel
 	{
+		public boolean shouldClear = false;
+
 		public void paintComponent(Graphics g)
 		{
 			g.setColor(Color.BLACK);
@@ -255,14 +260,18 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 				}
 			}
 
-			try
+			if(shouldClear)
 			{
-				Globals.memory.zeroMMIOFast(LED_START, LED_END - LED_START);
-			}
-			catch(AddressErrorException aee)
-			{
-				System.out.println("Tool author specified incorrect MMIO address!" + aee);
-				System.exit(0);
+				shouldClear = false;
+				try
+				{
+					Globals.memory.zeroMMIOFast(LED_START, LED_END - LED_START);
+				}
+				catch(AddressErrorException aee)
+				{
+					System.out.println("Tool author specified incorrect MMIO address!" + aee);
+					System.exit(0);
+				}
 			}
 		}
 	}
