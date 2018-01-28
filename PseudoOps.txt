@@ -95,13 +95,13 @@ pop $t1		lw RG1, 0($sp)	addi $sp, $sp, 4	#pop $t1 from the stack
 
 # oh my god I am so fucking over teaching "destination is on the left EXCEPT STORES"
 sw ($t1),$t2	sw RG3,0(RG1)	#Store Word : Store $t1 contents into effective memory word address
-sw 100($t1),$t2	sw RG4, VL1U(RG3)	#Store Word : Store $t1 contents into effective memory word address
+sw 100($t1),$t2	sw RG5, VL1U(RG3)	#Store Word : Store $t1 contents into effective memory word address
 sw label,$t1	lui $1, LH1	sw RG2, LL1($1)	COMPACT	sw RG2, LL1($0)	#Store Word : Store $t1 contents into memory word at label's address
 sh ($t1),$t2	sh RG3,0(RG1)	#Store Word : Store $t1 contents into effective memory word address
-sh 100($t1),$t2	sh RG4, VL1U(RG3)	#Store Word : Store $t1 contents into effective memory word address
+sh 100($t1),$t2	sh RG5, VL1U(RG3)	#Store Word : Store $t1 contents into effective memory word address
 sh label,$t1	lui $1, LH1	sh RG2, LL1($1)	COMPACT	sh RG2, LL1($0)	#Store Word : Store $t1 contents into memory word at label's address
 sb ($t1),$t2	sb RG3,0(RG1)	#Store Word : Store $t1 contents into effective memory word address
-sb 100($t1),$t2	sb RG4, VL1U(RG3)	#Store Word : Store $t1 contents into effective memory word address
+sb 100($t1),$t2	sb RG5, VL1U(RG3)	#Store Word : Store $t1 contents into effective memory word address
 sb label,$t1	lui $1, LH1	sb RG2, LL1($1)	COMPACT	sb RG2, LL1($0)	#Store Word : Store $t1 contents into memory word at label's address
 
 #######################  arithmetic and branch pseudo-ops #####################
