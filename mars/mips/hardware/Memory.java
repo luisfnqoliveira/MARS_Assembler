@@ -618,6 +618,45 @@ public class Memory extends Observable
 			storeProgramStatement(address, statement, kernelTextBaseAddress, kernelTextBlockTable);
 	}
 
+	//////////////////////////////////////////////////////////////////////////////////////////
+
+	/**
+	* zeroes out a range of bytes in MMIO memory without any extra bullshit.
+	* assumes address/length are word-aligned for speed.
+	*/
+	public synchronized void zeroMMIOFast(int address, int length) throws AddressErrorException
+	{
+		if(!inMemoryMapSegment(address) || !inMemoryMapSegment(address + length))
+		{
+			throw new AddressErrorException("Invalid MMIO address range (length " + length + ")",
+				Exceptions.ADDRESS_EXCEPTION_STORE, address);
+		}
+
+		final int BLOCK_LENGTH_BYTES = BLOCK_LENGTH_WORDS * WORD_LENGTH_BYTES;
+
+		int relAddress = address - memoryMapBaseAddress;
+		int relEndAddress = relAddress + length;
+		int startBlock = relAddress / BLOCK_LENGTH_BYTES;
+		int startByte = relAddress % BLOCK_LENGTH_BYTES;
+		int endBlock = relEndAddress / BLOCK_LENGTH_BYTES;
+		int endByte = relEndAddress % BLOCK_LENGTH_BYTES;
+
+		for(int block = startBlock; block <= endBlock; block++)
+		{
+			// if it's already null, don't change anything, cause it'll read as 0 anyway
+			if(memoryMapBlockTable[block] != null)
+			{
+				int thisBlockEndByte = block == endBlock ? endByte : BLOCK_LENGTH_BYTES;
+
+				// just assume the addr/length are word-aligned
+				Arrays.fill(memoryMapBlockTable[block],
+					startByte / WORD_LENGTH_BYTES, thisBlockEndByte / WORD_LENGTH_BYTES, 0);
+			}
+
+			// on subsequent iterations, start at the beginning of the block
+			startByte = 0;
+		}
+	}
 
 
 	/********************************  THE GETTER METHODS  ******************************/

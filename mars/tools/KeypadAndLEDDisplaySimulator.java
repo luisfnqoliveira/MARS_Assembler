@@ -254,6 +254,16 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 						PIXEL_HEIGHT);
 				}
 			}
+
+			try
+			{
+				Globals.memory.zeroMMIOFast(LED_START, LED_END - LED_START);
+			}
+			catch(AddressErrorException aee)
+			{
+				System.out.println("Tool author specified incorrect MMIO address!" + aee);
+				System.exit(0);
+			}
 		}
 	}
 
