@@ -1253,6 +1253,7 @@ public class Memory extends Observable
 			throw new AddressErrorException("end address of range < start address of range ",
 											Exceptions.ADDRESS_EXCEPTION_LOAD, startAddr);
 		}
+
 		observables.add(new MemoryObservable(obs, startAddr, endAddr));
 	}
 
@@ -1272,7 +1273,13 @@ public class Memory extends Observable
 	{
 		Iterator it = observables.iterator();
 		while(it.hasNext())
-			((MemoryObservable)it.next()).deleteObserver(obs);
+		{
+			MemoryObservable mo = (MemoryObservable)it.next();
+			mo.deleteObserver(obs);
+
+			if(mo.countObservers() == 0)
+				it.remove();
+		}
 	}
 
 	/**
