@@ -71,7 +71,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	private static final int DISPLAY_WIDTH = (N_COLUMNS * CELL_WIDTH) + (2 * CELL_PADDING);
 	private static final int DISPLAY_HEIGHT = (N_ROWS * CELL_HEIGHT) + (2 * CELL_PADDING);
 	private JPanel keypadAndDisplayArea;
-	private JPanel displayPanel;
+	private LEDDisplayPanel displayPanel;
 	private int keyState;
 
 	private static final int KEY_U = 1;
@@ -177,14 +177,16 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 		if(notice.getAccessType() == AccessNotice.WRITE && notice.getAddress() == SCREEN_UPDATE)
 		{
-			((LEDDisplayPanel)displayPanel).shouldClear = notice.getValue() != 0;
-			displayPanel.repaint();
+			displayPanel.shouldClear = notice.getValue() != 0;
+			shouldRedraw = true;
+			// displayPanel.repaint();
 		}
 	}
 
 	protected void reset()
 	{
 		GraphicsMemory.reset();
+		shouldRedraw = true;
 		updateDisplay();
 	}
 
@@ -219,9 +221,15 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		return help;
 	}
 
+	private boolean shouldRedraw = true;
+
 	protected void updateDisplay()
 	{
-		displayPanel.repaint();
+		if(shouldRedraw)
+		{
+			shouldRedraw = false;
+			displayPanel.repaint();
+		}
 	}
 
 	static final Color[] PixelColors = new Color[]
@@ -243,35 +251,47 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 		public void paintComponent(Graphics g)
 		{
+			System.out.println("repaint.");
 			g.setColor(Color.BLACK);
 			g.fillRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT);
 
-			for(int row = 0; row < N_ROWS; row++)
+			int ptr = LED_START;
+
+			try
 			{
-				for(int column = 0; column < N_COLUMNS; column++)
+				for(int row = 0; row < N_ROWS; row++)
 				{
-					int pixel = GraphicsMemory.getPixel(column, row);
-					g.setColor(PixelColors[pixel & 7]);
-					g.fillRect(
-						column * CELL_WIDTH + CELL_PADDING,
-						row * CELL_HEIGHT + CELL_PADDING,
-						PIXEL_WIDTH,
-						PIXEL_HEIGHT);
+					int y = row * CELL_HEIGHT + CELL_PADDING;
+
+					for(int col = 0, x = 0; col < N_COLUMNS; col += 4, ptr += 4)
+					{
+						int pixel = Globals.memory.getWordNoNotify(ptr);
+
+						g.setColor(PixelColors[pixel & 7]);
+						g.fillRect(x, y, PIXEL_WIDTH, PIXEL_HEIGHT);
+						x += CELL_WIDTH + CELL_PADDING;
+						g.setColor(PixelColors[(pixel >> 8) & 7]);
+						g.fillRect(x, y, PIXEL_WIDTH, PIXEL_HEIGHT);
+						x += CELL_WIDTH + CELL_PADDING;
+						g.setColor(PixelColors[(pixel >> 16) & 7]);
+						g.fillRect(x, y, PIXEL_WIDTH, PIXEL_HEIGHT);
+						x += CELL_WIDTH + CELL_PADDING;
+						g.setColor(PixelColors[(pixel >> 24) & 7]);
+						g.fillRect(x, y, PIXEL_WIDTH, PIXEL_HEIGHT);
+						x += CELL_WIDTH + CELL_PADDING;
+					}
 				}
+			}
+			catch(AddressErrorException aee)
+			{
+				System.out.println("Tool author specified incorrect MMIO address!" + aee);
+				System.exit(0);
 			}
 
 			if(shouldClear)
 			{
 				shouldClear = false;
-				try
-				{
-					Globals.memory.zeroMMIOFast(LED_START, LED_END - LED_START);
-				}
-				catch(AddressErrorException aee)
-				{
-					System.out.println("Tool author specified incorrect MMIO address!" + aee);
-					System.exit(0);
-				}
+				GraphicsMemory.reset();
 			}
 		}
 	}
@@ -280,21 +300,30 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	{
 		public static void reset()
 		{
-		}
-
-		public static int getPixel(int column, int row)
-		{
-			int addr = LED_START + row * N_COLUMNS + column;
-			int bytes = 0;
-
 			try
 			{
-				bytes = Globals.memory.getWordNoNotify(addr & ~3);
+				Globals.memory.zeroMMIOFast(LED_START, LED_END - LED_START);
 			}
-			catch(AddressErrorException aee){}
-
-			int offs = addr & 3;
-			return (bytes >> (24 - (offs * 8))) & 0xFF;
+			catch(AddressErrorException aee)
+			{
+				System.out.println("Tool author specified incorrect MMIO address!" + aee);
+				System.exit(0);
+			}
 		}
+
+		// public static int getPixel(int column, int row)
+		// {
+		// 	int addr = LED_START + row * N_COLUMNS + column;
+		// 	int bytes = 0;
+
+		// 	try
+		// 	{
+		// 		bytes = Globals.memory.getWordNoNotify(addr & ~3);
+		// 	}
+		// 	catch(AddressErrorException aee){}
+
+		// 	int offs = addr & 3;
+		// 	return (bytes >> (24 - (offs * 8))) & 0xFF;
+		// }
 	}
 }

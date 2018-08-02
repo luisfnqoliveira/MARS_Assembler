@@ -71,17 +71,20 @@ public class NativeJFileChooser extends JFileChooser {
     private DirectoryChooser directoryChooser;
 
     static {
-        boolean isFx;
-        try {
-            Class.forName("javafx.stage.FileChooser");
-            isFx = true;
-            // Initializes JavaFX environment
-            JFXPanel jfxPanel = new JFXPanel();
-        } catch (ClassNotFoundException e) {
-            isFx = false;
-        }
+        // boolean isFx;
+        // try {
+        //     Class.forName("javafx.stage.FileChooser");
+        //     isFx = true;
+        //     // Initializes JavaFX environment
+        //     JFXPanel jfxPanel = new JFXPanel();
+        // } catch (ClassNotFoundException e) {
+        //     isFx = false;
+        // }
 
-        FX_AVAILABLE = isFx;
+        // FX_AVAILABLE = isFx;
+
+        // erf, hack to work around the freezing problem for now.
+        FX_AVAILABLE = false;
     }
 
     public NativeJFileChooser() {
