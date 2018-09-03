@@ -181,12 +181,15 @@ public class SettingsExceptionHandlerAction extends GuiAction
 				File file = new File(pathname);
 				if(file.exists()) chooser.setSelectedFile(file);
 			}
-			int result = chooser.showOpenDialog(Globals.getGui());
-			if(result == JFileChooser.APPROVE_OPTION)
-			{
-				pathname = chooser.getSelectedFile().getPath();//.replaceAll("\\\\","/");
-				exceptionHandlerDisplay.setText(pathname);
-			}
+
+			VenusUI.runOnDummyThread(() -> {
+				int result = chooser.showOpenDialog(Globals.getGui());
+				if(result == JFileChooser.APPROVE_OPTION)
+				{
+					// pathname = ;//.replaceAll("\\\\","/");
+					exceptionHandlerDisplay.setText(chooser.getSelectedFile().getPath());
+				}
+			});
 		}
 	}
 

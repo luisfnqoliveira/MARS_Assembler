@@ -9,10 +9,12 @@ import java.awt.event.*;
 import javax.swing.undo.*;
 import java.text.*;
 import java.util.*;
+import java.util.function.*;
 import java.io.*;
 import java.beans.PropertyChangeListener;
 import javax.swing.filechooser.FileFilter;
 import li.flor.nativejfilechooser.NativeJFileChooser;
+import javafx.application.Platform;
 
 /*
 Copyright (c) 2003-2010,  Pete Sanderson and Kenneth Vollmar
@@ -299,10 +301,10 @@ public class EditTabbedPane extends JTabbedPane
 		{
 			if(editPane.isNew())
 			{
-				File theFile = saveAsFile(editPane);
-				if(theFile != null)
-					editPane.setPathname(theFile.getPath());
-				return (theFile != null);
+				saveAsFile(editPane, (File f) -> {
+					editPane.setPathname(f.getPath());
+				});
+				return false; // ehhhhhhhh
 			}
 			File theFile = new File(editPane.getPathname());
 			try
@@ -332,9 +334,7 @@ public class EditTabbedPane extends JTabbedPane
 	public boolean saveAsCurrentFile()
 	{
 		EditPane editPane = getCurrentEditTab();
-		File theFile = saveAsFile(editPane);
-		if(theFile != null)
-		{
+		saveAsFile(editPane, (File theFile) -> {
 			FileStatus.setFile(theFile);
 			FileStatus.setName(theFile.getPath());
 			FileStatus.setSaved(true);
@@ -344,83 +344,87 @@ public class EditTabbedPane extends JTabbedPane
 			editPane.setPathname(theFile.getPath());
 			editPane.setFileStatus(FileStatus.NOT_EDITED);
 			updateTitlesAndMenuState(editPane);
-			return true;
-		}
-		return false;
+		});
+		return false; // ehhhhhhhhh
 	}
 
 	// perform Save As for selected edit pane.  If the save is performed,
 	// return its File object.  Otherwise return null.
-	private File saveAsFile(EditPane editPane)
+	private File saveAsFile(EditPane editPane, Consumer<File> cont)
 	{
-		File theFile = null;
 		if(editPane != null)
 		{
-			JFileChooser saveDialog = null;
-			boolean operationOK = false;
-			while(!operationOK)
-			{
-				// Set Save As dialog directory in a logical way.  If file in
-				// edit pane had been previously saved, default to its directory.
-				// If a new file (mipsN.asm), default to current save directory.
-				// DPS 13-July-2011
-				if(editPane.isNew())
-					saveDialog = new NativeJFileChooser(editor.getCurrentSaveDirectory());
-				else
+			VenusUI.runOnDummyThread(() -> {
+				File theFile = null;
+				JFileChooser saveDialog = null;
+				boolean operationOK = false;
+				while(!operationOK)
 				{
-					File f = new File(editPane.getPathname());
-					if(f != null)
-						saveDialog = new NativeJFileChooser(f.getParent());
-					else
+					// Set Save As dialog directory in a logical way.  If file in
+					// edit pane had been previously saved, default to its directory.
+					// If a new file (mipsN.asm), default to current save directory.
+					// DPS 13-July-2011
+					if(editPane.isNew())
 						saveDialog = new NativeJFileChooser(editor.getCurrentSaveDirectory());
-				}
-				String paneFile = editPane.getFilename();
-				if(paneFile != null) saveDialog.setSelectedFile(new File(paneFile));
-				// end of 13-July-2011 code.
-				saveDialog.setDialogTitle("Save As");
-
-				int decision = saveDialog.showSaveDialog(mainUI);
-				if(decision != JFileChooser.APPROVE_OPTION)
-					return null;
-				theFile = saveDialog.getSelectedFile();
-				operationOK = true;
-				if(theFile.exists())
-				{
-					int overwrite = JOptionPane.showConfirmDialog(mainUI,
-									"File " + theFile.getName() + " already exists.  Do you wish to overwrite it?",
-									"Overwrite existing file?",
-									JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
-					switch(overwrite)
+					else
 					{
-						case JOptionPane.YES_OPTION :
-							operationOK = true;
-							break;
-						case JOptionPane.NO_OPTION :
-							operationOK = false;
-							break;
-						case JOptionPane.CANCEL_OPTION :
-							return null;
-						default : // should never occur
-							return null;
+						File f = new File(editPane.getPathname());
+						if(f != null)
+							saveDialog = new NativeJFileChooser(f.getParent());
+						else
+							saveDialog = new NativeJFileChooser(editor.getCurrentSaveDirectory());
+					}
+					String paneFile = editPane.getFilename();
+					if(paneFile != null) saveDialog.setSelectedFile(new File(paneFile));
+					// end of 13-July-2011 code.
+					saveDialog.setDialogTitle("Save As");
+
+					int decision = saveDialog.showSaveDialog(mainUI);
+					if(decision != JFileChooser.APPROVE_OPTION)
+						return;
+					theFile = saveDialog.getSelectedFile();
+					operationOK = true;
+					if(theFile.exists())
+					{
+						int overwrite = JOptionPane.showConfirmDialog(mainUI,
+										"File " + theFile.getName() + " already exists.  Do you wish to overwrite it?",
+										"Overwrite existing file?",
+										JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
+						switch(overwrite)
+						{
+							case JOptionPane.YES_OPTION :
+								operationOK = true;
+								break;
+							case JOptionPane.NO_OPTION :
+								operationOK = false;
+								break;
+							case JOptionPane.CANCEL_OPTION :
+								return;
+							default : // should never occur
+								return;
+						}
 					}
 				}
-			}
-			// Either file with selected name does not exist or user wants to
-			// overwrite it, so go for it!
-			try
-			{
-				BufferedWriter outFileStream = new BufferedWriter(new FileWriter(theFile));
-				outFileStream.write(editPane.getSource(), 0, editPane.getSource().length());
-				outFileStream.close();
-			}
-			catch(java.io.IOException c)
-			{
-				JOptionPane.showMessageDialog(null, "Save As operation could not be completed due to an error:\n" + c,
-											  "Save As Operation Failed", JOptionPane.ERROR_MESSAGE);
-				return null;
-			}
+				// Either file with selected name does not exist or user wants to
+				// overwrite it, so go for it!
+				try
+				{
+					BufferedWriter outFileStream = new BufferedWriter(new FileWriter(theFile));
+					outFileStream.write(editPane.getSource(), 0, editPane.getSource().length());
+					outFileStream.close();
+
+					if(cont != null)
+						cont.accept(theFile);
+				}
+				catch(java.io.IOException c)
+				{
+					JOptionPane.showMessageDialog(null, "Save As operation could not be completed due to an error:\n" + c,
+												  "Save As Operation Failed", JOptionPane.ERROR_MESSAGE);
+					return;
+				}
+			});
 		}
-		return theFile;
+		return null;
 	}
 
 
@@ -615,20 +619,22 @@ public class EditTabbedPane extends JTabbedPane
 			if(Globals.getSettings().getAssembleOnOpenEnabled() && mostRecentlyOpenedFile != null)
 				fileChooser.setSelectedFile(mostRecentlyOpenedFile);
 
-			if(fileChooser.showOpenDialog(mainUI) == JFileChooser.APPROVE_OPTION)
-			{
-				File theFile = fileChooser.getSelectedFile();
-				theEditor.setCurrentOpenDirectory(theFile.getParent());
-				//theEditor.setCurrentSaveDirectory(theFile.getParent());// 13-July-2011 DPS.
-				if(!openFile(theFile))
-					return false;
+			VenusUI.runOnDummyThread(() -> {
+				if(fileChooser.showOpenDialog(mainUI) == JFileChooser.APPROVE_OPTION)
+				{
+					File theFile = fileChooser.getSelectedFile();
+					theEditor.setCurrentOpenDirectory(theFile.getParent());
+					//theEditor.setCurrentSaveDirectory(theFile.getParent());// 13-July-2011 DPS.
+					if(!openFile(theFile))
+						return;
 
-				// possibly send this file right through to the assembler by firing Run->Assemble's
-				// actionPerformed() method.
-				if(theFile.canRead() && Globals.getSettings().getAssembleOnOpenEnabled())
-					mainUI.getRunAssembleAction().actionPerformed(null);
-			}
-			return true;
+					// possibly send this file right through to the assembler by firing Run->Assemble's
+					// actionPerformed() method.
+					if(theFile.canRead() && Globals.getSettings().getAssembleOnOpenEnabled())
+						mainUI.getRunAssembleAction().actionPerformed(null);
+				}
+			});
+			return false; // hmm
 		}
 
 		/*

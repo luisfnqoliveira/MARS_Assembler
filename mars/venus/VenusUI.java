@@ -1069,6 +1069,9 @@ public class VenusUI extends JFrame
 		editRedoAction.updateRedoState();
 	}
 
+	public static void runOnDummyThread(Runnable r) {
+		new Thread(r, "dummythread").start();
+	}
 
 	/**
 	 * Get current menu state.  State values are constants in FileStatus class.  DPS 23 July 2008

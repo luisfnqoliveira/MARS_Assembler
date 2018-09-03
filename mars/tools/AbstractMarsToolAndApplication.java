@@ -10,6 +10,7 @@ import mars.*;
 import mars.util.*;
 import mars.tools.*;
 import mars.mips.hardware.*;
+import mars.venus.VenusUI;
 import li.flor.nativejfilechooser.NativeJFileChooser;
 
 /*
@@ -365,24 +366,26 @@ public abstract class AbstractMarsToolAndApplication extends JFrame implements M
 				fileChooser.addChoosableFileFilter(fileChooser.getAcceptAllFileFilter());
 				fileChooser.setFileFilter(defaultFileFilter);
 
-				if(fileChooser.showOpenDialog(thisMarsApp) == JFileChooser.APPROVE_OPTION)
-				{
-					multiFileAssemble = multiFileAssembleChoose.isSelected();
-					File theFile = fileChooser.getSelectedFile();
-					try
+				VenusUI.runOnDummyThread(() -> {
+					if(fileChooser.showOpenDialog(thisMarsApp) == JFileChooser.APPROVE_OPTION)
 					{
-						theFile = theFile.getCanonicalFile();
+						multiFileAssemble = multiFileAssembleChoose.isSelected();
+						File theFile = fileChooser.getSelectedFile();
+						try
+						{
+							theFile = theFile.getCanonicalFile();
+						}
+						catch(IOException ioe)
+						{
+							// nothing to do, theFile will keep current value
+						}
+						String currentFilePath = theFile.getPath();
+						mostRecentlyOpenedFile = theFile;
+						operationStatusMessages.setText("File: " + currentFilePath);
+						operationStatusMessages.setCaretPosition(0);
+						assembleRunButton.setEnabled(true);
 					}
-					catch(IOException ioe)
-					{
-						// nothing to do, theFile will keep current value
-					}
-					String currentFilePath = theFile.getPath();
-					mostRecentlyOpenedFile = theFile;
-					operationStatusMessages.setText("File: " + currentFilePath);
-					operationStatusMessages.setCaretPosition(0);
-					assembleRunButton.setEnabled(true);
-				}
+				});
 			}
 		});
 		openFileButton.addKeyListener(new EnterKeyListener(openFileButton));
