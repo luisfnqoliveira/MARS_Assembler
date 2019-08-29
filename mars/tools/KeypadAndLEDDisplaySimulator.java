@@ -50,8 +50,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 	static final long serialVersionUID = 1; /* To eliminate a warning about serializability. */
 
-
-	private static String version = "Version 1.1 64x64";
+	private static String version = "Version 1.2 64x64";
 	private static String title = "Keypad and LED Display MMIO Simulator";
 	private static String heading = "Click this window and use arrow keys and B!";
 	private static final int PIXEL_BITS = 8;
@@ -63,6 +62,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	private static final int KEY_STATE = SCREEN_UPDATE + Memory.WORD_LENGTH_BYTES;
 	private static final int LED_START = KEY_STATE + Memory.WORD_LENGTH_BYTES;
 	private static final int LED_END = LED_START + N_ROWS * (N_COLUMNS / PIXELS_PER_BYTE);
+	private static final int LED_BUFFER_START = LED_END;
+	private static final int LED_BUFFER_END = LED_BUFFER_START + N_ROWS * (N_COLUMNS / PIXELS_PER_BYTE);
 	private static final int CELL_WIDTH = 8;
 	private static final int CELL_HEIGHT = 8;
 	private static final int CELL_PADDING = 0;
@@ -179,7 +180,26 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		{
 			displayPanel.shouldClear = notice.getValue() != 0;
 			shouldRedraw = true;
-			// displayPanel.repaint();
+
+			// Copy values from memory to internal buffer, reset if we must.
+			try
+			{
+				// Ensure block for destination exists
+				Globals.memory.setRawWord(LED_BUFFER_START, 0x0);
+				Globals.memory.setRawWord(LED_BUFFER_END - 0x4, 0x0);
+				Globals.memory.copyMMIOFast(LED_START, LED_BUFFER_START, LED_END - LED_START);
+			}
+			catch(AddressErrorException aee)
+			{
+				System.out.println("Tool author specified incorrect MMIO address!" + aee);
+				System.exit(0);
+			}
+
+			if(displayPanel.shouldClear)
+			{
+				displayPanel.shouldClear = false;
+				GraphicsMemory.reset();
+			}
 		}
 	}
 
@@ -251,11 +271,9 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 		public void paintComponent(Graphics g)
 		{
-			System.out.println("repaint.");
 			g.setColor(Color.BLACK);
-			g.fillRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT);
 
-			int ptr = LED_START;
+			int ptr = LED_BUFFER_START;
 
 			try
 			{
@@ -286,12 +304,6 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			{
 				System.out.println("Tool author specified incorrect MMIO address!" + aee);
 				System.exit(0);
-			}
-
-			if(shouldClear)
-			{
-				shouldClear = false;
-				GraphicsMemory.reset();
 			}
 		}
 	}
