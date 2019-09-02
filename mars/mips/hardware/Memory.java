@@ -619,7 +619,72 @@ public class Memory extends Observable
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////
+	/**
+	* Copies a range of bytes in MMIO memory without any extra bullshit.
+	* assumes address/length are word-aligned for speed.
+	*/
+	public synchronized void copyMMIOFast(int address, int destination, int length) throws AddressErrorException
+	{
+		if(!inMemoryMapSegment(address) || !inMemoryMapSegment(address + length))
+		{
+			throw new AddressErrorException("Invalid MMIO address range (length " + length + ")",
+				Exceptions.ADDRESS_EXCEPTION_STORE, address);
+		}
+		else if(!inMemoryMapSegment(destination) || !inMemoryMapSegment(destination + length))
+		{
+			throw new AddressErrorException("Invalid MMIO destination range (length " + length + ")",
+				Exceptions.ADDRESS_EXCEPTION_STORE, destination);
+		}
 
+		final int BLOCK_LENGTH_BYTES = BLOCK_LENGTH_WORDS * WORD_LENGTH_BYTES;
+
+		int relAddress = address - memoryMapBaseAddress;
+		int relEndAddress = relAddress + length;
+		int startBlock = relAddress / BLOCK_LENGTH_BYTES;
+		int endBlock = relEndAddress / BLOCK_LENGTH_BYTES;
+		int startByte = relAddress % BLOCK_LENGTH_BYTES;
+		int endByte = relEndAddress % BLOCK_LENGTH_BYTES;
+
+		int relDestination = destination - memoryMapBaseAddress;
+		int relEndDestination = relDestination + length;
+		int destStartBlock = relDestination / BLOCK_LENGTH_BYTES;
+		int destEndBlock = relEndDestination / BLOCK_LENGTH_BYTES;
+		int destStartByte = relDestination % BLOCK_LENGTH_BYTES;
+		int destEndByte = relEndDestination % BLOCK_LENGTH_BYTES;
+
+		int destBlock = destStartBlock;
+		int destAmount = 0;
+
+		for (int block = startBlock; block <= endBlock; block++)
+		{
+			// if it's already null, don't change anything, cause it'll read as 0 anyway
+			if (memoryMapBlockTable[block] != null)
+			{
+				// Copy in a source block to the destination
+				int thisBlockEndByte = block == endBlock ? endByte : BLOCK_LENGTH_BYTES;
+
+				// just assume the addr/length are word-aligned
+				do {
+					destAmount = Math.min(thisBlockEndByte - startByte,
+					                      BLOCK_LENGTH_BYTES - destStartByte);
+
+					if (memoryMapBlockTable[destBlock] != null) {
+						System.arraycopy(memoryMapBlockTable[block],     startByte / WORD_LENGTH_BYTES,
+								 memoryMapBlockTable[destBlock], destStartByte / WORD_LENGTH_BYTES,
+								 destAmount / WORD_LENGTH_BYTES);
+					}
+
+					startByte = (startByte + destAmount) % BLOCK_LENGTH_BYTES;
+					if (destStartByte + destAmount >= BLOCK_LENGTH_BYTES) {
+						destBlock++;
+					}
+					destStartByte = (destStartByte + destAmount) % BLOCK_LENGTH_BYTES;
+				} while (startByte > 0 && destAmount > 0);
+			}
+		}
+	}
+
+	//////////////////////////////////////////////////////////////////////////////////////////
 	/**
 	* zeroes out a range of bytes in MMIO memory without any extra bullshit.
 	* assumes address/length are word-aligned for speed.
@@ -637,8 +702,8 @@ public class Memory extends Observable
 		int relAddress = address - memoryMapBaseAddress;
 		int relEndAddress = relAddress + length;
 		int startBlock = relAddress / BLOCK_LENGTH_BYTES;
-		int startByte = relAddress % BLOCK_LENGTH_BYTES;
 		int endBlock = relEndAddress / BLOCK_LENGTH_BYTES;
+		int startByte = relAddress % BLOCK_LENGTH_BYTES;
 		int endByte = relEndAddress % BLOCK_LENGTH_BYTES;
 
 		for(int block = startBlock; block <= endBlock; block++)
