@@ -8,7 +8,6 @@ import javax.swing.*;
 import javax.swing.text.*;
 import javax.swing.border.*;
 import java.io.*;
-import li.flor.nativejfilechooser.NativeJFileChooser;
 
 /*
 Copyright (c) 2003-2006,  Pete Sanderson and Kenneth Vollmar
@@ -174,7 +173,7 @@ public class SettingsExceptionHandlerAction extends GuiAction
 	{
 		public void actionPerformed(ActionEvent e)
 		{
-			JFileChooser chooser = new NativeJFileChooser();
+			JFileChooser chooser = new JFileChooser();
 			String pathname = Globals.getSettings().getExceptionHandler();
 			if(pathname != null)
 			{

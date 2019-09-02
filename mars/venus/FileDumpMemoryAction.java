@@ -3,7 +3,6 @@ import mars.*;
 import mars.util.*;
 import mars.mips.dump.*;
 import mars.mips.hardware.*;
-import mars.venus.VenusUI;
 import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
@@ -11,7 +10,6 @@ import javax.swing.border.*;
 import java.io.*;
 import java.util.*;
 import javax.swing.plaf.basic.*;
-import li.flor.nativejfilechooser.NativeJFileChooser;
 
 /*
 Copyright (c) 2003-2008,  Pete Sanderson and Kenneth Vollmar
@@ -236,52 +234,55 @@ public class FileDumpMemoryAction extends GuiAction
 	// segment (memory range) and format selections and save to the file.
 	private boolean performDump(int firstAddress, int lastAddress, DumpFormat format)
 	{
-		VenusUI.runOnDummyThread(() -> {
-			File theFile = null;
-			JFileChooser saveDialog = null;
-			boolean operationOK = false;
+		File theFile = null;
+		JFileChooser saveDialog = null;
+		boolean operationOK = false;
 
-			saveDialog = new NativeJFileChooser(mainUI.getEditor().getCurrentSaveDirectory());
-			saveDialog.setDialogTitle(title);
-			while(!operationOK)
+		saveDialog = new JFileChooser(mainUI.getEditor().getCurrentSaveDirectory());
+		saveDialog.setDialogTitle(title);
+		while(!operationOK)
+		{
+			int decision = saveDialog.showSaveDialog(mainUI);
+			if(decision != JFileChooser.APPROVE_OPTION)
+				return false;
+			theFile = saveDialog.getSelectedFile();
+			operationOK = true;
+			if(theFile.exists())
 			{
-				int decision = saveDialog.showSaveDialog(mainUI);
-				if(decision != JFileChooser.APPROVE_OPTION)
-					return;
-				theFile = saveDialog.getSelectedFile();
-				operationOK = true;
-				if(theFile.exists())
+				int overwrite = JOptionPane.showConfirmDialog(mainUI,
+								"File " + theFile.getName() + " already exists.  Do you wish to overwrite it?",
+								"Overwrite existing file?",
+								JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
+				switch(overwrite)
 				{
-					int overwrite = JOptionPane.showConfirmDialog(mainUI,
-									"File " + theFile.getName() + " already exists.  Do you wish to overwrite it?",
-									"Overwrite existing file?",
-									JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
-					switch(overwrite)
-					{
-						case JOptionPane.YES_OPTION :
-						case JOptionPane.NO_OPTION :
-							operationOK = true;
-						default :
-							break;
-					}
-				}
-				if(operationOK)
-				{
-					try
-					{
-						format.dumpMemoryRange(theFile, firstAddress, lastAddress);
-					}
-					catch(AddressErrorException aee)
-					{
-
-					}
-					catch(IOException ioe)
-					{
-					}
+					case JOptionPane.YES_OPTION :
+						operationOK = true;
+						break;
+					case JOptionPane.NO_OPTION :
+						operationOK = false;
+						break;
+					case JOptionPane.CANCEL_OPTION :
+						return false;
+					default : // should never occur
+						return false;
 				}
 			}
-		});
-		return false;
+			if(operationOK)
+			{
+				try
+				{
+					format.dumpMemoryRange(theFile, firstAddress, lastAddress);
+				}
+				catch(AddressErrorException aee)
+				{
+
+				}
+				catch(IOException ioe)
+				{
+				}
+			}
+		}
+		return true;
 	}
 
 	// We're finished with this modal dialog.

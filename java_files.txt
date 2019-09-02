@@ -1,5 +1,4 @@
 ./Mars.java
-./li/flor/nativejfilechooser/NativeJFileChooser.java
 ./mars/tools/DigitalLabSim.java
 ./mars/tools/IntroToTools.java
 ./mars/tools/FloatRepresentation.java
