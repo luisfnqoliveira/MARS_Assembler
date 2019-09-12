@@ -93,11 +93,11 @@ public class SyscallInputDialogDouble extends AbstractSyscall
 			Coprocessor1.setRegisterPairToDouble(0, 0.0);  // set $f0 to zero
 			if(inputValue == null)   // Cancel was chosen
 			{
-				RegisterFile.updateRegister(5, -2);   // set $a1 to -2 flag
+				RegisterFile.updateRegister(3, -2);   // set $v1 to -2 flag
 			}
 			else if(inputValue.length() == 0)   // OK was chosen but there was no input
 			{
-				RegisterFile.updateRegister(5, -3);   // set $a1 to -3 flag
+				RegisterFile.updateRegister(3, -3);   // set $v1 to -3 flag
 			}
 			else
 			{
@@ -105,7 +105,7 @@ public class SyscallInputDialogDouble extends AbstractSyscall
 
 				// Successful parse of valid input data
 				Coprocessor1.setRegisterPairToDouble(0, doubleValue);  // set $f0 to input data
-				RegisterFile.updateRegister(5, 0);   // set $a1 to valid flag
+				RegisterFile.updateRegister(3, 0);   // set $v1 to valid flag
 
 			}
 
@@ -113,7 +113,7 @@ public class SyscallInputDialogDouble extends AbstractSyscall
 
 		catch(InvalidRegisterAccessException e)    // register ID error in this method
 		{
-			RegisterFile.updateRegister(5, -1);   // set $a1 to -1 flag
+			RegisterFile.updateRegister(3, -1);   // set $v1 to -1 flag
 			throw new ProcessingException(statement,
 										  "invalid int reg. access during double input (syscall " + this.getNumber() + ")",
 										  Exceptions.SYSCALL_EXCEPTION);
@@ -121,7 +121,7 @@ public class SyscallInputDialogDouble extends AbstractSyscall
 
 		catch(NumberFormatException e)      // Unsuccessful parse of input data
 		{
-			RegisterFile.updateRegister(5, -1);   // set $a1 to -1 flag
+			RegisterFile.updateRegister(3, -1);   // set $v1 to -1 flag
 			/*  Don't throw exception because returning a status flag
 			throw new ProcessingException(statement,
 			   "invalid float input (syscall "+this.getNumber()+")",

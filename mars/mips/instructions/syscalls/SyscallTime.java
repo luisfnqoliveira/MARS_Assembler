@@ -55,8 +55,8 @@ public class SyscallTime extends AbstractSyscall
 	public void simulate(ProgramStatement statement) throws ProcessingException
 	{
 		long value = new java.util.Date().getTime();
-		RegisterFile.updateRegister(4, Binary.lowOrderLongToInt(value)); // $a0
-		RegisterFile.updateRegister(5, Binary.highOrderLongToInt(value)); // $a1
+		RegisterFile.updateRegister(2, Binary.lowOrderLongToInt(value)); // $v0
+		RegisterFile.updateRegister(3, Binary.highOrderLongToInt(value)); // $v1
 	}
 
 }

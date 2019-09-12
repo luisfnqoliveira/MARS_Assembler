@@ -70,7 +70,7 @@ public class SyscallRandIntRange extends AbstractSyscall
 		}
 		try
 		{
-			RegisterFile.updateRegister(4, stream.nextInt(RegisterFile.getValue(5)));
+			RegisterFile.updateRegister(2, stream.nextInt(RegisterFile.getValue(5)));
 		}
 		catch(IllegalArgumentException iae)
 		{

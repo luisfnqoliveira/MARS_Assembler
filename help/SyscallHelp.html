@@ -7,7 +7,7 @@
 </center>
 
 <h3>Introduction</h3>
-<p>A number of system services, mainly for input and output, are available for use by 
+<p>A number of system services, mainly for input and output, are available for use by
 your MIPS program.  They are described in the table below.</p>
 <p>MIPS register contents are not affected by a system call, except for result registers
 as specified in the table below.</p>
@@ -46,7 +46,7 @@ Step 4. Retrieve return values, if any, from result registers as specified.<br>
   <tr><td>exit2 (terminate with value)</td> <td align="center">17</td>   <td>$a0 = termination result</td>  <td><i>See note below table</i></td></tr>
   <tr><td align="center" colspan=4><em>Services 1 through 17 are compatible with the SPIM simulator, other than Open File (13) as described in the Notes below the table.
   Services 30 and higher are exclusive to MARS.</em></td></tr>
-  <tr><td>time (system time)</td>           <td align="center">30</td>   <td>&nbsp;</td><td>$a0 = low order 32 bits of system time<br>$a1 = high order 32 bits of system time.  <i>See note below table</i></td></tr>
+  <tr><td>time (system time)</td>           <td align="center">30</td>   <td>&nbsp;</td><td>$v0 = low order 32 bits of system time<br>$v1 = high order 32 bits of system time.  <i>See note below table</i></td></tr>
   <tr><td>MIDI out</td>                     <td align="center">31</td>   <td>$a0 = pitch (0-127)<br>$a1 = duration in milliseconds<br>$a2 = instrument (0-127)<br>$a3 = volume (0-127)</td>  <td>Generate tone and return immediately.  <i>See note below table</i></td></tr>
   <tr><td>sleep</td>                        <td align="center">32</td>   <td>$a0 = the length of time to sleep in milliseconds.</td>  <td>Causes the MARS Java thread to sleep for (at least) the specified number of milliseconds. This timing will not be precise, as the Java implementation will add some overhead.</td></tr>
   <tr><td>MIDI out synchronous              <td align="center">33</td>   <td>$a0 = pitch (0-127)<br>$a1 = duration in milliseconds<br>$a2 = instrument (0-127)<br>$a3 = volume (0-127)</td>  <td>Generate tone and return upon tone completion.  <i>See note below table</i></td></tr>
@@ -55,17 +55,17 @@ Step 4. Retrieve return values, if any, from result registers as specified.<br>
   <tr><td>print integer as unsigned</td>    <td align="center">36</td>   <td>$a0 = integer to print</td>  <td>Displayed as unsigned decimal value.</td></tr>
   <tr><td align="center">(not used)</td>    <td align="center">37-39</td><td>&nbsp;</td>  <td>&nbsp;</td></tr>
   <tr><td>set seed</td>                     <td align="center">40</td>   <td>$a0 = i.d. of pseudorandom number generator (any int).<br>$a1 = seed for corresponding pseudorandom number generator.</td>  <td>No values are returned. Sets the seed of the corresponding underlying Java pseudorandom number generator (<tt>java.util.Random</tt>). <i>See note below table</i></td></tr>
-  <tr><td>random int</td>                   <td align="center">41</td>   <td>$a0 = i.d. of pseudorandom number generator (any int).</td>  <td>$a0 contains the next pseudorandom, uniformly distributed int value from this random number generator's sequence. <i>See note below table</i></td></tr>
-  <tr><td>random int range</td>             <td align="center">42</td>   <td>$a0 = i.d. of pseudorandom number generator (any int).<br>$a1 = upper bound of range of returned values.</td>  <td>$a0 contains pseudorandom, uniformly distributed int value in the range 0 <= [int] < [upper bound], drawn from this random number generator's sequence.  <i>See note below table</i></td></tr>
+  <tr><td>random int</td>                   <td align="center">41</td>   <td>$a0 = i.d. of pseudorandom number generator (any int).</td>  <td>$v0 contains the next pseudorandom, uniformly distributed int value from this random number generator's sequence. <i>See note below table</i></td></tr>
+  <tr><td>random int range</td>             <td align="center">42</td>   <td>$a0 = i.d. of pseudorandom number generator (any int).<br>$a1 = upper bound of range of returned values.</td>  <td>$v0 contains pseudorandom, uniformly distributed int value in the range 0 <= [int] < [upper bound], drawn from this random number generator's sequence.  <i>See note below table</i></td></tr>
   <tr><td>random float</td>                 <td align="center">43</td>   <td>$a0 = i.d. of pseudorandom number generator (any int).</td>  <td>$f0 contains the next pseudorandom, uniformly distributed float value in the range 0.0 <= f < 1.0 from this random number generator's sequence.  <i>See note below table</i></td></tr>
   <tr><td>random double</td>                <td align="center">44</td>   <td>$a0 = i.d. of pseudorandom number generator (any int).</td>  <td>$f0 contains the next pseudorandom, uniformly distributed double value in the range 0.0 <= f < 1.0 from this random number generator's sequence.  <i>See note below table</i></td></tr>
   <tr><td align="center">(not used)</td>    <td align="center">45-49</td><td>&nbsp;</td>  <td>&nbsp;</td></tr>
-  <tr><td>ConfirmDialog</td>                <td align="center">50</td>   <td>$a0 = address of null-terminated string that is the message to user</td>  <td>$a0 contains value of user-chosen option<br>0: Yes<br>1: No<br>2: Cancel</td></tr>
-  <tr><td>InputDialogInt</td>               <td align="center">51</td>   <td>$a0 = address of null-terminated string that is the message to user</td>  <td>$a0 contains int read<br>$a1 contains status value<br>0: OK status<br>-1: input data cannot be correctly parsed<br>-2: Cancel was chosen<br>-3: OK was chosen but no data had been input into field</td></tr>
-  <tr><td>InputDialogFloat</td>             <td align="center">52</td>   <td>$a0 = address of null-terminated string that is the message to user</td>  <td>$f0 contains float read<br>$a1 contains status value<br>0: OK status<br>-1: input data cannot be correctly parsed<br>-2: Cancel was chosen<br>-3: OK was chosen but no data had been input into field</td></tr>
-  <tr><td>InputDialogDouble</td>            <td align="center">53</td>   <td>$a0 = address of null-terminated string that is the message to user</td>  <td>$f0 contains double read<br>$a1 contains status value<br>0: OK status<br>-1: input data cannot be correctly parsed<br>-2: Cancel was chosen<br>-3: OK was chosen but no data had been input into field</td></tr>
-  <tr><td>InputDialogString</td>            <td align="center">54</td>   <td>$a0 = address of null-terminated string that is the message to user<br>$a1 = address of input buffer<br>$a2 = maximum number of characters to read</td>  <td><i>See Service 8 note below table</i><br>$a1 contains status value<br>0: OK status. Buffer contains the input string.<br>-2: Cancel was chosen. No change to buffer. <br>-3: OK was chosen but no data had been input into field. No change to buffer.<br>-4: length of the input string exceeded the specified maximum. Buffer contains the maximum allowable input string plus a terminating null.</td></tr>
-  <tr><td>MessageDialog</td>                <td align="center">55</td>   <td>$a0 = address of null-terminated string that is the message to user<br>$a1 = the type of message to be displayed:<br> 
+  <tr><td>ConfirmDialog</td>                <td align="center">50</td>   <td>$a0 = address of null-terminated string that is the message to user</td>  <td>$v0 contains value of user-chosen option<br>0: Yes<br>1: No<br>2: Cancel</td></tr>
+  <tr><td>InputDialogInt</td>               <td align="center">51</td>   <td>$a0 = address of null-terminated string that is the message to user</td>  <td>$v0 contains int read<br>$v1 contains status value<br>0: OK status<br>-1: input data cannot be correctly parsed<br>-2: Cancel was chosen<br>-3: OK was chosen but no data had been input into field</td></tr>
+  <tr><td>InputDialogFloat</td>             <td align="center">52</td>   <td>$a0 = address of null-terminated string that is the message to user</td>  <td>$f0 contains float read<br>$v1 contains status value<br>0: OK status<br>-1: input data cannot be correctly parsed<br>-2: Cancel was chosen<br>-3: OK was chosen but no data had been input into field</td></tr>
+  <tr><td>InputDialogDouble</td>            <td align="center">53</td>   <td>$a0 = address of null-terminated string that is the message to user</td>  <td>$f0 contains double read<br>$v1 contains status value<br>0: OK status<br>-1: input data cannot be correctly parsed<br>-2: Cancel was chosen<br>-3: OK was chosen but no data had been input into field</td></tr>
+  <tr><td>InputDialogString</td>            <td align="center">54</td>   <td>$a0 = address of null-terminated string that is the message to user<br>$a1 = address of input buffer<br>$a2 = maximum number of characters to read</td>  <td><i>See Service 8 note below table</i><br>$v1 contains status value<br>0: OK status. Buffer contains the input string.<br>-2: Cancel was chosen. No change to buffer. <br>-3: OK was chosen but no data had been input into field. No change to buffer.<br>-4: length of the input string exceeded the specified maximum. Buffer contains the maximum allowable input string plus a terminating null.</td></tr>
+  <tr><td>MessageDialog</td>                <td align="center">55</td>   <td>$a0 = address of null-terminated string that is the message to user<br>$a1 = the type of message to be displayed:<br>
 0: error message, indicated by Error icon <!-- <img src="SyscallMessageDialogError.gif"> --> <br>
 1: information message, indicated by Information icon <!-- <img src="SyscallMessageDialogInformation.gif"> --> <br>
 2: warning message, indicated by Warning icon <!-- <img src="SyscallMessageDialogWarning.gif"> --> <br>
@@ -90,7 +90,7 @@ in Appendix B of <i>Computer Organization and Design,</i>.
 <br><b>Service 30</b> - System time comes from <tt>java.util.Date.getTime()</tt> as milliseconds since 1 January 1970.
 <br><b>Services 31,33</b> - Simulate MIDI output through sound card.  Details below.
 <br><b>Services 40-44</b> use underlying Java pseudorandom number generators provided by the <tt>java.util.Random</tt> class.  Each stream (identified
-by $a0 contents) is modeled by a different <tt>Random</tt> object.  There are no default seed values, so use the Set Seed service (40) if 
+by $a0 contents) is modeled by a different <tt>Random</tt> object.  There are no default seed values, so use the Set Seed service (40) if
 replicated random sequences are desired.
 
 
@@ -116,16 +116,16 @@ buffer: .asciiz "The quick brown fox jumps over the lazy dog."
   li   $a1, 1        # Open for writing (flags are 0: read, 1: write)
   li   $a2, 0        # mode is ignored
   syscall            # open a file (file descriptor returned in $v0)
-  move $s6, $v0      # save the file descriptor 
+  move $s6, $v0      # save the file descriptor
   ###############################################################
   # Write to file just opened
   li   $v0, 15       # system call for write to file
-  move $a0, $s6      # file descriptor 
+  move $a0, $s6      # file descriptor
   la   $a1, buffer   # address of buffer from which to write
   li   $a2, 44       # hardcoded buffer length
   syscall            # write to file
   ###############################################################
-  # Close the file 
+  # Close the file
   li   $v0, 16       # system call for close file
   move $a0, $s6      # file descriptor to close
   syscall            # close file
@@ -137,7 +137,7 @@ buffer: .asciiz "The quick brown fox jumps over the lazy dog."
 <h3>Using SYSCALL system services 31 and 33: MIDI output</h3>
 These system services are unique to MARS, and provide a means of producing sound.  MIDI output is
 simulated by your system sound card, and the simulation is provided by the <tt>javax.sound.midi</tt>
-package.  
+package.
 <p>Service 31 will generate the tone then immediately return.  Service 33 will generate the tone then
 sleep for the tone's duration before returning.  Thus it essentially combines services 31 and 32.
 <p>
@@ -146,19 +146,19 @@ This service requires four parameters as follows:
 <table width="600" border="0" align="center" cellpadding="2">
   <tr>
     <td><h3>pitch ($a0)</h3>
-        
-      <li>Accepts a positive byte value (0-127) that denotes a pitch as it would 
+
+      <li>Accepts a positive byte value (0-127) that denotes a pitch as it would
         be represented in MIDI </li>
-        
+
       <li>Each number is one semitone / half-step in the chromatic scale.</li>
-        
-      <li>0 represents a very low C and 127 represents a very high G (a standard 
+
+      <li>0 represents a very low C and 127 represents a very high G (a standard
         88 key piano begins at 9-A and ends at 108-C).</li>
       <li>If the parameter value is outside this range, it applies a default value 60 which is the same as middle C on a piano.</li>
-        
+
       <li>From middle C, all other pitches in the octave are as follows:</li>
-      
-        
+
+
       <table width="450" border="0" align="center" cellpadding="2">
         <tr>
             <td>
@@ -181,9 +181,9 @@ This service requires four parameters as follows:
 			</td>
           </tr>
         </table>
-        
-        
-      <li>To produce these pitches in other octaves, add or subtract multiples 
+
+
+      <li>To produce these pitches in other octaves, add or subtract multiples
         of 12.</li>
       <br>
       </td>
@@ -197,87 +197,87 @@ This service requires four parameters as follows:
   </tr>
   <tr>
     <td><h3>instrument ($a2)</h3>
-	  <li>Accepts a positive byte value (0-127) that denotes the General MIDI 
+	  <li>Accepts a positive byte value (0-127) that denotes the General MIDI
         &quot;patch&quot; used to play the tone.</li>
       <li>If the parameter is outside this range, it applies a default value 0 which is an <em>Acoustic Grand Piano</em>.</li>
-      <li>General MIDI standardizes the number associated with each possible instrument 
-        (often referred to as <em>program change</em> numbers), however it does 
-        not determine how the tone will sound. This is determined by the synthesizer 
-        that is producing the sound. Thus a<em> Tuba</em> (patch 58) on one computer 
+      <li>General MIDI standardizes the number associated with each possible instrument
+        (often referred to as <em>program change</em> numbers), however it does
+        not determine how the tone will sound. This is determined by the synthesizer
+        that is producing the sound. Thus a<em> Tuba</em> (patch 58) on one computer
         may sound different than that same patch on another computer.</li>
       <li>The 128 available patches are divided into instrument families of 8:</li>
 	  <table width="450" border="0" align="center" cellpadding="2">
-        <tr> 
+        <tr>
           <td width="60">0-7</td>
           <td width="160">Piano</td>
           <td width="60">64-71</td>
           <td>Reed</td>
         </tr>
-        <tr> 
+        <tr>
           <td width="60">8-15</td>
           <td width="160">Chromatic Percussion</td>
           <td width="60">72-79</td>
           <td>Pipe</td>
         </tr>
-        <tr> 
+        <tr>
           <td width="60">16-23</td>
           <td width="160">Organ</td>
           <td width="60">80-87</td>
           <td>Synth Lead</td>
         </tr>
-        <tr> 
+        <tr>
           <td width="60">24-31</td>
           <td width="160">Guitar</td>
           <td width="60">88-95</td>
           <td>Synth Pad</td>
         </tr>
-        <tr> 
+        <tr>
           <td width="60">32-39</td>
           <td width="160">Bass</td>
           <td width="60">96-103</td>
           <td>Synth Effects</td>
         </tr>
-        <tr> 
+        <tr>
           <td width="60">40-47</td>
           <td width="160">Strings</td>
           <td width="60">104-111</td>
           <td>Ethnic</td>
         </tr>
-        <tr> 
+        <tr>
           <td width="60">48-55</td>
           <td width="160">Ensemble</td>
           <td width="60">112-119</td>
           <td>Percussion</td>
         </tr>
-        <tr> 
+        <tr>
           <td width="60">56-63</td>
           <td width="160">Brass</td>
           <td width="60">120-127</td>
           <td>Sound Effects</td>
         </tr>
       </table>
-      <li>Note that outside of Java, General MIDI usually refers to patches 1-128. 
-        When referring to a list of General MIDI patches, 1 must be subtracted 
-        to play the correct patch. For a full list of General MIDI instruments, 
+      <li>Note that outside of Java, General MIDI usually refers to patches 1-128.
+        When referring to a list of General MIDI patches, 1 must be subtracted
+        to play the correct patch. For a full list of General MIDI instruments,
         see <a href="http://www.midi.org/">
-        www.midi.org/about-midi/gm/gm1sound.shtml</a>. 
-        The General MIDI channel 10 percussion key map is not relevant to the 
+        www.midi.org/about-midi/gm/gm1sound.shtml</a>.
+        The General MIDI channel 10 percussion key map is not relevant to the
         toneGenerator method because it always defaults to MIDI channel 1.</li>
 		<br>
       </td>
   </tr>
   <tr>
     <td><h3>volume ($a3)</h3>
-      <li>Accepts a positive byte value (0-127) where 127 is the loudest and 0 
-        is silent. This value denotes MIDI velocity which refers to the initial 
+      <li>Accepts a positive byte value (0-127) where 127 is the loudest and 0
+        is silent. This value denotes MIDI velocity which refers to the initial
         attack of the tone.</li>
       <li>If the parameter value is outside this range, it applies a default value 100.</li>
-      <li>MIDI velocity measures how hard a <em>note on</em> (or <em>note off</em>) 
-        message is played, perhaps on a MIDI controller like a keyboard. Most 
-        MIDI synthesizers will translate this into volume on a logarithmic scale 
+      <li>MIDI velocity measures how hard a <em>note on</em> (or <em>note off</em>)
+        message is played, perhaps on a MIDI controller like a keyboard. Most
+        MIDI synthesizers will translate this into volume on a logarithmic scale
         in which the difference in amplitude decreases as the velocity value increases.</li>
-      <li>Note that velocity value on more sophisticated synthesizers can also 
-        affect the timbre of the tone (as most instruments sound different when 
+      <li>Note that velocity value on more sophisticated synthesizers can also
+        affect the timbre of the tone (as most instruments sound different when
         they are played louder or softer).</li>
       </td>
   </tr>

@@ -77,12 +77,12 @@ public class SyscallConfirmDialog extends AbstractSyscall
 			throw new ProcessingException(statement, e);
 		}
 
-		// update register $a0 with the value from showConfirmDialog.
+		// update register $v0 with the value from showConfirmDialog.
 		// showConfirmDialog returns an int with one of three possible values:
 		//    0 ---> meaning Yes
 		//    1 ---> meaning No
 		//    2 ---> meaning Cancel
-		RegisterFile.updateRegister(4, JOptionPane.showConfirmDialog(null, message));
+		RegisterFile.updateRegister(2, JOptionPane.showConfirmDialog(null, message));
 
 	}
 

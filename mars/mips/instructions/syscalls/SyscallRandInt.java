@@ -64,7 +64,7 @@ public class SyscallRandInt extends AbstractSyscall
 			stream = new Random(); // create a non-seeded stream
 			RandomStreams.randomStreams.put(index, stream);
 		}
-		RegisterFile.updateRegister(4, stream.nextInt());
+		RegisterFile.updateRegister(2, stream.nextInt());
 	}
 
 }

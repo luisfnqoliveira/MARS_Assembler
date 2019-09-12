@@ -96,11 +96,11 @@ public class SyscallInputDialogString extends AbstractSyscall
 		{
 			if(inputString == null)   // Cancel was chosen
 			{
-				RegisterFile.updateRegister(5, -2);   // set $a1 to -2 flag
+				RegisterFile.updateRegister(3, -2);   // set $v1 to -2 flag
 			}
 			else if(inputString.length() == 0)   // OK was chosen but there was no input
 			{
-				RegisterFile.updateRegister(5, -3);   // set $a1 to -3 flag
+				RegisterFile.updateRegister(3, -3);   // set $v1 to -3 flag
 			}
 			else
 			{
@@ -120,11 +120,11 @@ public class SyscallInputDialogString extends AbstractSyscall
 				if(inputString.length() > maxLength - 1)
 				{
 					//  length of the input string exceeded the specified maximum
-					RegisterFile.updateRegister(5, -4);   // set $a1 to -4 flag
+					RegisterFile.updateRegister(3, -4);   // set $v1 to -4 flag
 				}
 				else
 				{
-					RegisterFile.updateRegister(5, 0);   // set $a1 to 0 flag
+					RegisterFile.updateRegister(3, 0);   // set $v1 to 0 flag
 				}
 			} // end else
 
