@@ -273,14 +273,6 @@ public class Assembler
 			currentFileDataSegmentForwardReferences.clear();
 		} // end of first-pass loop for each MIPSprogram
 
-		if(Globals.getSettings().getStartAtMain() && SymbolTable.getStartLabelAddr() == SymbolTable.NOT_FOUND)
-		{
-			ErrorList errs = new ErrorList();
-			errs.add(new ErrorMessage((MIPSprogram)tokenizedProgramFiles.get(0), 1, 1,
-				"No global 'main' defined. Make sure you used '.globl main'."));
-			throw new ProcessingException(errs);
-		}
-
 		// Have processed all source files. Attempt to resolve any remaining forward label
 		// references from global symbol table. Those that remain unresolved are undefined
 		// and require error message.
@@ -290,6 +282,15 @@ public class Assembler
 		// Throw collection of errors accumulated through the first pass.
 		if(errors.errorsOccurred())
 			throw new ProcessingException(errors);
+
+		if(Globals.getSettings().getStartAtMain() && SymbolTable.getStartLabelAddr() == SymbolTable.NOT_FOUND)
+		{
+			ErrorList errs = new ErrorList();
+			errs.add(new ErrorMessage((MIPSprogram)tokenizedProgramFiles.get(0), 1, 1,
+				"No global 'main' defined. Make sure you used '.globl main'."));
+			throw new ProcessingException(errs);
+		}
+
 		if(Globals.debug)
 			System.out.println("Assembler second pass begins");
 		// SECOND PASS OF ASSEMBLER GENERATES BASIC ASSEMBLER THEN MACHINE CODE.
