@@ -62,7 +62,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	private static final int KEY_STATE = SCREEN_UPDATE + Memory.WORD_LENGTH_BYTES;
 	private static final int LED_START = KEY_STATE + Memory.WORD_LENGTH_BYTES;
 	private static final int LED_END = LED_START + N_ROWS * (N_COLUMNS / PIXELS_PER_BYTE);
-	private static final int LED_BUFFER_START = LED_END;
+	private static final int LED_BUFFER_START = LED_END + 4096;
 	private static final int LED_BUFFER_END = LED_BUFFER_START + N_ROWS * (N_COLUMNS / PIXELS_PER_BYTE);
 	private static final int CELL_WIDTH = 8;
 	private static final int CELL_HEIGHT = 8;
