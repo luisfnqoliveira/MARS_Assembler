@@ -79,7 +79,7 @@ public class SyscallMidiOut extends AbstractSyscall
 		if(duration < 0) duration = ToneGenerator.DEFAULT_DURATION;
 		if(instrument < rangeLowEnd || instrument > rangeHighEnd) instrument = ToneGenerator.DEFAULT_INSTRUMENT;
 		if(volume < rangeLowEnd || volume > rangeHighEnd) volume = ToneGenerator.DEFAULT_VOLUME;
-		new ToneGenerator().generateTone((byte) pitch, duration, (byte) instrument, (byte) volume);
+		ToneGenerator.generateTone((byte) pitch, duration, (byte) instrument, (byte) volume);
 	}
 
 }

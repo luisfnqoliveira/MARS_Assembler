@@ -101,7 +101,7 @@ class ToneGenerator
 	* @param volume the desired volume of the initial attack of the
 	* Tone (MIDI velocity) represented by a positive byte value (0-127).
 	*/
-	public void generateTone(byte pitch, int duration,
+	public static void generateTone(byte pitch, int duration,
 							 byte instrument, byte volume)
 	{
 		Runnable tone = new Tone(pitch, duration, instrument, volume);
@@ -123,7 +123,7 @@ class ToneGenerator
 	* @param volume the desired volume of the initial attack of the
 	* Tone (MIDI velocity) represented by a positive byte value (0-127).
 	*/
-	public void generateToneSynchronously(byte pitch, int duration,
+	public static void generateToneSynchronously(byte pitch, int duration,
 										  byte instrument, byte volume)
 	{
 		Runnable tone = new Tone(pitch, duration, instrument, volume);
@@ -185,7 +185,7 @@ class Tone implements Runnable
 	*/
 	public void run()
 	{
-		playTone();
+		playToneNew();
 	}
 
 	/* The following lock and the code which locks and unlocks it
@@ -205,6 +205,49 @@ class Tone implements Runnable
 	* double covered. */
 
 	private static Lock openLock = new ReentrantLock();
+	private static Synthesizer synth = null;
+	private static MidiChannel channel = null;
+
+	private static boolean openSynthesizer()
+	{
+		if(synth == null)
+		{
+			try
+			{
+				openLock.lock();
+				try
+				{
+					Synthesizer s = MidiSystem.getSynthesizer();
+					s.open();
+					channel = s.getChannels()[0];
+					synth = s;
+				}
+				finally
+				{
+					openLock.unlock();
+				}
+			}
+			catch(MidiUnavailableException mue)
+			{
+				mue.printStackTrace();
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	private void playToneNew()
+	{
+		if(openSynthesizer())
+		{
+			channel.programChange(this.instrument);
+			channel.noteOn(this.pitch, this.volume);
+			try { Thread.sleep(this.duration); } catch(InterruptedException e) {}
+			channel.noteOff(this.pitch);
+		}
+	}
+
 
 	private void playTone()
 	{
