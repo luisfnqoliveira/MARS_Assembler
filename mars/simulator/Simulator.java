@@ -150,6 +150,8 @@ public class Simulator extends Observable
 			simulatorThread.setStop(actor);
 			for(StopListener l : stopListeners)
 				l.stopped(this);
+
+			simulatorThread.interrupt();
 			simulatorThread = null;
 		}
 	}
