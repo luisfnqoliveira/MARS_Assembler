@@ -74,7 +74,7 @@ public class Globals
 	/* The GUI being used (if any) with this simulator. */
 	static VenusUI gui = null;
 	/** The current MARS version number. Can't wait for "initialize()" call to get it. */
-	public static final String version = "4.5 (2201 10/25/19)";
+	public static final String version = "4.5 (2204_0207)";
 	/** List of accepted file extensions for MIPS assembly source files. */
 	public static final ArrayList fileExtensions = getFileExtensions();
 	/** Maximum length of scrolled message window (MARS Messages and Run I/O) */
