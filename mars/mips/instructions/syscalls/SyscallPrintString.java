@@ -53,16 +53,26 @@ public class SyscallPrintString extends AbstractSyscall
 	public void simulate(ProgramStatement statement) throws ProcessingException
 	{
 		int byteAddress = RegisterFile.getValue(4);
-		char ch = 0;
+
 		try
 		{
-			ch = (char) Globals.memory.getByte(byteAddress);
-			// won't stop until NULL byte reached!
-			while(ch != 0)
+			if(Globals.memory.inDataSegment(byteAddress))
 			{
-				SystemIO.printString(new Character(ch).toString());
-				byteAddress++;
-				ch = (char) Globals.memory.getByte(byteAddress);
+				// common case of printing a string from the data segment
+				String str = Globals.memory.getAsciizFromDataSegment(byteAddress);
+				SystemIO.printString(str);
+			}
+			else
+			{
+				// fall back to slow path
+				char ch = (char) Globals.memory.getByte(byteAddress);
+				// won't stop until NULL byte reached!
+				while(ch != 0)
+				{
+					SystemIO.printString(new Character(ch).toString());
+					byteAddress++;
+					ch = (char) Globals.memory.getByte(byteAddress);
+				}
 			}
 		}
 		catch(AddressErrorException e)

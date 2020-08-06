@@ -804,6 +804,29 @@ public class Memory extends Observable
 		return value;
 	}
 
+	// Tries to get a zero-terminated ASCII string starting at 'address' in the data segment.
+	// Does not notify observers cause why the fuck would it?
+	// @throws AddressErrorException if address is not in the data segment, or if it can't find
+	// a null-terminator before hitting the end of the data segment.
+	public String getAsciizFromDataSegment(int addr) throws AddressErrorException
+	{
+		StringBuilder ret = new StringBuilder();
+
+		while(this.inDataSegment(addr))
+		{
+			char ch = (char)fetchBytesFromTable(dataBlockTable, addr - dataSegmentBaseAddress, 1);
+			if(ch == 0)
+			{
+				return ret.toString();
+			}
+			ret.append(ch);
+			addr++;
+		}
+
+		throw new AddressErrorException("string not contained within data segment",
+			Exceptions.ADDRESS_EXCEPTION_LOAD, addr);
+	}
+
 
 	/////////////////////////////////////////////////////////////////////////
 	/**
