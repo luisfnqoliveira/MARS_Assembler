@@ -54,18 +54,11 @@ public class SyscallReadChar extends AbstractSyscall
 	*/
 	public void simulate(ProgramStatement statement) throws ProcessingException
 	{
-		int value = 0;
-		try
-		{
-			value = SystemIO.readChar(this.getNumber());
-		}
-		catch(IndexOutOfBoundsException e)  // means null input
-		{
-			throw new ProcessingException(statement,
-										  "invalid char input (syscall " + this.getNumber() + ")",
-										  Exceptions.SYSCALL_EXCEPTION);
-		}
-		// DPS 20 June 2008: changed from 4 ($a0) to 2 ($v0)
+		int value = SystemIO.readChar(this.getNumber());
+
+		if(value == -1)
+			throw new ProcessingException();
+
 		RegisterFile.updateRegister(2, value);
 	}
 
