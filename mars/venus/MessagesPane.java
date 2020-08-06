@@ -12,6 +12,7 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.text.Position.Bias;
 import java.util.Observer;
 import java.util.Observable;
+import java.util.ArrayDeque;
 
 /*
 Copyright (c) 2003-2010,  Pete Sanderson and Kenneth Vollmar
@@ -48,7 +49,74 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 public class MessagesPane extends JTabbedPane implements Observer
 {
-	JTextArea assemble, run;
+	class QueuedTextArea extends JTextArea
+	{
+		private ArrayDeque<String> messages;
+		private int messageLength;
+
+		public QueuedTextArea()
+		{
+			// you'd be amazed
+			this.messages = new ArrayDeque<>(25000);
+			this.messageLength = 0;
+		}
+
+		public void displayMessage(String message)
+		{
+			if(this.enqueue(message))
+				this.scheduleUpdate();
+		}
+
+		// return true when we go from 0 messages to 1
+		private synchronized boolean enqueue(String message)
+		{
+			this.messages.add(message);
+			this.messageLength += message.length();
+			return this.messages.size() == 1;
+		}
+
+		private synchronized void appendQueued() {
+			StringBuilder b = new StringBuilder(this.messageLength);
+
+			for(String msg : this.messages)
+				b.append(msg);
+
+			this.append(b.toString());
+			this.messages.clear();
+			this.messageLength = 0;
+		}
+
+		private void scheduleUpdate() {
+			final QueuedTextArea self = this;
+			SwingUtilities.invokeLater(
+				new Runnable()
+			{
+				public void run()
+				{
+					setSelectedComponent(runTab);
+					self.appendQueued();
+
+					// can do some crude cutting here.  If the document gets "very large",
+					// let's cut off the oldest text. This will limit scrolling but the limit
+					// can be set reasonably high.
+					if(self.getDocument().getLength() > MAXIMUM_SCROLLED_CHARACTERS)
+					{
+						try
+						{
+							self.getDocument().remove(0, NUMBER_OF_CHARACTERS_TO_CUT);
+						}
+						catch(BadLocationException ble)
+						{
+							// only if NUMBER_OF_CHARACTERS_TO_CUT > MAXIMUM_SCROLLED_CHARACTERS
+						}
+					}
+				}
+			});
+		}
+	}
+
+	JTextArea assemble;
+	QueuedTextArea run;
 	JPanel assembleTab, runTab;
 	// These constants are designed to keep scrolled contents of the
 	// two message areas from becoming overwhelmingly large (which
@@ -68,7 +136,12 @@ public class MessagesPane extends JTabbedPane implements Observer
 		super();
 		this.setMinimumSize(new Dimension(0, 0));
 		assemble = new JTextArea();
-		run = new JTextArea();
+		run = new QueuedTextArea();
+
+		// doesn't speed things up, but does prevent output from scrolling way off-screen sideways
+		run.setLineWrap(true);
+		run.setWrapStyleWord(false);
+
 		assemble.setEditable(false);
 		run.setEditable(false);
 		// Set both text areas to mono font.  For assemble
@@ -333,30 +406,7 @@ public class MessagesPane extends JTabbedPane implements Observer
 	// DPS, 23 Aug 2005.
 	public void postRunMessage(String message)
 	{
-		final String mess = message;
-		SwingUtilities.invokeLater(
-			new Runnable()
-		{
-			public void run()
-			{
-				setSelectedComponent(runTab);
-				run.append(mess);
-				// can do some crude cutting here.  If the document gets "very large",
-				// let's cut off the oldest text. This will limit scrolling but the limit
-				// can be set reasonably high.
-				if(run.getDocument().getLength() > MAXIMUM_SCROLLED_CHARACTERS)
-				{
-					try
-					{
-						run.getDocument().remove(0, NUMBER_OF_CHARACTERS_TO_CUT);
-					}
-					catch(BadLocationException ble)
-					{
-						// only if NUMBER_OF_CHARACTERS_TO_CUT > MAXIMUM_SCROLLED_CHARACTERS
-					}
-				}
-			}
-		});
+		run.displayMessage(message);
 	}
 
 	/**
