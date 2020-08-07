@@ -249,6 +249,15 @@ public class Editor
 		return editTabbedPane.openFile();
 	}
 
+	/**
+	 *  Open file in a new tab.
+	 *  @return true if succeeded, else false.
+	 */
+	public boolean open(File file)
+	{
+		return editTabbedPane.openFile(file);
+	}
+
 
 
 	/**

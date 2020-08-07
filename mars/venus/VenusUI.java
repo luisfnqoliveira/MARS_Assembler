@@ -71,6 +71,7 @@ public class VenusUI extends JFrame
 	// components of the menubar
 	private JMenu file, run, window, help, edit, settings;
 	private JMenuItem fileNew, fileOpen, fileClose, fileCloseAll, fileSave, fileSaveAs, fileSaveAll, fileDumpMemory, filePrint, fileExit;
+	private OpenRecent fileOpenRecent;
 	private JMenuItem editUndo, editRedo, editCut, editCopy, editPaste, editFindReplace, editSelectAll;
 	private JMenuItem runGo, runStep, runBackstep, runReset, runAssemble, runStop, runPause, runClearBreakpoints, runToggleBreakpoints;
 	private JCheckBoxMenuItem settingsLabel, settingsPopupInput, settingsValueDisplayBase, settingsAddressDisplayBase,
@@ -550,6 +551,8 @@ public class VenusUI extends JFrame
 		fileNew.setIcon(new ImageIcon(tk.getImage(cs.getResource(Globals.imagesPath + "New16.png"))));
 		fileOpen = new JMenuItem(fileOpenAction);
 		fileOpen.setIcon(new ImageIcon(tk.getImage(cs.getResource(Globals.imagesPath + "Open16.png"))));
+		fileOpenRecent = new OpenRecent();
+		fileOpenRecent.setIcon(new ImageIcon(tk.getImage(cs.getResource(Globals.imagesPath + "Open16.png"))));
 		fileClose = new JMenuItem(fileCloseAction);
 		fileClose.setIcon(new ImageIcon(tk.getImage(cs.getResource(Globals.imagesPath + "MyBlank16.gif"))));
 		fileCloseAll = new JMenuItem(fileCloseAllAction);
@@ -568,6 +571,7 @@ public class VenusUI extends JFrame
 		fileExit.setIcon(new ImageIcon(tk.getImage(cs.getResource(Globals.imagesPath + "MyBlank16.gif"))));
 		file.add(fileNew);
 		file.add(fileOpen);
+		file.add(fileOpenRecent);
 		file.add(fileClose);
 		file.add(fileCloseAll);
 		file.addSeparator();
@@ -796,6 +800,10 @@ public class VenusUI extends JFrame
 		return toolBar;
 	}
 
+	public void renewRecentFiles() {
+		fileOpenRecent.renewItems();
+	}
+
 
 	/* Determine from FileStatus what the menu state (enabled/disabled)should
 	 * be then call the appropriate method to set it.  Current states are:
@@ -849,6 +857,7 @@ public class VenusUI extends JFrame
 	{
 		fileNewAction.setEnabled(true);
 		fileOpenAction.setEnabled(true);
+		fileOpenRecent.setEnabled(true);
 		fileCloseAction.setEnabled(false);
 		fileCloseAllAction.setEnabled(false);
 		fileSaveAction.setEnabled(false);
@@ -889,6 +898,7 @@ public class VenusUI extends JFrame
 		/* Note: undo and redo are handled separately by the undo manager*/
 		fileNewAction.setEnabled(true);
 		fileOpenAction.setEnabled(true);
+		fileOpenRecent.setEnabled(true);
 		fileCloseAction.setEnabled(true);
 		fileCloseAllAction.setEnabled(true);
 		fileSaveAction.setEnabled(true);
@@ -932,6 +942,7 @@ public class VenusUI extends JFrame
 		/* Note: undo and redo are handled separately by the undo manager*/
 		fileNewAction.setEnabled(true);
 		fileOpenAction.setEnabled(true);
+		fileOpenRecent.setEnabled(true);
 		fileCloseAction.setEnabled(true);
 		fileCloseAllAction.setEnabled(true);
 		fileSaveAction.setEnabled(true);
@@ -969,6 +980,7 @@ public class VenusUI extends JFrame
 		/* Note: undo and redo are handled separately by the undo manager*/
 		fileNewAction.setEnabled(true);
 		fileOpenAction.setEnabled(true);
+		fileOpenRecent.setEnabled(true);
 		fileCloseAction.setEnabled(true);
 		fileCloseAllAction.setEnabled(true);
 		fileSaveAction.setEnabled(true);
@@ -1006,6 +1018,7 @@ public class VenusUI extends JFrame
 		/* Note: undo and redo are handled separately by the undo manager */
 		fileNewAction.setEnabled(true);
 		fileOpenAction.setEnabled(true);
+		fileOpenRecent.setEnabled(true);
 		fileCloseAction.setEnabled(true);
 		fileCloseAllAction.setEnabled(true);
 		fileSaveAction.setEnabled(true);
@@ -1044,6 +1057,7 @@ public class VenusUI extends JFrame
 		/* Note: undo and redo are handled separately by the undo manager */
 		fileNewAction.setEnabled(false);
 		fileOpenAction.setEnabled(false);
+		fileOpenRecent.setEnabled(false);
 		fileCloseAction.setEnabled(false);
 		fileCloseAllAction.setEnabled(false);
 		fileSaveAction.setEnabled(false);
@@ -1079,6 +1093,7 @@ public class VenusUI extends JFrame
 		/* Note: undo and redo are handled separately by the undo manager */
 		fileNewAction.setEnabled(true);
 		fileOpenAction.setEnabled(true);
+		fileOpenRecent.setEnabled(true);
 		fileCloseAction.setEnabled(true);
 		fileCloseAllAction.setEnabled(true);
 		fileSaveAction.setEnabled(true);

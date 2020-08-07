@@ -69,6 +69,7 @@
 ./mars/venus/SettingsMemoryConfigurationAction.java
 ./mars/venus/EditPasteAction.java
 ./mars/venus/RunPauseAction.java
+./mars/venus/OpenRecent.java
 ./mars/venus/editors/jeditsyntax/TextAreaPainter.java
 ./mars/venus/editors/jeditsyntax/SyntaxDocument.java
 ./mars/venus/editors/jeditsyntax/JEditTextArea.java

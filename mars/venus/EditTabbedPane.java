@@ -309,6 +309,7 @@ public class EditTabbedPane extends JTabbedPane
 				BufferedWriter outFileStream = new BufferedWriter(new FileWriter(theFile));
 				outFileStream.write(editPane.getSource(), 0, editPane.getSource().length());
 				outFileStream.close();
+				Globals.getSettings().updateRecentFile(theFile);
 			}
 			catch(java.io.IOException c)
 			{
@@ -712,6 +713,7 @@ public class EditTabbedPane extends JTabbedPane
 				mainPane.setSelectedComponent(EditTabbedPane.this);
 				editPane.tellEditingComponentToRequestFocusInWindow();
 				mostRecentlyOpenedFile = theFile;
+				Globals.getSettings().updateRecentFile(theFile);
 			}
 			return true;
 		}

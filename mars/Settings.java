@@ -153,15 +153,52 @@ public class Settings extends Observable
 	public static final int EDITOR_TAB_SIZE = 5;
 	/** Number of letters to be matched by editor's instruction guide before popup generated (if popup enabled) */
 	public static final int EDITOR_POPUP_PREFIX_LENGTH = 6;
+
+	private static final String RECENT_BASE_PROPERTY = "RecentFile";
+	private static final int NUM_RECENT = 10;
+
+	public static final int FIRST_RECENT_FILE = 7;
+	public static final int LAST_RECENT_FILE = FIRST_RECENT_FILE + NUM_RECENT - 1;
+
+	// any more properties must start at LAST_RECENT_FILE + 1
+
+
 	// Match the above by position.
-	private static final String[] stringSettingsKeys = { "ExceptionHandler", "TextColumnOrder", "LabelSortState", "MemoryConfiguration", "CaretBlinkRate", "EditorTabSize", "EditorPopupPrefixLength" };
+	private static final String[] stringSettingsKeys = {
+		"ExceptionHandler",
+		"TextColumnOrder",
+		"LabelSortState",
+		"MemoryConfiguration",
+		"CaretBlinkRate",
+		"EditorTabSize",
+		"EditorPopupPrefixLength",
+		RECENT_BASE_PROPERTY + 0,
+		RECENT_BASE_PROPERTY + 1,
+		RECENT_BASE_PROPERTY + 2,
+		RECENT_BASE_PROPERTY + 3,
+		RECENT_BASE_PROPERTY + 4,
+		RECENT_BASE_PROPERTY + 5,
+		RECENT_BASE_PROPERTY + 6,
+		RECENT_BASE_PROPERTY + 7,
+		RECENT_BASE_PROPERTY + 8,
+		RECENT_BASE_PROPERTY + 9,
+	};
 
 	/** Last resort default values for String settings;
 	*  will use only if neither the Preferences nor the properties file work.
 	*  If you wish to change, do so before instantiating the Settings object.
 	*  Must match key by list position.
 	*/
-	private static String[] defaultStringSettingsValues = { "", "0 1 2 3 4", "0", "", "500", "8", "2" };
+	private static String[] defaultStringSettingsValues = {
+		"",           // ExceptionHandler
+		"0 1 2 3 4",  // TextColumnOrder
+		"0",          // LabelSortState
+		"",           // MemoryConfiguration
+		"500",        // CaretBlinkRate
+		"8",          // EditorTabSize
+		"2",          // EditorPopupPrefixLength
+		"", "", "", "", "", "", "", "", "", "" // RecentFile0 ..= RecentFile9
+	};
 
 
 	// FONT SETTINGS.  Each array position has associated name.
@@ -1282,6 +1319,7 @@ public class Settings extends Observable
 		if(!readSettingsFromPropertiesFile(settingsFile))
 			System.out.println("MARS System error: unable to read Settings.properties defaults. Using built-in defaults.");
 		getSettingsFromPreferences();
+		recentFiles = new RecentFiles();
 	}
 
 	// Default values.  Will be replaced if available from property file or Preferences object.
@@ -1567,4 +1605,183 @@ public class Settings extends Observable
 		return list;
 	}
 
+//==================================================================================================
+	/* Copyright (c) 2010, Carl Burch. License information is located in the
+	 * com.cburch.logisim.Main source code and at www.cburch.com/logisim/. */
+	// adapted for MARS by Jarrett Billingsley
+
+	private RecentFiles recentFiles;
+
+	public List<File> getRecentFiles() {
+		return recentFiles.getRecentFiles();
+	}
+
+	public void updateRecentFile(File file) {
+		recentFiles.updateRecent(file);
+		Globals.getGui().renewRecentFiles();
+	}
+
+	class RecentFiles { //implements PreferenceChangeListener {
+		private class FileTime {
+			private long time;
+			private File file;
+
+			public FileTime(File file, long time) {
+				this.time = time;
+				this.file = file;
+			}
+
+			@Override
+			public boolean equals(Object other) {
+				if (other instanceof FileTime) {
+					FileTime o = (FileTime) other;
+					return this.time == o.time && isSame(this.file, o.file);
+				} else {
+					return false;
+				}
+			}
+		}
+
+		private File[] recentFiles;
+		private long[] recentTimes;
+
+		RecentFiles() {
+			recentFiles = new File[NUM_RECENT];
+			recentTimes = new long[NUM_RECENT];
+			Arrays.fill(recentTimes, System.currentTimeMillis());
+
+			// preferences.addPreferenceChangeListener(this);
+
+			for (int index = 0; index < NUM_RECENT; index++) {
+				getAndDecode(index);
+			}
+		}
+
+		public List<File> getRecentFiles() {
+			long now = System.currentTimeMillis();
+			long[] ages = new long[NUM_RECENT];
+			long[] toSort = new long[NUM_RECENT];
+			for (int i = 0; i < NUM_RECENT; i++) {
+				if (recentFiles[i] == null) {
+					ages[i] = -1;
+				} else {
+					ages[i] = now - recentTimes[i];
+				}
+				toSort[i] = ages[i];
+			}
+			Arrays.sort(toSort);
+
+			List<File> ret = new ArrayList<File>();
+			for (long age : toSort) {
+				if (age >= 0) {
+					int index = -1;
+					for (int i = 0; i < NUM_RECENT; i++) {
+						if (ages[i] == age) {
+							index = i;
+							ages[i] = -1;
+							break;
+						}
+					}
+					if (index >= 0) {
+						ret.add(recentFiles[index]);
+					}
+				}
+			}
+			return ret;
+		}
+
+		public void updateRecent(File file) {
+			File fileToSave = file;
+			try {
+				fileToSave = file.getCanonicalFile();
+			} catch (IOException e) { }
+			long now = System.currentTimeMillis();
+			int index = getReplacementIndex(now, fileToSave);
+			updateInto(index, now, fileToSave);
+		}
+
+		private int getReplacementIndex(long now, File f) {
+			long oldestAge = -1;
+			int oldestIndex = 0;
+			int nullIndex = -1;
+			for (int i = 0; i < NUM_RECENT; i++) {
+				if (f.equals(recentFiles[i])) {
+					return i;
+				}
+				if (recentFiles[i] == null) {
+					nullIndex = i;
+				}
+				long age = now - recentTimes[i];
+				if (age > oldestAge) {
+					oldestIndex = i;
+					oldestAge = age;
+				}
+			}
+			if (nullIndex != -1) {
+				return nullIndex;
+			} else {
+				return oldestIndex;
+			}
+		}
+
+		// public void preferenceChange(PreferenceChangeEvent event) {
+		// 	Preferences prefs = event.getNode();
+		// 	String prop = event.getKey();
+		// 	if (prop.startsWith(RECENT_BASE_PROPERTY)) {
+		// 		String rest = prop.substring(RECENT_BASE_PROPERTY.length());
+		// 		int index = -1;
+		// 		try {
+		// 			index = Integer.parseInt(rest);
+		// 			if (index < 0 || index >= NUM_RECENT) index = -1;
+		// 		} catch (NumberFormatException e) { }
+		// 		if (index >= 0) {
+		// 			File oldValue = recentFiles[index];
+		// 			long oldTime = recentTimes[index];
+		// 			getAndDecode(prefs, index);
+		// 			File newValue = recentFiles[index];
+		// 			long newTime = recentTimes[index];
+		// 			if (!isSame(oldValue, newValue) || oldTime != newTime) {
+		// 				AppPreferences.firePropertyChange(AppPreferences.RECENT_PROJECTS,
+		// 						new FileTime(oldValue, oldTime),
+		// 						new FileTime(newValue, newTime));
+		// 			}
+		// 		}
+		// 	}
+		// }
+
+		private void updateInto(int index, long time, File file) {
+			File oldFile = recentFiles[index];
+			long oldTime = recentTimes[index];
+			if (!isSame(oldFile, file) || oldTime != time) {
+				recentFiles[index] = file;
+				recentTimes[index] = time;
+				try {
+					preferences.put(RECENT_BASE_PROPERTY + index,
+							"" + time + ";" + file.getCanonicalPath());
+					// AppPreferences.firePropertyChange(AppPreferences.RECENT_PROJECTS,
+					// 		new FileTime(oldFile, oldTime),
+					// 		new FileTime(file, time));
+				} catch (IOException e) {
+					recentFiles[index] = oldFile;
+					recentTimes[index] = oldTime;
+				}
+			}
+		}
+
+		private void getAndDecode(int index) {
+			String encoding = preferences.get(RECENT_BASE_PROPERTY + index, null);
+			if (encoding == null) return;
+			int semi = encoding.indexOf(';');
+			if (semi < 0) return;
+			try {
+				long time = Long.parseLong(encoding.substring(0, semi));
+				File file = new File(encoding.substring(semi + 1));
+				updateInto(index, time, file);
+			} catch (NumberFormatException e) {}
+		}
+
+		private boolean isSame(Object a, Object b) {
+			return a == null ? b == null : a.equals(b);
+		}
+	}
 }
