@@ -69,7 +69,7 @@ public class TextAreaDefaults
 		DEFAULTS.electricScroll = 0;// was 3.  Will begin scrolling when cursor is this many lines from the edge.
 
 		DEFAULTS.cols = 80;
-		DEFAULTS.rows = 25;
+		DEFAULTS.rows = 5;
 		DEFAULTS.styles = SyntaxUtilities.getCurrentSyntaxStyles(); // was getDefaultSyntaxStyles()
 		DEFAULTS.caretColor = Color.black; // Color.red;
 		DEFAULTS.selectionColor = new Color(0xccccff);

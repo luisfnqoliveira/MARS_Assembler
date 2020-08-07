@@ -134,9 +134,11 @@ public class MessagesPane extends JTabbedPane implements Observer
 	public MessagesPane()
 	{
 		super();
-		this.setMinimumSize(new Dimension(0, 0));
+		this.setMinimumSize(new Dimension(100, 100));
 		assemble = new JTextArea();
 		run = new QueuedTextArea();
+
+		assemble.setLineWrap(true); // keep long errors from going offscreen
 
 		// doesn't speed things up, but does prevent output from scrolling way off-screen sideways
 		run.setLineWrap(true);
