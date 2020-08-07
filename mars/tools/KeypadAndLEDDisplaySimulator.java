@@ -53,18 +53,19 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	private static String version = "Version 1.2 64x64";
 	private static String title = "Keypad and LED Display MMIO Simulator";
 	private static String heading = "Click this window and use arrow keys and B!";
-	private static final int PIXEL_BITS = 8;
-	private static final int PIXELS_PER_BYTE = 8 / PIXEL_BITS;
-	private static final int PIXEL_MASK = 0xFF;
 	private static final int N_COLUMNS = 64;
 	private static final int N_ROWS = 64;
 	private static final int SCREEN_UPDATE = Memory.memoryMapBaseAddress;
 	private static final int KEY_STATE = SCREEN_UPDATE + Memory.WORD_LENGTH_BYTES;
 	private static final int LED_START = KEY_STATE + Memory.WORD_LENGTH_BYTES;
-	private static final int LED_END = LED_START + N_ROWS * (N_COLUMNS / PIXELS_PER_BYTE);
+	private static final int LED_END = LED_START + N_ROWS * N_COLUMNS;
+
+	// the 4096 is there to give a "buffer zone" between the user-written area and the
+	// display buffer. this way, writes past the end of the display will be invisible.
+	// ...it's just to give the students a little leeway. :P
 	private static final int LED_BUFFER_START = LED_END + 4096;
-	private static final int LED_BUFFER_END = LED_BUFFER_START + N_ROWS * (N_COLUMNS / PIXELS_PER_BYTE);
-	private JPanel keypadAndDisplayArea;
+	private static final int LED_BUFFER_END = LED_BUFFER_START + N_ROWS * N_COLUMNS;
+	private JPanel panel;
 	private LEDDisplayPanel displayPanel;
 	private int keyState;
 
@@ -102,14 +103,36 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 	protected JComponent buildMainDisplayArea()
 	{
-		keypadAndDisplayArea = new JPanel();
+		panel = new JPanel();
+		panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+
 		displayPanel = new LEDDisplayPanel();
 
-		keypadAndDisplayArea.add(displayPanel);
+		JPanel subPanel = new JPanel();
+		JCheckBox gridCheckBox = new JCheckBox("Show Grid Lines");
+		gridCheckBox.addItemListener((e) -> {
+			displayPanel.setGridLinesEnabled(e.getStateChange() == ItemEvent.SELECTED);
+			displayPanel.revalidate();
+			this.theWindow.pack();
+			displayPanel.repaint();
+		});
+		subPanel.add(gridCheckBox);
+
+		JCheckBox zoomCheckBox = new JCheckBox("Zoom");
+		zoomCheckBox.addItemListener((e) -> {
+			displayPanel.setZoomed(e.getStateChange() == ItemEvent.SELECTED);
+			displayPanel.revalidate();
+			this.theWindow.pack();
+			displayPanel.repaint();
+		});
+		subPanel.add(zoomCheckBox);
+
+		panel.add(subPanel);
+		panel.add(displayPanel);
 
 		/* This is so hacky and verbose. I don't know of a better way. */
 		// JB: I feel you, Jose. "Verbose" is the best adjective for Java.
-		InputMap map = keypadAndDisplayArea.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+		InputMap map = panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
 		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_LEFT,  0, false), "LeftKeyPressed"   );
 		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, 0, false), "RightKeyPressed"  );
 		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_UP,    0, false), "UpKeyPressed"     );
@@ -121,7 +144,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN,  0, true ), "DownKeyReleased"  );
 		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_B,     0, true ), "ActionKeyReleased");
 
-		ActionMap actions = keypadAndDisplayArea.getActionMap();
+		ActionMap actions = panel.getActionMap();
 		actions.put("LeftKeyPressed",    new AbstractAction() {
 			public void actionPerformed(ActionEvent e) { changeKeyState(keyState | KEY_L);  } });
 		actions.put("RightKeyPressed",   new AbstractAction() {
@@ -143,7 +166,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		actions.put("ActionKeyReleased", new AbstractAction() {
 			public void actionPerformed(ActionEvent e) { changeKeyState(keyState & ~KEY_B); } });
 
-		return keypadAndDisplayArea;
+		return panel;
 	}
 
 	@Override
@@ -151,6 +174,12 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		connectButton.addActionListener((e) -> {
 			displayPanel.repaint();
 		});
+
+		JDialog dialog = (JDialog)this.theWindow;
+
+		if(dialog != null) {
+			dialog.setResizable(false);
+		}
 	}
 
 	private void changeKeyState(int newState)
@@ -253,7 +282,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 	static final Color[] PixelColors = new Color[]
 	{
-		new Color(15, 15, 15),
+		Color.BLACK,
 		Color.RED,
 		Color.ORANGE,
 		Color.YELLOW,
@@ -265,46 +294,44 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 	private class LEDDisplayPanel extends JPanel
 	{
-		private int cellWidth = 8;
-		private int cellHeight = 8;
+		private static final int CELL_DEFAULT_SIZE = 8;
+		private static final int CELL_ZOOMED_SIZE = 12;
+
+		private int cellSize = CELL_DEFAULT_SIZE;
 		private int cellPadding = 0;
-		private int pixelWidth;
-		private int pixelHeight;
+		private int pixelSize;
 		private int displayWidth;
 		private int displayHeight;
 
 		public boolean shouldClear = false;
 		private boolean drawGridLines = false;
+		private boolean zoomed = false;
 
 		public LEDDisplayPanel() {
-			System.out.println(Color.DARK_GRAY);
 			this.recalcSizes();
 		}
 
 		private void recalcSizes() {
-			pixelWidth = cellWidth - 1 * cellPadding;
-			pixelHeight = cellHeight - 1 * cellPadding;
-			displayWidth = (N_COLUMNS * cellWidth) + (2 * cellPadding);
-			displayHeight = (N_ROWS * cellHeight) + (2 * cellPadding);
+			cellSize = cellSize = (zoomed ? CELL_ZOOMED_SIZE : CELL_DEFAULT_SIZE);
+			cellPadding = drawGridLines ? 1 : 0;
+			pixelSize = cellSize - cellPadding;
+			pixelSize = cellSize - cellPadding;
+			displayWidth = (N_COLUMNS * cellSize);
+			displayHeight = (N_ROWS * cellSize);
 			this.setPreferredSize(new Dimension(displayWidth, displayHeight));
 		}
 
 		public void setGridLinesEnabled(boolean e) {
 			if(e != drawGridLines) {
 				drawGridLines = e;
-
-				if(drawGridLines) {
-					cellWidth = 7;
-					cellHeight = 7;
-					cellPadding = 1;
-				} else {
-					cellWidth = 8;
-					cellHeight = 8;
-					cellPadding = 0;
-				}
-
 				this.recalcSizes();
-				this.repaint();
+			}
+		}
+
+		public void setZoomed(boolean e) {
+			if(e != zoomed) {
+				zoomed = e;
+				this.recalcSizes();
 			}
 		}
 
@@ -319,7 +346,10 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 				return;
 			}
 
-			g.setColor(Color.BLACK);
+			if(drawGridLines) {
+				g.setColor(Color.GRAY);
+				g.fillRect(0, 0, displayWidth, displayHeight);
+			}
 
 			int ptr = LED_BUFFER_START;
 
@@ -327,24 +357,24 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			{
 				for(int row = 0; row < N_ROWS; row++)
 				{
-					int y = row * cellHeight + cellPadding;
+					int y = row * cellSize;
 
 					for(int col = 0, x = 0; col < N_COLUMNS; col += 4, ptr += 4)
 					{
 						int pixel = Globals.memory.getWordNoNotify(ptr);
 
 						g.setColor(PixelColors[pixel & 7]);
-						g.fillRect(x, y, pixelWidth, pixelHeight);
-						x += cellWidth + cellPadding;
+						g.fillRect(x, y, pixelSize, pixelSize);
+						x += cellSize;
 						g.setColor(PixelColors[(pixel >> 8) & 7]);
-						g.fillRect(x, y, pixelWidth, pixelHeight);
-						x += cellWidth + cellPadding;
+						g.fillRect(x, y, pixelSize, pixelSize);
+						x += cellSize;
 						g.setColor(PixelColors[(pixel >> 16) & 7]);
-						g.fillRect(x, y, pixelWidth, pixelHeight);
-						x += cellWidth + cellPadding;
+						g.fillRect(x, y, pixelSize, pixelSize);
+						x += cellSize;
 						g.setColor(PixelColors[(pixel >> 24) & 7]);
-						g.fillRect(x, y, pixelWidth, pixelHeight);
-						x += cellWidth + cellPadding;
+						g.fillRect(x, y, pixelSize, pixelSize);
+						x += cellSize;
 					}
 				}
 			}
