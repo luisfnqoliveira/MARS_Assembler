@@ -1,2 +1,2 @@
 #! /bin/bash
-javac --release 8 @java_files.txt
+javac --release 10 @java_files.txt

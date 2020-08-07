@@ -110,9 +110,34 @@ public class VenusUI extends JFrame
 	*   @param s Name of the window to be created.
 	**/
 
+	private void setHandlers() {
+		try {
+			Desktop desktop = Desktop.getDesktop();
+
+			// if(desktop.isSupported(Desktop.Action.APP_ABOUT))
+			// 	desktop.setAboutHandler(e -> About.showAboutDialog(null));
+			if(desktop.isSupported(Desktop.Action.APP_QUIT_HANDLER)) {
+				desktop.setQuitHandler((e, r) -> {
+					if(mainUI.editor.closeAll())
+						r.performQuit();
+					else
+						r.cancelQuit();
+				});
+			} else {
+				System.out.println(">8C");
+			}
+			// if(desktop.isSupported(Desktop.Action.APP_PREFERENCES))
+			// 	desktop.setPreferencesHandler(e -> PreferencesFrame.showPreferences());
+		} catch(Throwable t) {
+			System.out.println("setting handlers failed: " + t);
+		}
+	}
+
 	public VenusUI(String s)
 	{
 		super(s);
+
+		this.setHandlers();
 
 		// JB: set the look and feel cause Swing looks terrible
 		try
