@@ -940,7 +940,7 @@ MIPSprogram origProgram = statement.getSourceMIPSprogram();
 										.getSourceLine(), token.getStartPos(),
 										"MARS currently ignores the .set directive."));
 		}
-		else if(direct == Directives.GLOBL)
+		else if(direct == Directives.GLOBL || direct == Directives.GLOBAL)
 		{
 			if(tokens.size() < 2)
 			{
