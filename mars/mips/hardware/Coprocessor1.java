@@ -375,6 +375,9 @@ public  class Coprocessor1
 
 	public static int getRegisterNumber(String n)
 	{
+		if(n.startsWith("$"))
+			n = n.substring(1);
+
 		int j = -1;
 		for(int i = 0; i < registers.length; i++)
 		{
@@ -414,7 +417,7 @@ public  class Coprocessor1
 			try
 			{
 				// check for register number 0-31.
-				reg = registers[Binary.stringToInt(rName)];    // KENV 1/6/05
+				reg = registers[Binary.stringToInt(rName.substring(1))];    // KENV 1/6/05
 			}
 			catch(Exception e)
 			{
