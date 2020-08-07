@@ -149,7 +149,7 @@ public class JEditTextArea extends JComponent
 		{
 			public boolean dispatchKeyEvent(KeyEvent e)
 			{
-				if(JEditTextArea.this.isFocusOwner() && e.getKeyCode() == KeyEvent.VK_TAB &&  e.getModifiers() == 0)
+				if(JEditTextArea.this.isFocusOwner() && e.getKeyCode() == KeyEvent.VK_TAB)
 				{
 					processKeyEvent(e);
 					return true;

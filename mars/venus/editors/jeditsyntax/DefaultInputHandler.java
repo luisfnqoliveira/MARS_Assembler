@@ -43,13 +43,16 @@ public class DefaultInputHandler extends InputHandler
 		addKeyBinding("C+DELETE", DELETE_WORD);
 
 		addKeyBinding("ENTER", INSERT_BREAK);
-		addKeyBinding("TAB", INSERT_TAB);
+		addKeyBinding("TAB", INSERT_TAB_OR_INDENT);
+		addKeyBinding("S+TAB", DEDENT);
 
 		addKeyBinding("INSERT", OVERWRITE);
 		addKeyBinding("C+\\", TOGGLE_RECT);
 
 		addKeyBinding("HOME", HOME);
 		addKeyBinding("END", END);
+		addKeyBinding("M+LEFT", HOME);
+		addKeyBinding("M+RIGHT", END);
 		addKeyBinding("C+A", SELECT_ALL);
 		addKeyBinding("S+HOME", SELECT_HOME);
 		addKeyBinding("S+END", SELECT_END);
@@ -384,6 +387,42 @@ public class DefaultInputHandler extends InputHandler
 			}
 
 			return KeyStroke.getKeyStroke(ch, modifiers);
+		}
+	}
+
+	static final ActionListener INSERT_TAB_OR_INDENT = new insert_tab_or_indent();
+	static class insert_tab_or_indent implements ActionListener {
+		public void actionPerformed(ActionEvent evt) {
+			JEditTextArea textArea = getTextArea(evt);
+
+			if(textArea.isEditable()) {
+				// JEB!
+				JEditBasedTextArea jeb = (JEditBasedTextArea)textArea;
+
+				if(jeb != null)
+					jeb.insertTabOrIndent();
+				else
+					textArea.overwriteSetSelectedText("\t");
+			}
+			else
+				textArea.getToolkit().beep();
+		}
+	}
+
+	static final ActionListener DEDENT = new dedent();
+	static class dedent implements ActionListener {
+		public void actionPerformed(ActionEvent evt) {
+			JEditTextArea textArea = getTextArea(evt);
+
+			if(textArea.isEditable()) {
+				// JEB!
+				JEditBasedTextArea jeb = (JEditBasedTextArea)textArea;
+
+				if(jeb != null)
+					jeb.dedent();
+			}
+			else
+				textArea.getToolkit().beep();
 		}
 	}
 

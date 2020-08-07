@@ -411,6 +411,89 @@ public class JEditBasedTextArea extends JEditTextArea implements MARSTextEditing
 	//
 	//////////////////////////////////////////////////////////////////
 
+	public int getLineEndOffsetFixed(int line) {
+		int ret = this.getLineEndOffset(line);
 
+		if(ret == this.getDocumentLength() + 1)
+			ret--;
 
+		return ret;
+	}
+
+	void insertTabOrIndent() {
+		int selStart = this.getSelectionStart();
+		int selEnd = this.getSelectionEnd();
+
+		if(selStart == selEnd)
+			this.overwriteSetSelectedText("\t");
+		else
+			this.indentOrDedent(true);
+	}
+
+	void dedent() {
+		int selStart = this.getSelectionStart();
+		int selEnd = this.getSelectionEnd();
+
+		if(selStart != selEnd)
+			this.indentOrDedent(false);
+	}
+
+	void indentOrDedent(boolean indent) {
+		int selStart = this.getSelectionStart();
+		int selEnd = this.getSelectionEnd();
+
+		int startLine = this.getSelectionStartLine();
+		int endLine = this.getSelectionEndLine();
+		int endOffset = this.getLineEndOffsetFixed(endLine);
+
+		// special case: if end of selection is very beginning of line,
+		// don't include that line as part of the indentation
+		boolean isSpecialCase = selEnd == this.getLineStartOffset(endLine);
+		if(isSpecialCase) {
+			endLine--;
+			assert endLine >= startLine;
+			endOffset = this.getLineEndOffsetFixed(endLine);
+		}
+
+		// save selection offsets *within* start/end lines
+		// (calculated from *end* of line to ignore changes in indentation)
+		int startInLine = this.getLineEndOffset(startLine) - selStart;
+		int endInLine = endOffset - selEnd;
+		assert startInLine >= 0;
+		assert endInLine >= 0;
+
+		// set up the undo thing
+		this.isCompoundEdit = true;
+		this.compoundEdit = new CompoundEdit();
+
+			// do the editing
+			if(indent) {
+				for(int line = startLine; line <= endLine; line++) {
+					this.setCaretPosition(this.getLineStartOffset(line));
+					this.setSelectedText("\t");
+				}
+			} else {
+				for(int line = startLine; line <= endLine; line++) {
+					int lineStart = this.getLineStartOffset(line);
+					String text = this.getText(lineStart, 1);
+
+					if(text.equals("\t")) {
+						this.select(lineStart, lineStart + 1);
+						this.setSelectedText("");
+					}
+				}
+			}
+
+			// restore original selection
+			int newSelStart = this.getLineEndOffsetFixed(startLine) - startInLine;
+			int newSelEnd = this.getLineEndOffsetFixed(endLine) - endInLine;
+			this.select(newSelStart, newSelEnd);
+
+		// finish the edit
+		this.isCompoundEdit = false;
+		this.undoManager.addEdit(compoundEdit);
+		this.compoundEdit.end();
+		this.editPane.updateUndoState();
+		this.editPane.updateRedoState();
+	}
 }
