@@ -64,13 +64,6 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	private static final int LED_END = LED_START + N_ROWS * (N_COLUMNS / PIXELS_PER_BYTE);
 	private static final int LED_BUFFER_START = LED_END + 4096;
 	private static final int LED_BUFFER_END = LED_BUFFER_START + N_ROWS * (N_COLUMNS / PIXELS_PER_BYTE);
-	private static final int CELL_WIDTH = 8;
-	private static final int CELL_HEIGHT = 8;
-	private static final int CELL_PADDING = 0;
-	private static final int PIXEL_WIDTH = CELL_WIDTH - 1 * CELL_PADDING;
-	private static final int PIXEL_HEIGHT = CELL_HEIGHT - 1 * CELL_PADDING;
-	private static final int DISPLAY_WIDTH = (N_COLUMNS * CELL_WIDTH) + (2 * CELL_PADDING);
-	private static final int DISPLAY_HEIGHT = (N_ROWS * CELL_HEIGHT) + (2 * CELL_PADDING);
 	private JPanel keypadAndDisplayArea;
 	private LEDDisplayPanel displayPanel;
 	private int keyState;
@@ -111,7 +104,6 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	{
 		keypadAndDisplayArea = new JPanel();
 		displayPanel = new LEDDisplayPanel();
-		displayPanel.setPreferredSize(new Dimension(DISPLAY_WIDTH, DISPLAY_HEIGHT));
 
 		keypadAndDisplayArea.add(displayPanel);
 
@@ -152,6 +144,13 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			public void actionPerformed(ActionEvent e) { changeKeyState(keyState & ~KEY_B); } });
 
 		return keypadAndDisplayArea;
+	}
+
+	@Override
+	protected void initializePostGUI() {
+		connectButton.addActionListener((e) -> {
+			displayPanel.repaint();
+		});
 	}
 
 	private void changeKeyState(int newState)
@@ -198,14 +197,14 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			if(displayPanel.shouldClear)
 			{
 				displayPanel.shouldClear = false;
-				GraphicsMemory.reset();
+				resetGraphicsMemory();
 			}
 		}
 	}
 
 	protected void reset()
 	{
-		GraphicsMemory.reset();
+		resetGraphicsMemory();
 		shouldRedraw = true;
 		updateDisplay();
 	}
@@ -254,7 +253,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 	static final Color[] PixelColors = new Color[]
 	{
-		Color.DARK_GRAY,
+		new Color(15, 15, 15),
 		Color.RED,
 		Color.ORANGE,
 		Color.YELLOW,
@@ -264,13 +263,62 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		Color.WHITE,
 	};
 
-		// private static int num = 0;
 	private class LEDDisplayPanel extends JPanel
 	{
+		private int cellWidth = 8;
+		private int cellHeight = 8;
+		private int cellPadding = 0;
+		private int pixelWidth;
+		private int pixelHeight;
+		private int displayWidth;
+		private int displayHeight;
+
 		public boolean shouldClear = false;
+		private boolean drawGridLines = false;
+
+		public LEDDisplayPanel() {
+			System.out.println(Color.DARK_GRAY);
+			this.recalcSizes();
+		}
+
+		private void recalcSizes() {
+			pixelWidth = cellWidth - 1 * cellPadding;
+			pixelHeight = cellHeight - 1 * cellPadding;
+			displayWidth = (N_COLUMNS * cellWidth) + (2 * cellPadding);
+			displayHeight = (N_ROWS * cellHeight) + (2 * cellPadding);
+			this.setPreferredSize(new Dimension(displayWidth, displayHeight));
+		}
+
+		public void setGridLinesEnabled(boolean e) {
+			if(e != drawGridLines) {
+				drawGridLines = e;
+
+				if(drawGridLines) {
+					cellWidth = 7;
+					cellHeight = 7;
+					cellPadding = 1;
+				} else {
+					cellWidth = 8;
+					cellHeight = 8;
+					cellPadding = 0;
+				}
+
+				this.recalcSizes();
+				this.repaint();
+			}
+		}
 
 		public void paintComponent(Graphics g)
 		{
+			if(!connectButton.isConnected()) {
+				g.setColor(Color.BLACK);
+				g.fillRect(0, 0, displayWidth, displayHeight);
+				g.setColor(Color.RED);
+				g.setFont(new Font("Sans-Serif", Font.BOLD, 24));
+				g.drawString("vvvv CLICK THE CONNECT BUTTON!", 10, displayHeight - 10);
+				return;
+			}
+
 			g.setColor(Color.BLACK);
 
 			int ptr = LED_BUFFER_START;
@@ -279,24 +327,24 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			{
 				for(int row = 0; row < N_ROWS; row++)
 				{
-					int y = row * CELL_HEIGHT + CELL_PADDING;
+					int y = row * cellHeight + cellPadding;
 
 					for(int col = 0, x = 0; col < N_COLUMNS; col += 4, ptr += 4)
 					{
 						int pixel = Globals.memory.getWordNoNotify(ptr);
 
 						g.setColor(PixelColors[pixel & 7]);
-						g.fillRect(x, y, PIXEL_WIDTH, PIXEL_HEIGHT);
-						x += CELL_WIDTH + CELL_PADDING;
+						g.fillRect(x, y, pixelWidth, pixelHeight);
+						x += cellWidth + cellPadding;
 						g.setColor(PixelColors[(pixel >> 8) & 7]);
-						g.fillRect(x, y, PIXEL_WIDTH, PIXEL_HEIGHT);
-						x += CELL_WIDTH + CELL_PADDING;
+						g.fillRect(x, y, pixelWidth, pixelHeight);
+						x += cellWidth + cellPadding;
 						g.setColor(PixelColors[(pixel >> 16) & 7]);
-						g.fillRect(x, y, PIXEL_WIDTH, PIXEL_HEIGHT);
-						x += CELL_WIDTH + CELL_PADDING;
+						g.fillRect(x, y, pixelWidth, pixelHeight);
+						x += cellWidth + cellPadding;
 						g.setColor(PixelColors[(pixel >> 24) & 7]);
-						g.fillRect(x, y, PIXEL_WIDTH, PIXEL_HEIGHT);
-						x += CELL_WIDTH + CELL_PADDING;
+						g.fillRect(x, y, pixelWidth, pixelHeight);
+						x += cellWidth + cellPadding;
 					}
 				}
 			}
@@ -308,34 +356,16 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		}
 	}
 
-	private static class GraphicsMemory
+	private static void resetGraphicsMemory()
 	{
-		public static void reset()
+		try
 		{
-			try
-			{
-				Globals.memory.zeroMMIOFast(LED_START, LED_END - LED_START);
-			}
-			catch(AddressErrorException aee)
-			{
-				System.out.println("Tool author specified incorrect MMIO address!" + aee);
-				System.exit(0);
-			}
+			Globals.memory.zeroMMIOFast(LED_START, LED_END - LED_START);
 		}
-
-		// public static int getPixel(int column, int row)
-		// {
-		// 	int addr = LED_START + row * N_COLUMNS + column;
-		// 	int bytes = 0;
-
-		// 	try
-		// 	{
-		// 		bytes = Globals.memory.getWordNoNotify(addr & ~3);
-		// 	}
-		// 	catch(AddressErrorException aee){}
-
-		// 	int offs = addr & 3;
-		// 	return (bytes >> (24 - (offs * 8))) & 0xFF;
-		// }
+		catch(AddressErrorException aee)
+		{
+			System.out.println("Tool author specified incorrect MMIO address!" + aee);
+			System.exit(0);
+		}
 	}
 }
