@@ -133,11 +133,27 @@ public class VenusUI extends JFrame
 		}
 	}
 
+	private void setTaskbarIcon() {
+		try {
+			if(Taskbar.isTaskbarSupported()) {
+				Taskbar taskbar = Taskbar.getTaskbar();
+
+				if(taskbar.isSupported(Taskbar.Feature.ICON_IMAGE)) {
+					URL url = this.getClass().getResource(Globals.imagesPath + "MarsThumbnail.png");
+					if(url != null) {
+						taskbar.setIconImage(new ImageIcon(url).getImage());
+					}
+				}
+			}
+		} catch(Exception e) {}
+	}
+
 	public VenusUI(String s)
 	{
 		super(s);
 
 		this.setHandlers();
+		this.setTaskbarIcon();
 
 		// JB: set the look and feel cause Swing looks terrible
 		try
