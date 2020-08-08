@@ -114,18 +114,21 @@ public class Settings extends Observable
 	    execute that code.  */
 	public static final int SELF_MODIFYING_CODE_ENABLED = 20;
 
-	/** JB: added "clear run IO on assemble" option. */
+	/** JB: added these options. */
 	public static final int CLEAR_RUN_IO_ON_ASSEMBLE = 21;
+	public static final int FUNCTION_LOCAL_LABELS = 22;
 
 	// NOTE: key sequence must match up with labels above which are used for array indexes!
-	private static String[] booleanSettingsKeys = {"ExtendedAssembler", "BareMachine", "AssembleOnOpen", "AssembleAll",
-												   "LabelWindowVisibility", "DisplayAddressesInHex", "DisplayValuesInHex",
-												   "LoadExceptionHandler", "DelayedBranching", "EditorLineNumbersDisplayed",
-												   "WarningsAreErrors", "ProgramArguments", "DataSegmentHighlighting",
-												   "RegistersHighlighting", "StartAtMain", "EditorCurrentLineHighlighting",
-												   "PopupInstructionGuidance", "PopupSyscallInput", "GenericTextEditor",
-												   "AutoIndent", "SelfModifyingCode", "ClearRunIOOnAssemble"
-												  };
+	private static String[] booleanSettingsKeys = {
+		"ExtendedAssembler", "BareMachine", "AssembleOnOpen", "AssembleAll",
+		"LabelWindowVisibility", "DisplayAddressesInHex", "DisplayValuesInHex",
+		"LoadExceptionHandler", "DelayedBranching", "EditorLineNumbersDisplayed",
+		"WarningsAreErrors", "ProgramArguments", "DataSegmentHighlighting",
+		"RegistersHighlighting", "StartAtMain", "EditorCurrentLineHighlighting",
+		"PopupInstructionGuidance", "PopupSyscallInput", "GenericTextEditor",
+		"AutoIndent", "SelfModifyingCode", "ClearRunIOOnAssemble",
+		"FunctionLocalLabels"
+	};
 
 	/** Last resort default values for boolean settings; will use only  if neither
 	*  the Preferences nor the properties file work. If you wish to change them,
@@ -135,7 +138,7 @@ public class Settings extends Observable
 	public static boolean[] defaultBooleanSettingsValues =   // match the above list by position
 	{
 		true, false, false, false, false, true, true, false, false,
-		true, false, false, true, true, false, true, true, false, false, true, false, false
+		true, false, false, true, true, false, true, true, false, false, true, false, false, false
 	};
 
 	// STRING SETTINGS.  Each array position has associated name.
@@ -585,6 +588,10 @@ public class Settings extends Observable
 		return booleanSettingsValues[CLEAR_RUN_IO_ON_ASSEMBLE];
 	}
 
+	public boolean getFunctionLocalLabels()
+	{
+		return booleanSettingsValues[FUNCTION_LOCAL_LABELS];
+	}
 
 	/**
 	  * Setting for whether the currently selected exception handler
@@ -975,6 +982,11 @@ public class Settings extends Observable
 	public void setClearRunIOOnAssemble(boolean value)
 	{
 		internalSetBooleanSetting(CLEAR_RUN_IO_ON_ASSEMBLE, value);
+	}
+
+	public void setFunctionLocalLabels(boolean value)
+	{
+		internalSetBooleanSetting(FUNCTION_LOCAL_LABELS, value);
 	}
 
 	/**

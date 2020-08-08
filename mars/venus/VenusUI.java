@@ -76,6 +76,7 @@ public class VenusUI extends JFrame
 	private JMenuItem runGo, runStep, runBackstep, runReset, runAssemble, runStop, runPause, runClearBreakpoints, runToggleBreakpoints;
 	private JCheckBoxMenuItem settingsLabel, settingsPopupInput, settingsValueDisplayBase, settingsAddressDisplayBase,
 			settingsExtended, settingsAssembleOnOpen, settingsAssembleAll, settingsClearRunIOOnAssemble,
+			settingsFunctionLocalLabels,
 			settingsWarningsAreErrors, settingsStartAtMain, settingsDelayedBranching, settingsProgramArguments, settingsSelfModifyingCode;
 	private JMenuItem settingsExceptionHandler, settingsEditor, settingsHighlighting, settingsMemoryConfiguration;
 	private JMenuItem helpHelp, helpAbout;
@@ -100,6 +101,7 @@ public class VenusUI extends JFrame
 	private Action settingsLabelAction, settingsPopupInputAction, settingsValueDisplayBaseAction, settingsAddressDisplayBaseAction,
 			settingsExtendedAction, settingsAssembleOnOpenAction, settingsAssembleAllAction,
 			settingsClearRunIOOnAssembleAction,
+			settingsFunctionLocalLabelsAction,
 			settingsWarningsAreErrorsAction, settingsStartAtMainAction, settingsProgramArgumentsAction,
 			settingsDelayedBranchingAction, settingsExceptionHandlerAction, settingsEditorAction,
 			settingsHighlightingAction, settingsMemoryConfigurationAction, settingsSelfModifyingCodeAction;
@@ -461,6 +463,11 @@ public class VenusUI extends JFrame
 					"If set, the Run I/O pane is cleared whenever a file is assembled.",
 					null, null,
 					mainUI);
+			settingsFunctionLocalLabelsAction = new SettingsFunctionLocalLabelsAction("Function-local labels",
+					null,
+					"If set, code labels that start with an underscore will be inaccessible from other functions.",
+					null, null,
+					mainUI);
 			settingsWarningsAreErrorsAction = new SettingsWarningsAreErrorsAction("Assembler warnings are considered errors",
 					null,
 					"If set, assembler warnings will be interpreted as errors and prevent successful assembly.",
@@ -663,6 +670,8 @@ public class VenusUI extends JFrame
 		settingsAssembleAll.setSelected(Globals.getSettings().getAssembleAllEnabled());
 		settingsClearRunIOOnAssemble = new JCheckBoxMenuItem(settingsClearRunIOOnAssembleAction);
 		settingsClearRunIOOnAssemble.setSelected(Globals.getSettings().getClearRunIOOnAssemble());
+		settingsFunctionLocalLabels = new JCheckBoxMenuItem(settingsFunctionLocalLabelsAction);
+		settingsFunctionLocalLabels.setSelected(Globals.getSettings().getFunctionLocalLabels());
 		settingsWarningsAreErrors = new JCheckBoxMenuItem(settingsWarningsAreErrorsAction);
 		settingsWarningsAreErrors.setSelected(Globals.getSettings().getWarningsAreErrors());
 		settingsStartAtMain = new JCheckBoxMenuItem(settingsStartAtMainAction);
@@ -683,6 +692,7 @@ public class VenusUI extends JFrame
 		settings.add(settingsAssembleOnOpen);
 		settings.add(settingsAssembleAll);
 		settings.add(settingsClearRunIOOnAssemble);
+		settings.add(settingsFunctionLocalLabels);
 		settings.add(settingsWarningsAreErrors);
 		settings.add(settingsStartAtMain);
 		settings.addSeparator();

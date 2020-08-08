@@ -54,6 +54,7 @@
 ./mars/venus/RunGoAction.java
 ./mars/venus/TextSegmentWindow.java
 ./mars/venus/SettingsClearRunIOOnAssembleAction.java
+./mars/venus/SettingsFunctionLocalLabelsAction.java
 ./mars/venus/DataSegmentWindow.java
 ./mars/venus/RunAssembleAction.java
 ./mars/venus/FileNewAction.java
