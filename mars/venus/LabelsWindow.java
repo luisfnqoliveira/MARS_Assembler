@@ -50,7 +50,7 @@ public class LabelsWindow extends JInternalFrame
 {
 	private Container contentPane;
 	private JPanel labelPanel;      // holds J
-	private JCheckBox dataLabels, textLabels;
+	private JCheckBox dataLabels, textLabels, localLabels;
 	private ArrayList listOfLabelsForSymbolTable;
 	private LabelsWindow labelsWindow;
 	private static final int MAX_DISPLAYED_CHARS = 24;
@@ -146,12 +146,16 @@ public class LabelsWindow extends JInternalFrame
 		JPanel features = new JPanel();
 		dataLabels = new JCheckBox("Data", true);
 		textLabels = new JCheckBox("Text", true);
+		localLabels = new JCheckBox("Local", false);
 		dataLabels.addItemListener(new LabelItemListener());
 		textLabels.addItemListener(new LabelItemListener());
+		localLabels.addItemListener(new LabelItemListener());
 		dataLabels.setToolTipText("If checked, will display labels defined in data segment");
 		textLabels.setToolTipText("If checked, will display labels defined in text segment");
+		localLabels.setToolTipText("If checked, will display function-local labels");
 		features.add(dataLabels);
 		features.add(textLabels);
+		features.add(localLabels);
 		contentPane.add(features, BorderLayout.SOUTH);
 		contentPane.add(labelPanel);
 	}
@@ -348,11 +352,11 @@ public class LabelsWindow extends JInternalFrame
 									  : myMIPSprogram.getLocalSymbolTable();
 			int addressBase = Globals.getGui().getMainPane().getExecutePane().getAddressDisplayBase();
 			if(textLabels.isSelected() && dataLabels.isSelected())
-				symbols = symbolTable.getAllSymbols();
+				symbols = symbolTable.getAllSymbols(localLabels.isSelected());
 			else if(textLabels.isSelected() && !dataLabels.isSelected())
-				symbols = symbolTable.getTextSymbols();
+				symbols = symbolTable.getTextSymbols(localLabels.isSelected());
 			else if(!textLabels.isSelected() && dataLabels.isSelected())
-				symbols = symbolTable.getDataSymbols();
+				symbols = symbolTable.getDataSymbols(localLabels.isSelected());
 			else
 				symbols = new ArrayList();
 			Collections.sort(symbols, tableSortComparator); // DPS 25 Dec 2008

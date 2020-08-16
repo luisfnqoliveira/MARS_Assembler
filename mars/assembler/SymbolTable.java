@@ -191,13 +191,16 @@ public class SymbolTable
 	  *   @return An ArrayList of Symbol objects.
 	  **/
 
-	public ArrayList getDataSymbols()
+	public ArrayList getDataSymbols(boolean includeLocals)
 	{
 		ArrayList list = new ArrayList();
 		for(int i = 0; i < table.size(); i++)
 		{
-			if(((Symbol)table.get(i)).getType())
-				list.add(table.get(i));
+			Symbol sym = (Symbol)table.get(i);
+			if(sym.getType()) {
+				if(includeLocals || !sym.getName().contains("$$$"))
+					list.add(table.get(i));
+			}
 		}
 		return list;
 	}
@@ -208,13 +211,16 @@ public class SymbolTable
 	  *   @return An ArrayList of Symbol objects.
 	  **/
 
-	public ArrayList getTextSymbols()
+	public ArrayList getTextSymbols(boolean includeLocals)
 	{
 		ArrayList list = new ArrayList();
 		for(int i = 0; i < table.size(); i++)
 		{
-			if(!((Symbol)table.get(i)).getType())
-				list.add(table.get(i));
+			Symbol sym = (Symbol)table.get(i);
+			if(!sym.getType()) {
+				if(includeLocals || !sym.getName().contains("$$$"))
+					list.add(table.get(i));
+			}
 		}
 		return list;
 	}
@@ -224,11 +230,14 @@ public class SymbolTable
 	  *   @return An ArrayList of Symbol objects.
 	  **/
 
-	public ArrayList getAllSymbols()
+	public ArrayList getAllSymbols(boolean includeLocals)
 	{
 		ArrayList list = new ArrayList();
-		for(int i = 0; i < table.size(); i++)
-			list.add(table.get(i));
+		for(int i = 0; i < table.size(); i++) {
+			Symbol sym = (Symbol)table.get(i);
+			if(includeLocals || !sym.getName().contains("$$$"))
+				list.add(table.get(i));
+		}
 		return list;
 	}
 

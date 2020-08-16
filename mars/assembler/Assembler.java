@@ -72,6 +72,7 @@ public class Assembler
 	private UserKernelAddressSpace dataAddress;
 	private DataSegmentForwardReferences currentFileDataSegmentForwardReferences,
 			accumulatedDataSegmentForwardReferences;
+	private Token currentFunctionLabel;
 
 	/**
 	 * Parse and generate machine code for the given MIPS program. It must have
@@ -221,6 +222,8 @@ public class Assembler
 			// Default is to align data from directives on appropriate boundary (word, half, byte)
 			// This can be turned off for remainder of current data segment with ".align 0"
 			this.autoAlign = true;
+			// Haven't seen a function label yet.
+			this.currentFunctionLabel = null;
 			// Default data directive is .word for 4 byte data items
 			this.dataDirective = Directives.WORD;
 			// Clear out (initialize) symbol table related structures.
@@ -513,7 +516,7 @@ MIPSprogram origProgram = statement.getSourceMIPSprogram();
 			parenFreeTokens.remove(tokens.size() - 1);
 			parenFreeTokens.remove(1);
 		}
-		Macro macro = macroPool.getMatchingMacro(parenFreeTokens, sourceLineNumber);//parenFreeTokens.get(0).getSourceLine());
+		Macro macro = macroPool.getMatchingMacro(parenFreeTokens, sourceLineNumber);
 
 		// expand macro if this line is a macro expansion call
 		if(macro != null)
@@ -523,25 +526,11 @@ MIPSprogram origProgram = statement.getSourceMIPSprogram();
 			int counter = macroPool.getNextCounter();
 			if(macroPool.pushOnCallStack(token))
 			{
-				errors.add(new ErrorMessage(fileCurrentlyBeingAssembled, tokens.get(0)
-											.getSourceLine(), 0, "Detected a macro expansion loop (recursive reference). "));
+				errors.add(new ErrorMessage(fileCurrentlyBeingAssembled, tokens.get(0).getSourceLine(), 0,
+					"Detected a macro expansion loop (recursive reference). "));
 			}
 			else
 			{
-				//                for (int i = macro.getFromLine() + 1; i < macro.getToLine(); i++) {
-				//                   String substituted = macro.getSubstitutedLine(i, tokens, counter, errors);
-				//                   TokenList tokenList2 = fileCurrentlyBeingAssembled.getTokenizer().tokenizeLine(
-				//                      i, substituted, errors);
-				//                   // If token list getProcessedLine() is not empty, then .eqv was performed and it contains the modified source.
-				//                	// Put it into the line to be parsed, so it will be displayed properly in text segment display. DPS 23 Jan 2013
-				//                   if (tokenList2.getProcessedLine().length() > 0)
-				//                      substituted = tokenList2.getProcessedLine();
-				//                   // recursively parse lines of expanded macro
-				//                   ArrayList<ProgramStatement> statements = parseLine(tokenList2, "<" + (i-macro.getFromLine()+macro.getOriginalFromLine()) + "> "
-				//                      + substituted.trim(), sourceLineNumber, extendedAssemblerEnabled);
-				//                   if (statements != null)
-				//                      ret.addAll(statements);
-				//                }
 				for(int i = macro.getFromLine() + 1; i < macro.getToLine(); i++)
 				{
 
@@ -549,13 +538,15 @@ MIPSprogram origProgram = statement.getSourceMIPSprogram();
 					TokenList tokenList2 = fileCurrentlyBeingAssembled.getTokenizer().tokenizeLine(
 											   i, substituted, errors);
 
-					// If token list getProcessedLine() is not empty, then .eqv was performed and it contains the modified source.
-					// Put it into the line to be parsed, so it will be displayed properly in text segment display. DPS 23 Jan 2013
+					// If token list getProcessedLine() is not empty, then .eqv was performed
+					// and it contains the modified source. Put it into the line to be parsed,
+					// so it will be displayed properly in text segment display. DPS 23 Jan 2013
 					if(tokenList2.getProcessedLine().length() > 0)
 						substituted = tokenList2.getProcessedLine();
 
 					// recursively parse lines of expanded macro
-					ArrayList<ProgramStatement> statements = parseLine(tokenList2, "<" + (i - macro.getFromLine() + macro.getOriginalFromLine()) + "> "
+					ArrayList<ProgramStatement> statements = parseLine(tokenList2,
+							"<" + (i - macro.getFromLine() + macro.getOriginalFromLine()) + "> "
 							+ substituted.trim(), sourceLineNumber, extendedAssemblerEnabled);
 					if(statements != null)
 						ret.addAll(statements);
@@ -590,24 +581,23 @@ MIPSprogram origProgram = statement.getSourceMIPSprogram();
 		// the next, to sense the context of this continuation line. That state information
 		// is contained in this.dataDirective (the current data directive).
 		//
-		if(this.inDataSegment &&  // 30-Dec-09 DPS Added data segment guard...
-				(tokenType == TokenTypes.PLUS
-				 || // because invalid instructions were being caught...
-				 tokenType == TokenTypes.MINUS
-				 || // here and reported as a directive in text segment!
-				 tokenType == TokenTypes.QUOTED_STRING || tokenType == TokenTypes.IDENTIFIER
-				 || TokenTypes.isIntegerTokenType(tokenType) || TokenTypes
-				 .isFloatingTokenType(tokenType)))
+		// 30-Dec-09 DPS Added data segment guard because invalid instructions were being
+		// caught here and reported as a directive in text segment!
+		if(this.inDataSegment && (
+			tokenType == TokenTypes.PLUS ||
+			tokenType == TokenTypes.MINUS ||
+			tokenType == TokenTypes.QUOTED_STRING ||
+			tokenType == TokenTypes.IDENTIFIER ||
+			TokenTypes.isIntegerTokenType(tokenType) ||
+			TokenTypes.isFloatingTokenType(tokenType)))
 		{
 			this.executeDirectiveContinuation(tokens);
 			return null;
 		}
 
 		// If we are in the text segment, the variable "token" must now refer to
-		// an OPERATOR
-		// token. If not, it is either a syntax error or the specified operator
-		// is not
-		// yet implemented.
+		// an OPERATOR token. If not, it is either a syntax error or the specified operator
+		// is not yet implemented.
 		if(this.inDataSegment)
 		{
 			errors.add(new ErrorMessage(token.getSourceMIPSprogram(), token.getSourceLine(),
@@ -631,6 +621,8 @@ MIPSprogram origProgram = statement.getSourceMIPSprogram();
 			}
 			if(OperandFormat.tokenOperandMatch(tokens, inst, errors))
 			{
+				dealWithFunctionLabelReferences(tokens);
+
 				programStatement = new ProgramStatement(this.fileCurrentlyBeingAssembled, source,
 														tokenList, tokens, inst, textAddress.get(), sourceLineNumber);
 				// programStatement = new ProgramStatement(token.getOriginalProgram(), source,
@@ -710,15 +702,17 @@ MIPSprogram origProgram = statement.getSourceMIPSprogram();
 			return false;
 		else
 		{
-			Token token = tokens.get(0);
 			if(tokenListBeginsWithLabel(tokens))
 			{
-				if(token.getType() == TokenTypes.OPERATOR)
+				if(tokens.get(0).getType() == TokenTypes.OPERATOR)
 				{
 					// an instruction name was used as label (e.g. lw:), so change its token type
-					token.setType(TokenTypes.IDENTIFIER);
+					tokens.get(0).setType(TokenTypes.IDENTIFIER);
 				}
-				fileCurrentlyBeingAssembled.getLocalSymbolTable().addSymbol(token,
+
+				dealWithFunctionLabel(tokens);
+
+				fileCurrentlyBeingAssembled.getLocalSymbolTable().addSymbol(tokens.get(0),
 						(this.inDataSegment) ? dataAddress.get() : textAddress.get(),
 						this.inDataSegment, this.errors);
 				return true;
@@ -735,6 +729,53 @@ MIPSprogram origProgram = statement.getSourceMIPSprogram();
 			return false;
 		return (tokens.get(0).getType() == TokenTypes.IDENTIFIER || tokens.get(0).getType() == TokenTypes.OPERATOR)
 			   && tokens.get(1).getType() == TokenTypes.COLON;
+	}
+
+	private void dealWithFunctionLabel(TokenList tokens) {
+		if(!this.inDataSegment && Globals.getSettings().getFunctionLocalLabels()) {
+			Token token = tokens.get(0);
+
+			if(token.getValue().startsWith("_")) {
+				token = replaceFunctionLocalLabel(token);
+				tokens.set(0, token);
+			} else {
+				// becomes our current function label
+				this.currentFunctionLabel = token;
+			}
+		}
+	}
+
+	private void dealWithFunctionLabelReferences(TokenList tokens) {
+		if(Globals.getSettings().getFunctionLocalLabels()) {
+			for(int i = 1; i < tokens.size(); i++) {
+				Token token = tokens.get(i);
+
+				if(token.getType() == TokenTypes.IDENTIFIER && token.getValue().startsWith("_")) {
+					token = replaceFunctionLocalLabel(token);
+					tokens.set(i, token);
+				}
+			}
+		}
+	}
+
+	private Token replaceFunctionLocalLabel(Token token) {
+		if(this.currentFunctionLabel == null) {
+			errors.add(new ErrorMessage(ErrorMessage.WARNING,
+				token.getSourceMIPSprogram(), token.getSourceLine(), token.getStartPos(),
+				"no function label has been seen yet."));
+		} else {
+			String newValue = this.currentFunctionLabel.getValue() + "$$$" + token.getValue();
+
+			token = new Token(
+				token.getType(),
+				newValue,
+				token.getSourceMIPSprogram(),
+				token.getSourceLine(),
+				token.getStartPos()
+			);
+		}
+
+		return token;
 	}
 
 	// //////////////////////////////////////////////////////////////////////////////////
@@ -1038,9 +1079,9 @@ MIPSprogram origProgram = statement.getSourceMIPSprogram();
 		{
 			if(token.getSourceMIPSprogram().getLocalMacroPool()
 					.matchesAnyMacroName(token.getValue()))
-				this.errors.add(new ErrorMessage(token.getSourceMIPSprogram(), token
-												 .getSourceLine(), token.getStartPos(), "forward reference or invalid parameters for macro \""
-												 + token.getValue() + "\""));
+				this.errors.add(new ErrorMessage(
+					token.getSourceMIPSprogram(), token.getSourceLine(), token.getStartPos(),
+					"forward reference or invalid parameters for macro \""+ token.getValue() + "\""));
 			else
 				this.errors.add(new ErrorMessage(token.getSourceMIPSprogram(), token
 												 .getSourceLine(), token.getStartPos(), "\"" + token.getValue()

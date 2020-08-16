@@ -224,8 +224,17 @@ public class ProgramStatement
 				int address = this.sourceMIPSprogram.getLocalSymbolTable().getAddressLocalOrGlobal(tokenValue);
 				if(address == SymbolTable.NOT_FOUND)    // symbol used without being defined
 				{
-					errors.add(new ErrorMessage(this.sourceMIPSprogram, token.getSourceLine(), token.getStartPos(),
-												"Symbol \"" + tokenValue + "\" not found in symbol table."));
+					int pos = tokenValue.indexOf("$$$");
+
+					String msg;
+					if(pos != -1) {
+						String label = tokenValue.substring(pos + 3);
+						msg = "Local symbol \"" + label + "\" not found in current function.";
+					} else {
+						msg = "Symbol \"" + tokenValue + "\" not found in symbol table.";
+					}
+
+					errors.add(new ErrorMessage(this.sourceMIPSprogram, token.getSourceLine(), token.getStartPos(), msg));
 					return;
 				}
 				boolean absoluteAddress = true; // (used below)
