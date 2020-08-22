@@ -52,7 +52,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 	private static String version = "Version 1.2 64x64";
 	private static String title = "Keypad and LED Display MMIO Simulator";
-	private static String heading = "Click this window and use arrow keys and B!";
+	private static String heading = "Click this window and use arrow keys and Z, X, C, B!";
 	private static final int N_COLUMNS = 64;
 	private static final int N_ROWS = 64;
 	private static final int SCREEN_UPDATE = Memory.memoryMapBaseAddress;
@@ -74,6 +74,9 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	private static final int KEY_L = 4;
 	private static final int KEY_R = 8;
 	private static final int KEY_B = 16;
+	private static final int KEY_Z = 32;
+	private static final int KEY_X = 64;
+	private static final int KEY_C = 128;
 
 	public KeypadAndLEDDisplaySimulator(String title, String heading)
 	{
@@ -137,12 +140,18 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, 0, false), "RightKeyPressed"  );
 		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_UP,    0, false), "UpKeyPressed"     );
 		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN,  0, false), "DownKeyPressed"   );
-		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_B,     0, false), "ActionKeyPressed" );
+		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_B,     0, false), "BKeyPressed"      );
+		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_Z,     0, false), "ZKeyPressed"      );
+		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_X,     0, false), "XKeyPressed"      );
+		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_C,     0, false), "CKeyPressed"      );
 		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_LEFT,  0, true ), "LeftKeyReleased"  );
 		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, 0, true ), "RightKeyReleased" );
 		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_UP,    0, true ), "UpKeyReleased"    );
 		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN,  0, true ), "DownKeyReleased"  );
-		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_B,     0, true ), "ActionKeyReleased");
+		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_B,     0, true ), "BKeyReleased"     );
+		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_Z,     0, true ), "ZKeyReleased"     );
+		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_X,     0, true ), "XKeyReleased"     );
+		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_C,     0, true ), "CKeyReleased"     );
 
 		ActionMap actions = panel.getActionMap();
 		actions.put("LeftKeyPressed",    new AbstractAction() {
@@ -153,8 +162,14 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			public void actionPerformed(ActionEvent e) { changeKeyState(keyState | KEY_U);  } });
 		actions.put("DownKeyPressed",    new AbstractAction() {
 			public void actionPerformed(ActionEvent e) { changeKeyState(keyState | KEY_D);  } });
-		actions.put("ActionKeyPressed",  new AbstractAction() {
+		actions.put("BKeyPressed",       new AbstractAction() {
 			public void actionPerformed(ActionEvent e) { changeKeyState(keyState | KEY_B);  } });
+		actions.put("ZKeyPressed",       new AbstractAction() {
+			public void actionPerformed(ActionEvent e) { changeKeyState(keyState | KEY_Z);  } });
+		actions.put("XKeyPressed",       new AbstractAction() {
+			public void actionPerformed(ActionEvent e) { changeKeyState(keyState | KEY_X);  } });
+		actions.put("CKeyPressed",       new AbstractAction() {
+			public void actionPerformed(ActionEvent e) { changeKeyState(keyState | KEY_C);  } });
 		actions.put("LeftKeyReleased",   new AbstractAction() {
 			public void actionPerformed(ActionEvent e) { changeKeyState(keyState & ~KEY_L); } });
 		actions.put("RightKeyReleased",  new AbstractAction() {
@@ -163,8 +178,14 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			public void actionPerformed(ActionEvent e) { changeKeyState(keyState & ~KEY_U); } });
 		actions.put("DownKeyReleased",   new AbstractAction() {
 			public void actionPerformed(ActionEvent e) { changeKeyState(keyState & ~KEY_D); } });
-		actions.put("ActionKeyReleased", new AbstractAction() {
+		actions.put("BKeyReleased",      new AbstractAction() {
 			public void actionPerformed(ActionEvent e) { changeKeyState(keyState & ~KEY_B); } });
+		actions.put("ZKeyReleased",      new AbstractAction() {
+			public void actionPerformed(ActionEvent e) { changeKeyState(keyState & ~KEY_Z); } });
+		actions.put("XKeyReleased",      new AbstractAction() {
+			public void actionPerformed(ActionEvent e) { changeKeyState(keyState & ~KEY_X); } });
+		actions.put("CKeyReleased",      new AbstractAction() {
+			public void actionPerformed(ActionEvent e) { changeKeyState(keyState & ~KEY_C); } });
 
 		return panel;
 	}
@@ -282,20 +303,31 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 	static final Color[] PixelColors = new Color[]
 	{
-		Color.BLACK,
-		Color.RED,
-		Color.ORANGE,
-		Color.YELLOW,
-		Color.GREEN,
-		new Color(51, 102, 255),
-		Color.MAGENTA,
-		Color.WHITE,
+		new Color(0, 0, 0),       // black
+		new Color(255, 0, 0),     // red
+		new Color(255, 127, 0),   // orange
+		new Color(255, 255, 0),   // yellow
+		new Color(0, 255, 0),     // green
+		new Color(51, 102, 255),  // blue
+		new Color(255, 0, 255),   // magenta
+		new Color(255, 255, 255), // white
+
+		// extended colors!
+		new Color(63, 63, 63),    // dark grey
+		new Color(127, 0, 0),     // brick
+		new Color(127, 63, 0),    // brown
+		new Color(192, 142, 91),  // tan
+		new Color(0, 127, 0),     // dark green
+		new Color(25, 50, 127),   // dark blue
+		new Color(63, 0, 127),    // purple
+		new Color(127, 127, 127), // light grey
 	};
 
 	private class LEDDisplayPanel extends JPanel
 	{
 		private static final int CELL_DEFAULT_SIZE = 8;
 		private static final int CELL_ZOOMED_SIZE = 12;
+		private static final int COLOR_MASK = 15;
 
 		private int cellSize = CELL_DEFAULT_SIZE;
 		private int cellPadding = 0;
@@ -363,16 +395,16 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 					{
 						int pixel = Globals.memory.getWordNoNotify(ptr);
 
-						g.setColor(PixelColors[pixel & 7]);
+						g.setColor(PixelColors[pixel & COLOR_MASK]);
 						g.fillRect(x, y, pixelSize, pixelSize);
 						x += cellSize;
-						g.setColor(PixelColors[(pixel >> 8) & 7]);
+						g.setColor(PixelColors[(pixel >> 8) & COLOR_MASK]);
 						g.fillRect(x, y, pixelSize, pixelSize);
 						x += cellSize;
-						g.setColor(PixelColors[(pixel >> 16) & 7]);
+						g.setColor(PixelColors[(pixel >> 16) & COLOR_MASK]);
 						g.fillRect(x, y, pixelSize, pixelSize);
 						x += cellSize;
-						g.setColor(PixelColors[(pixel >> 24) & 7]);
+						g.setColor(PixelColors[(pixel >> 24) & COLOR_MASK]);
 						g.fillRect(x, y, pixelSize, pixelSize);
 						x += cellSize;
 					}
