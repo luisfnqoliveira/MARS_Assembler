@@ -434,8 +434,7 @@ public class JEditBasedTextArea extends JEditTextArea implements MARSTextEditing
 		int selStart = this.getSelectionStart();
 		int selEnd = this.getSelectionEnd();
 
-		if(selStart != selEnd)
-			this.indentOrDedent(false);
+		this.indentOrDedent(false);
 	}
 
 	void indentOrDedent(boolean indent) {
@@ -448,8 +447,7 @@ public class JEditBasedTextArea extends JEditTextArea implements MARSTextEditing
 
 		// special case: if end of selection is very beginning of line,
 		// don't include that line as part of the indentation
-		boolean isSpecialCase = selEnd == this.getLineStartOffset(endLine);
-		if(isSpecialCase) {
+		if(selEnd == this.getLineStartOffset(endLine)) {
 			endLine--;
 			assert endLine >= startLine;
 			endOffset = this.getLineEndOffsetFixed(endLine);
