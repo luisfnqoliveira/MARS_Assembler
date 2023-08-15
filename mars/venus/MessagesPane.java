@@ -197,7 +197,7 @@ public class MessagesPane extends JTabbedPane implements Observer
 					if(text.startsWith(ErrorList.ERROR_MESSAGE_PREFIX) || text.startsWith(ErrorList.WARNING_MESSAGE_PREFIX))
 					{
 						assemble.select(lineStart, lineEnd);
-						assemble.setSelectionColor(Color.YELLOW);
+						assemble.setSelectionColor(Color.RED);
 						assemble.repaint();
 						int separatorPosition = text.indexOf(ErrorList.MESSAGE_SEPARATOR);
 						if(separatorPosition >= 0)
@@ -305,7 +305,7 @@ public class MessagesPane extends JTabbedPane implements Observer
 				textLine = assemble.getLineOfOffset(textPosition);
 				lineStart = assemble.getLineStartOffset(textLine);
 				lineEnd = assemble.getLineEndOffset(textLine);
-				assemble.setSelectionColor(Color.YELLOW);
+				assemble.setSelectionColor(Color.RED);
 				assemble.select(lineStart, lineEnd);
 				assemble.getCaret().setSelectionVisible(true);
 				assemble.repaint();
