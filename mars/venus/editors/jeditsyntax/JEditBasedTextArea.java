@@ -447,7 +447,7 @@ public class JEditBasedTextArea extends JEditTextArea implements MARSTextEditing
 
 		// special case: if end of selection is very beginning of line,
 		// don't include that line as part of the indentation
-		if(selEnd == this.getLineStartOffset(endLine)) {
+		if(selEnd == this.getLineStartOffset(endLine) && endLine > 0) {
 			endLine--;
 			assert endLine >= startLine;
 			endOffset = this.getLineEndOffsetFixed(endLine);
@@ -455,7 +455,7 @@ public class JEditBasedTextArea extends JEditTextArea implements MARSTextEditing
 
 		// save selection offsets *within* start/end lines
 		// (calculated from *end* of line to ignore changes in indentation)
-		int startInLine = this.getLineEndOffset(startLine) - selStart;
+		int startInLine = this.getLineEndOffsetFixed(startLine) - selStart;
 		int endInLine = endOffset - selEnd;
 		assert startInLine >= 0;
 		assert endInLine >= 0;
@@ -485,6 +485,12 @@ public class JEditBasedTextArea extends JEditTextArea implements MARSTextEditing
 			// restore original selection
 			int newSelStart = this.getLineEndOffsetFixed(startLine) - startInLine;
 			int newSelEnd = this.getLineEndOffsetFixed(endLine) - endInLine;
+
+			// since getLineEndOffsetFixed subtracts 1, there is a special case
+			// where sometimes the indexes can go negative. fix that
+			newSelStart = Math.max(0, newSelStart);
+			newSelEnd = Math.max(0, newSelEnd);
+
 			this.select(newSelStart, newSelEnd);
 
 		// finish the edit
