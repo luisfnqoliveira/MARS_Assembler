@@ -57,7 +57,8 @@ public class VenusUI extends JFrame
 	Coprocessor1Window coprocessor1Tab;
 	Coprocessor0Window coprocessor0Tab;
 	MessagesPane messagesPane;
-	JSplitPane splitter, horizonSplitter;
+	JSplitPane splitter;
+	JPanel horizonSplitter;
 	JPanel north;
 
 	private int frameState; // see windowActivated() and windowDeactivated()
@@ -215,7 +216,7 @@ public class VenusUI extends JFrame
 		coprocessor1Tab = new Coprocessor1Window();
 		coprocessor0Tab = new Coprocessor0Window();
 		registersPane = new RegistersPane(mainUI, registersTab, coprocessor1Tab, coprocessor0Tab);
-		registersPane.setPreferredSize(registersPanePreferredSize);
+		registersPane.setPreferredSize(new Dimension(280, 280));
 
 		//Insets defaultTabInsets = (Insets)UIManager.get("TabbedPane.tabInsets");
 		//UIManager.put("TabbedPane.tabInsets", new Insets(1, 1, 1, 1));
@@ -229,9 +230,13 @@ public class VenusUI extends JFrame
 		splitter.setOneTouchExpandable(false);
 		splitter.resetToPreferredSizes();
 		splitter.setDividerSize(20);
-		horizonSplitter = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, splitter, registersPane);
-		horizonSplitter.setOneTouchExpandable(false); // JB: why the hell would you ever need this to be expandable
-		horizonSplitter.resetToPreferredSizes();
+
+		horizonSplitter = new JPanel();
+		RelativeLayout rl = new RelativeLayout(RelativeLayout.X_AXIS, 5);
+		rl.setFill(true);
+		horizonSplitter.setLayout(rl);
+		horizonSplitter.add(splitter, new Float(1));
+		horizonSplitter.add(registersPane);
 
 		// due to dependencies, do not set up menu/toolbar until now.
 		this.createActionObjects();
