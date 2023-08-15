@@ -69,11 +69,15 @@ public class DefaultInputHandler extends InputHandler
 		addKeyBinding("LEFT", PREV_CHAR);
 		addKeyBinding("S+LEFT", SELECT_PREV_CHAR);
 		addKeyBinding("C+LEFT", PREV_WORD);
+		addKeyBinding("A+LEFT", PREV_WORD);
 		addKeyBinding("CS+LEFT", SELECT_PREV_WORD);
+		addKeyBinding("AS+LEFT", SELECT_PREV_WORD);
 		addKeyBinding("RIGHT", NEXT_CHAR);
 		addKeyBinding("S+RIGHT", SELECT_NEXT_CHAR);
 		addKeyBinding("C+RIGHT", NEXT_WORD);
+		addKeyBinding("A+RIGHT", NEXT_WORD);
 		addKeyBinding("CS+RIGHT", SELECT_NEXT_WORD);
+		addKeyBinding("AS+RIGHT", SELECT_NEXT_WORD);
 		addKeyBinding("UP", PREV_LINE);
 		addKeyBinding("S+UP", SELECT_PREV_LINE);
 		addKeyBinding("DOWN", NEXT_LINE);
