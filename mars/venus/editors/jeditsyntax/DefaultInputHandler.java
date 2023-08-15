@@ -45,6 +45,7 @@ public class DefaultInputHandler extends InputHandler
 		addKeyBinding("ENTER", INSERT_BREAK);
 		addKeyBinding("TAB", INSERT_TAB_OR_INDENT);
 		addKeyBinding("S+TAB", DEDENT);
+		addKeyBinding("SPACE", INSERT_SPACE_OR_YELL);
 
 		addKeyBinding("INSERT", OVERWRITE);
 		addKeyBinding("C+\\", TOGGLE_RECT);
@@ -176,6 +177,7 @@ public class DefaultInputHandler extends InputHandler
 				|| keyCode == KeyEvent.VK_DELETE
 				|| keyCode == KeyEvent.VK_ENTER
 				|| keyCode == KeyEvent.VK_TAB
+				|| keyCode == KeyEvent.VK_SPACE
 				|| keyCode == KeyEvent.VK_ESCAPE)
 		{
 			if(grabAction != null)
@@ -280,7 +282,7 @@ public class DefaultInputHandler extends InputHandler
 		// on OS X, which have been entered with the ALT modifier:
 		if(c != KeyEvent.CHAR_UNDEFINED && (((modifiers & KeyEvent.ALT_MASK) == 0) || System.getProperty("os.name").contains("OS X")))
 		{
-			if(c >= 0x20 && c != 0x7f)
+			if(c > 0x20 && c != 0x7f)
 			{
 				KeyStroke keyStroke = KeyStroke.getKeyStroke(
 										  Character.toUpperCase(c));
@@ -424,6 +426,23 @@ public class DefaultInputHandler extends InputHandler
 
 				if(jeb != null)
 					jeb.dedent();
+			}
+			else
+				textArea.getToolkit().beep();
+		}
+	}
+
+	static final ActionListener INSERT_SPACE_OR_YELL = new insert_space_or_yell();
+	static class insert_space_or_yell implements ActionListener {
+		public void actionPerformed(ActionEvent evt) {
+			JEditTextArea textArea = getTextArea(evt);
+
+			if(textArea.isEditable()) {
+				// JEB!
+				JEditBasedTextArea jeb = (JEditBasedTextArea)textArea;
+
+				if(jeb != null)
+					jeb.insertSpaceOrYell();
 			}
 			else
 				textArea.getToolkit().beep();

@@ -494,4 +494,54 @@ public class JEditBasedTextArea extends JEditTextArea implements MARSTextEditing
 		this.editPane.updateUndoState();
 		this.editPane.updateRedoState();
 	}
+
+	void insertSpaceOrYell() {
+		int offset = this.getSelectionStart();
+
+		if(offset == this.getSelectionEnd()) {
+			// nothing selected, so they are just straight up typing a space.
+			int line = this.getSelectionStartLine();
+			int lineOffset = this.getLineStartOffset(line);
+
+			// check for possible sins
+			boolean shouldYell = false;
+
+			if(offset == lineOffset) {
+				// they're hitting space at the start of a line. not necessarily a mistake,
+				// if the line is totally empty...
+				if(this.getLineLength(line) != 0) {
+					shouldYell = true;
+				}
+			} else {
+				// hitting space somewhere inside a line. the big issue is:
+				// are they trying to type a space *before* the first non-whitespace character
+				// in the line? if so, that's a sin.
+
+				String lineText = this.getLineText(line);
+
+				int offsetIntoLine = offset - lineOffset;
+
+				boolean onlyWhitespaceBefore =
+					lineText.substring(0, offsetIntoLine).chars()
+					.allMatch(Character::isWhitespace);
+
+				boolean nonWhitespaceAfter =
+					lineText.substring(offsetIntoLine).chars()
+					.anyMatch(c -> !Character.isWhitespace(c));
+
+				shouldYell = onlyWhitespaceBefore && nonWhitespaceAfter;
+			}
+
+			// if a sin has occurred, chastise.
+			if(shouldYell) {
+				// aaaaaaa.
+				this.overwriteSetSelectedText(
+					"Use the tab key to indent. (Undo to erase this message)");
+				return;
+			}
+		}
+
+		// got through the gauntlet, insert a space.
+		this.overwriteSetSelectedText(" ");
+	}
 }
