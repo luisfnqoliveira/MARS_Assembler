@@ -39,6 +39,7 @@ public class DefaultInputHandler extends InputHandler
 	{
 		addKeyBinding("BACK_SPACE", BACKSPACE);
 		addKeyBinding("C+BACK_SPACE", BACKSPACE_WORD);
+		addKeyBinding("A+BACK_SPACE", BACKSPACE_WORD);
 		addKeyBinding("DELETE", DELETE);
 		addKeyBinding("C+DELETE", DELETE_WORD);
 
