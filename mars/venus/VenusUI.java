@@ -741,6 +741,8 @@ public class VenusUI extends JFrame
 	{
 		JToolBar toolBar = new JToolBar();
 
+		toolBar.setFloatable(false);
+
 		New = new JButton(fileNewAction);
 		New.setText("");
 		Open = new JButton(fileOpenAction);
