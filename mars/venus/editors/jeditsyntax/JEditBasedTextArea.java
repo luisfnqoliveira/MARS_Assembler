@@ -513,29 +513,18 @@ public class JEditBasedTextArea extends JEditTextArea implements MARSTextEditing
 			boolean shouldYell = false;
 
 			if(offset == lineOffset) {
-				// they're hitting space at the start of a line. not necessarily a mistake,
-				// if the line is totally empty...
-				if(this.getLineLength(line) != 0) {
-					shouldYell = true;
-				}
+				// they're hitting space at the start of a line. always a mistake.
+				shouldYell = true;
 			} else {
-				// hitting space somewhere inside a line. the big issue is:
-				// are they trying to type a space *before* the first non-whitespace character
-				// in the line? if so, that's a sin.
-
-				String lineText = this.getLineText(line);
+				// hitting space somewhere inside a line. it's a mistake if all the
+				// characters to the left of the cursor are whitespace.
 
 				int offsetIntoLine = offset - lineOffset;
 
-				boolean onlyWhitespaceBefore =
-					lineText.substring(0, offsetIntoLine).chars()
+				shouldYell = this.getLineText(line)
+					.substring(0, offsetIntoLine)
+					.chars()
 					.allMatch(Character::isWhitespace);
-
-				boolean nonWhitespaceAfter =
-					lineText.substring(offsetIntoLine).chars()
-					.anyMatch(c -> !Character.isWhitespace(c));
-
-				shouldYell = onlyWhitespaceBefore && nonWhitespaceAfter;
 			}
 
 			// if a sin has occurred, chastise.
