@@ -214,7 +214,6 @@ public class LabelsWindow extends JPanel
 				// versus the perceived effort to make reordering work for multiple symbol tables,
 				// I am taking the easy way out here.  PS 19 July 2007.
 				tableHeader.setReorderingAllowed(false);
-				table.setSelectionBackground(table.getBackground());
 				// Sense click on label/address and scroll Text/Data segment display to it.
 				table.addMouseListener(new LabelDisplayMouseListener());
 				allSymtabTables.add(table);
