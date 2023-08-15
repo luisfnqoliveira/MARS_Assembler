@@ -46,9 +46,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   *   @author Sanderson and Team JSpim
   **/
 
-public class LabelsWindow extends JInternalFrame
+public class LabelsWindow extends JPanel
 {
-	private Container contentPane;
 	private JPanel labelPanel;      // holds J
 	private JCheckBox dataLabels, textLabels, localLabels;
 	private ArrayList listOfLabelsForSymbolTable;
@@ -129,7 +128,6 @@ public class LabelsWindow extends JInternalFrame
 
 	public LabelsWindow()
 	{
-		super("Labels", true, false, true, true);
 		try
 		{
 			sortState = Integer.parseInt(Globals.getSettings().getLabelSortState());
@@ -141,7 +139,6 @@ public class LabelsWindow extends JInternalFrame
 		columnNames = sortColumnHeadings[sortState];
 		tableSortComparator = tableSortingComparators[sortState];
 		labelsWindow = this;
-		contentPane = this.getContentPane();
 		labelPanel = new JPanel(new GridLayout(1, 2, 10, 0));
 		JPanel features = new JPanel();
 		dataLabels = new JCheckBox("Data", true);
@@ -156,8 +153,12 @@ public class LabelsWindow extends JInternalFrame
 		features.add(dataLabels);
 		features.add(textLabels);
 		features.add(localLabels);
-		contentPane.add(features, BorderLayout.SOUTH);
-		contentPane.add(labelPanel);
+		this.setLayout(new BorderLayout());
+		JLabel panelLabel = new JLabel("Labels");
+		panelLabel.setFont(new Font("Sans-Serif", Font.BOLD, 14));
+		this.add(panelLabel, BorderLayout.NORTH);
+		this.add(labelPanel, BorderLayout.CENTER);
+		this.add(features, BorderLayout.SOUTH);
 	}
 
 	/**

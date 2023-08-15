@@ -40,11 +40,11 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
 /**
-  *  Represents the Data Segment window, which is a type of JInternalFrame.
+  *  Represents the Data Segment window, which is a type of JPanel.
   *   @author Sanderson and Bumgarner
   **/
 
-public class DataSegmentWindow extends JInternalFrame implements Observer
+public class DataSegmentWindow extends JPanel implements Observer
 {
 
 	private static final String [] dataSegmentNames = {"Data", "Stack", "Kernel"};
@@ -98,8 +98,6 @@ public class DataSegmentWindow extends JInternalFrame implements Observer
 
 	public DataSegmentWindow(NumberDisplayBaseChooser[] choosers)
 	{
-		super("Data Segment", true, false, true, true);
-
 		Simulator.getInstance().addObserver(this);
 		settings = Globals.getSettings();
 		settings.addObserver(this);
@@ -108,7 +106,8 @@ public class DataSegmentWindow extends JInternalFrame implements Observer
 		firstAddress = homeAddress;  // first address to display at any given time
 		userOrKernelMode = USER_MODE;
 		addressHighlighting = false;
-		contentPane = this.getContentPane();
+		contentPane = new JPanel();
+		contentPane.setLayout(new BorderLayout());
 		tablePanel = new JPanel(new GridLayout(1, 2, 10, 0));
 		JPanel features = new JPanel();
 		Toolkit tk = Toolkit.getDefaultToolkit();
@@ -171,6 +170,12 @@ public class DataSegmentWindow extends JInternalFrame implements Observer
 		features.add(asciiDisplayCheckBox);
 
 		contentPane.add(features, BorderLayout.SOUTH);
+
+		this.setLayout(new BorderLayout());
+		JLabel panelLabel = new JLabel("Data Segment");
+		panelLabel.setFont(new Font("Sans-Serif", Font.BOLD, 14));
+		this.add(panelLabel, BorderLayout.NORTH);
+		this.add(contentPane, BorderLayout.CENTER);
 	}
 
 
@@ -487,7 +492,7 @@ public class DataSegmentWindow extends JInternalFrame implements Observer
 	{
 		tablePanel.removeAll();
 		tablePanel.add(generateDataPanel());
-		contentPane.add(tablePanel);
+		contentPane.add(tablePanel, BorderLayout.CENTER);
 		enableAllButtons();
 	}
 

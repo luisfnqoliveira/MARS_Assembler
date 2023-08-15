@@ -84,29 +84,6 @@ public class MainPane extends JTabbedPane
 
 		this.setToolTipTextAt(0, "Text editor for composing MIPS programs.");
 		this.setToolTipTextAt(1, "View and control assembly language program execution.  Enabled upon successful assemble.");
-
-		/* Listener has one specific purpose: when Execute tab is selected for the
-		 * first time, set the bounds of its internal frames by invoking the
-		 * setWindowsBounds() method.  Once this occurs, listener removes itself!
-		 * We do NOT want to reset bounds each time Execute tab is selected.
-		 * See ExecutePane.setWindowsBounds documentation for more details.
-		 */
-		this.addChangeListener(
-			new ChangeListener()
-		{
-			public void stateChanged(ChangeEvent ce)
-			{
-				JTabbedPane tabbedPane = (JTabbedPane) ce.getSource();
-				int index = tabbedPane.getSelectedIndex();
-				Component c = tabbedPane.getComponentAt(index);
-				ExecutePane executePane = Globals.getGui().getMainPane().getExecutePane();
-				if(c == executePane)
-				{
-					executePane.setWindowBounds();
-					Globals.getGui().getMainPane().removeChangeListener(this);
-				}
-			}
-		});
 	}
 
 	/**

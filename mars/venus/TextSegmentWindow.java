@@ -44,7 +44,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *   @author Team JSpim
  **/
 
-public class TextSegmentWindow extends JInternalFrame implements Observer
+public class TextSegmentWindow extends JPanel implements Observer
 {
 	private  JPanel programArgumentsPanel;  // DPS 17-July-2008
 	private  JTextField programArgumentsTextField; // DPS 17-July-2008
@@ -83,15 +83,15 @@ public class TextSegmentWindow extends JInternalFrame implements Observer
 	private static final String modifiedCodeMarker = " ------ ";
 
 	/**
-	  *  Constructor, sets up a new JInternalFrame.
+	  *  Constructor, sets up a new JPanel.
 	  **/
 
 	public TextSegmentWindow()
 	{
-		super("Text Segment", true, false, true, true);
 		Simulator.getInstance().addObserver(this);
 		Globals.getSettings().addObserver(this);
-		contentPane = this.getContentPane();
+		contentPane = new JPanel();
+		contentPane.setLayout(new BorderLayout());
 		codeHighlighting = true;
 		breakpointsEnabled = true;
 		programArgumentsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
@@ -99,6 +99,16 @@ public class TextSegmentWindow extends JInternalFrame implements Observer
 		programArgumentsTextField = new JTextField(PROGRAM_ARGUMENT_TEXTFIELD_COLUMNS);
 		programArgumentsTextField.setToolTipText("Arguments provided to program at runtime via $a0 (argc) and $a1 (argv)");
 		programArgumentsPanel.add(programArgumentsTextField);
+
+		this.setLayout(new BorderLayout());
+		JLabel panelLabel = new JLabel("Text Segment");
+		panelLabel.setFont(new Font("Sans-Serif", Font.BOLD, 14));
+		this.add(panelLabel, BorderLayout.NORTH);
+		this.add(contentPane, BorderLayout.CENTER);
+	}
+
+	public Container getContentPane() {
+		return contentPane;
 	}
 
 
@@ -192,7 +202,7 @@ public class TextSegmentWindow extends JInternalFrame implements Observer
 
 		tableScroller = new JScrollPane(table, ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS,
 										ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS);
-		contentPane.add(tableScroller);
+		contentPane.add(tableScroller, BorderLayout.CENTER);
 		if(Globals.getSettings().getProgramArguments())
 			addProgramArgumentsPanel();
 

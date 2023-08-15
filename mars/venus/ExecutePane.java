@@ -37,14 +37,16 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 *   @author Sanderson and Team JSpim
 **/
 
-public class ExecutePane extends JDesktopPane
+public class ExecutePane extends JPanel
 {
+	private JPanel overallSplitter;
 	private RegistersWindow registerValues;
 	private Coprocessor1Window coprocessor1Values;
 	private Coprocessor0Window coprocessor0Values;
-	private DataSegmentWindow dataSegment;
-	private TextSegmentWindow  textSegment;
+	private JPanel textLabelsSplitter;
+	private TextSegmentWindow textSegment;
 	private LabelsWindow labelValues;
+	private DataSegmentWindow dataSegment;
 	private VenusUI mainUI;
 	private NumberDisplayBaseChooser valueDisplayBase;
 	private NumberDisplayBaseChooser addressDisplayBase;
@@ -77,53 +79,29 @@ public class ExecutePane extends JDesktopPane
 		textSegment = new TextSegmentWindow();
 		dataSegment = new DataSegmentWindow(choosers);
 		labelValues = new LabelsWindow();
+
+		textLabelsSplitter = new JPanel();
+		RelativeLayout rl = new RelativeLayout(RelativeLayout.X_AXIS, 5);
+		rl.setFill(true);
+		textLabelsSplitter.setLayout(rl);
+		textLabelsSplitter.add(textSegment, new Float(3));
+
 		labelWindowVisible = Globals.getSettings().getLabelWindowVisibility();
-		this.add(textSegment);  // these 3 LOC moved up.  DPS 3-Sept-2014
-		this.add(dataSegment);
-		this.add(labelValues);
-		textSegment.pack();   // these 3 LOC added.  DPS 3-Sept-2014
-		dataSegment.pack();
-		labelValues.pack();
-		textSegment.setVisible(true);
-		dataSegment.setVisible(true);
-		labelValues.setVisible(labelWindowVisible);
 
-	}
-
-	/**
-	 * This method will set the bounds of this JDesktopPane's internal windows
-	 * relative to the current size of this JDesktopPane.  Such an operation
-	 * cannot be adequately done at constructor time because the actual
-	 * size of the desktop pane window is not yet established.  Layout manager
-	 * is not a good option here because JDesktopPane does not work well with
-	 * them (the whole idea of using JDesktopPane with internal frames is to
-	 * have mini-frames that you can resize, move around, minimize, etc).  This
-	 * method should be invoked only once: the first time the Execute tab is
-	 * selected (a change listener invokes it).  We do not want it invoked
-	 * on subsequent tab selections; otherwise, user manipulations of the
-	 * internal frames would be lost the next time execute tab is selected.
-	 */
-	public void setWindowBounds()
-	{
-
-		int fullWidth = this.getSize().width - this.getInsets().left - this.getInsets().right;
-		int fullHeight = this.getSize().height - this.getInsets().top - this.getInsets().bottom;
-		int halfHeight = fullHeight / 2;
-		Dimension textDim = new Dimension((int)(fullWidth * .75), halfHeight);
-		Dimension dataDim = new Dimension((int)(fullWidth), halfHeight);
-		Dimension lablDim = new Dimension((int)(fullWidth * .25), halfHeight);
-		Dimension textFullDim = new Dimension((int)(fullWidth), halfHeight);
-		dataSegment.setBounds(0, textDim.height + 1, dataDim.width, dataDim.height);
 		if(labelWindowVisible)
-		{
-			textSegment.setBounds(0, 0, textDim.width, textDim.height);
-			labelValues.setBounds(textDim.width + 1, 0, lablDim.width, lablDim.height);
-		}
-		else
-		{
-			textSegment.setBounds(0, 0, textFullDim.width, textFullDim.height);
-			labelValues.setBounds(0, 0, 0, 0);
-		}
+			textLabelsSplitter.add(labelValues, new Float(1));
+
+		overallSplitter = new JPanel();
+		rl = new RelativeLayout(RelativeLayout.Y_AXIS);
+		rl.setFill(true);
+		overallSplitter.setLayout(rl);
+		overallSplitter.add(textLabelsSplitter, new Float(1));
+		overallSplitter.add(dataSegment, new Float(1));
+
+		rl = new RelativeLayout(RelativeLayout.X_AXIS);
+		rl.setFill(true);
+		this.setLayout(rl);
+		this.add(overallSplitter, new Float(1));
 	}
 
 	/**
@@ -137,18 +115,12 @@ public class ExecutePane extends JDesktopPane
 		if(!visibility && labelWindowVisible)
 		{
 			labelWindowVisible = false;
-			textSegment.setVisible(false);
-			labelValues.setVisible(false);
-			setWindowBounds();
-			textSegment.setVisible(true);
+			textLabelsSplitter.remove(labelValues);
 		}
 		else if(visibility && !labelWindowVisible)
 		{
 			labelWindowVisible = true;
-			textSegment.setVisible(false);
-			setWindowBounds();
-			textSegment.setVisible(true);
-			labelValues.setVisible(true);
+			textLabelsSplitter.add(labelValues, new Float(1));
 		}
 	}
 

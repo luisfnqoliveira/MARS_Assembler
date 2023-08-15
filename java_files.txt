@@ -118,6 +118,7 @@
 ./mars/venus/SettingsProgramArgumentsAction.java
 ./mars/venus/ToolLoader.java
 ./mars/venus/RunSpeedPanel.java
+./mars/venus/RelativeLayout.java
 ./mars/venus/FileSaveAsAction.java
 ./mars/venus/RunBackstepAction.java
 ./mars/venus/VenusUI.java
