@@ -1194,7 +1194,7 @@ public class InstructionSet
 			public void simulate(ProgramStatement statement) throws ProcessingException
 			{
 				int[] operands = statement.getOperands();
-				processJump(
+				processJump(statement,
 					((RegisterFile.getProgramCounter() & 0xF0000000)
 					 | (operands[0] << 2)));
 			}
@@ -1209,7 +1209,7 @@ public class InstructionSet
 			public void simulate(ProgramStatement statement) throws ProcessingException
 			{
 				int[] operands = statement.getOperands();
-				processJump(RegisterFile.getValue(operands[0]));
+				processJump(statement, RegisterFile.getValue(operands[0]));
 			}
 		}));
 		instructionList.add(
@@ -1223,7 +1223,7 @@ public class InstructionSet
 			{
 				int[] operands = statement.getOperands();
 				processReturnAddress(31);// RegisterFile.updateRegister(31, RegisterFile.getProgramCounter());
-				processJump(
+				processJump(statement,
 					(RegisterFile.getProgramCounter() & 0xF0000000)
 					| (operands[0] << 2));
 			}
@@ -1239,7 +1239,7 @@ public class InstructionSet
 			{
 				int[] operands = statement.getOperands();
 				processReturnAddress(operands[0]);//RegisterFile.updateRegister(operands[0], RegisterFile.getProgramCounter());
-				processJump(RegisterFile.getValue(operands[1]));
+				processJump(statement, RegisterFile.getValue(operands[1]));
 			}
 		}));
 		instructionList.add(
@@ -1253,7 +1253,7 @@ public class InstructionSet
 			{
 				int[] operands = statement.getOperands();
 				processReturnAddress(31);//RegisterFile.updateRegister(31, RegisterFile.getProgramCounter());
-				processJump(RegisterFile.getValue(operands[0]));
+				processJump(statement, RegisterFile.getValue(operands[0]));
 			}
 		}));
 		instructionList.add(
@@ -3258,8 +3258,14 @@ public class InstructionSet
 	 * Handles delayed branching if that setting is enabled.
 	 */
 
-	private void processJump(int targetAddress)
+	private void processJump(ProgramStatement statement, int targetAddress)
+		throws ProcessingException
 	{
+		// handle extremely common case of jumping to address 0 (e.g. `jr ra` when ra == 0)
+		// so that we get a better error message than "error in : invalid program counter"
+		if(targetAddress == 0)
+			throw new ProcessingException(statement, "attempting to jump to address 0");
+
 		if(Globals.getSettings().getDelayedBranchingEnabled())
 			DelayedBranch.register(targetAddress);
 		else
