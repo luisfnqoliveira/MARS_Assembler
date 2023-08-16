@@ -216,6 +216,14 @@ public class EditPane extends JPanel implements Observer
 	 * multiline label (it ignores '\n').  The line number list is a JLabel with
 	 * one line number per line.
 	 */
+
+	// JB: I am not changing this code. I just want to point out that this method, which
+	// performs n allocations and n appends to a StringBuffer for an n-line file, is called
+	// for *literally* every keypress in the editor. This means that if you open a long file,
+	// then hold spacebar, you can get your CPU to heat up. It's an actual, honest-to-god
+	// real-world example of Spacebar Heating (https://xkcd.com/1172/) and I think that's
+	// kinda incredible.
+
 	private static final String spaces = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
 	public String getLineNumbersList(javax.swing.text.Document doc)
 	{
