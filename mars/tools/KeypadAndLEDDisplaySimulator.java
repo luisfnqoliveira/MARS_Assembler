@@ -11,9 +11,10 @@ import mars.mips.hardware.*;
 import mars.simulator.Exceptions;
 
 /*
- Copyright (c) 2009 Jose Baiocchi
+ Copyright (c) 2009 Jose Baiocchi, 2016-2023 Jarrett Billingsley
 
  Developed by Jose Baiocchi (baiocchi@cs.pitt.edu)
+ Modified and greatly extended by Jarrett Billingsley (jarrett@cs.pitt.edu)
 
  Permission is hereby granted, free of charge, to any person obtaining
  a copy of this software and associated documentation files (the
@@ -43,16 +44,19 @@ import mars.simulator.Exceptions;
  * AbstractMarsToolAndApplication.
  *
  * @author Jose Baiocchi
+ * @author Jarrett Billingsley
  * @version 1.1. 16 February 2010.
  */
 public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 {
+	// --------------------------------------------------------------------------------------------
+	// Constants
 
-	static final long serialVersionUID = 1; /* To eliminate a warning about serializability. */
+	static final long serialVersionUID = 1; // To eliminate a warning about serializability.
 
-	private static String version = "Version 1.2 64x64";
-	private static String title = "Keypad and LED Display MMIO Simulator";
-	private static String heading = "Click this window and use arrow keys and Z, X, C, B!";
+	private static final String version = "Version 2";
+	private static final String title = "Keypad and LED Display MMIO Simulator";
+	private static final String heading = "";
 	private static final int N_COLUMNS = 64;
 	private static final int N_ROWS = 64;
 	private static final int SCREEN_UPDATE = Memory.memoryMapBaseAddress;
@@ -65,9 +69,6 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	// ...it's just to give the students a little leeway. :P
 	private static final int LED_BUFFER_START = LED_END + 4096;
 	private static final int LED_BUFFER_END = LED_BUFFER_START + N_ROWS * N_COLUMNS;
-	private JPanel panel;
-	private LEDDisplayPanel displayPanel;
-	private int keyState;
 
 	private static final int KEY_U = 1;
 	private static final int KEY_D = 2;
@@ -77,6 +78,25 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	private static final int KEY_Z = 32;
 	private static final int KEY_X = 64;
 	private static final int KEY_C = 128;
+
+	// --------------------------------------------------------------------------------------------
+	// Instance fields
+
+	private JPanel panel;
+	private LEDDisplayPanel displayPanel;
+	private int keyState;
+	private boolean shouldRedraw = true;
+
+	// --------------------------------------------------------------------------------------------
+	// Standalone main
+
+	public static void main(String[] args)
+	{
+		new KeypadAndLEDDisplaySimulator(title + " stand-alone, " + version, heading).go();
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// AbstractMarsToolAndApplication implementation
 
 	public KeypadAndLEDDisplaySimulator(String title, String heading)
 	{
@@ -88,22 +108,14 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		super(title + ", " + version, heading);
 	}
 
-	public static void main(String[] args)
-	{
-		new KeypadAndLEDDisplaySimulator(title + " stand-alone, " + version,
-										 heading).go();
-	}
-
+	@Override
 	public String getName()
 	{
 		return "Keypad and LED Display Simulator";
 	}
 
-	protected void addAsObserver()
-	{
-		addAsObserver(SCREEN_UPDATE, KEY_STATE);
-	}
-
+	/** Builds the actual GUI for the tool. */
+	@Override
 	protected JComponent buildMainDisplayArea()
 	{
 		panel = new JPanel();
@@ -171,43 +183,67 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		return panel;
 	}
 
+	/** Called after the GUI has been constructed. */
 	@Override
 	protected void initializePostGUI() {
+		// force a repaint when the connect button is clicked
 		connectButton.addActionListener((e) -> {
 			displayPanel.repaint();
 		});
 
+		// no resizable!
 		JDialog dialog = (JDialog)this.theWindow;
 
 		if(dialog != null) {
 			dialog.setResizable(false);
-
-			dialog.addWindowFocusListener(new WindowAdapter() {
-				public void windowGainedFocus(WindowEvent e) {
-					displayPanel.requestFocusInWindow();
-				}
-			});
 		}
+
+		// make it so if the window gets focus, focus the display, so it can get events
+		theWindow.addWindowFocusListener(new WindowAdapter() {
+			public void windowGainedFocus(WindowEvent e) {
+				displayPanel.requestFocusInWindow();
+			}
+		});
+
+		System.out.println("double-buffered? " + theWindow.isDoubleBuffered());
+
+		// must call this so the call to createBufferStrategy succeeds
+		theWindow.pack();
+
+		// set up for double-buffering
+		try {
+			theWindow.createBufferStrategy(2);
+		} catch(Exception e) {
+			System.err.println("ERROR: couldn't set up double-buffering: " + e);
+		}
+
+		var strategy = theWindow.getBufferStrategy();
+		System.out.println("Strategy: " + strategy);
+		System.out.println("double-buffered? " + theWindow.isDoubleBuffered());
+		var caps = strategy.getCapabilities();
+		System.out.println("BB: " + caps.getBackBufferCapabilities().isTrueVolatile());
+		System.out.println("FB: " + caps.getFrontBufferCapabilities().isTrueVolatile());
+		System.out.println("FC: " + caps.getFlipContents());
 	}
 
-	private void changeKeyState(int newState)
+	/** Called when the Connect button is clicked, to hook it into the memory subsystem. */
+	@Override
+	protected void addAsObserver()
 	{
-		keyState = newState;
-
-		if(!this.isBeingUsedAsAMarsTool || connectButton.isConnected())
-		{
-			try
-			{
-				Globals.memory.setRawWord(KEY_STATE, newState);
-			}
-			catch(AddressErrorException aee)
-			{
-				System.out.println("Tool author specified incorrect MMIO address!" + aee);
-				System.exit(0);
-			}
-		}
+		addAsObserver(SCREEN_UPDATE, KEY_STATE);
 	}
 
+	/** Called when the Reset button is clicked. */
+	@Override
+	protected void reset()
+	{
+		resetGraphicsMemory();
+		shouldRedraw = true;
+		updateDisplay();
+	}
+
+	/** Used to watch for writes to control registers. */
+	@Override
 	protected void processMIPSUpdate(Observable memory, AccessNotice accessNotice)
 	{
 		MemoryAccessNotice notice = (MemoryAccessNotice) accessNotice;
@@ -220,10 +256,13 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			// Copy values from memory to internal buffer, reset if we must.
 			try
 			{
-				// Ensure block for destination exists
-				Globals.memory.setRawWord(LED_BUFFER_START, 0x0);
-				Globals.memory.setRawWord(LED_BUFFER_END - 0x4, 0x0);
-				Globals.memory.copyMMIOFast(LED_START, LED_BUFFER_START, LED_END - LED_START);
+				synchronized(Globals.memoryAndRegistersLock)
+				{
+					// Ensure block for destination exists
+					Globals.memory.setRawWord(LED_BUFFER_START, 0x0);
+					Globals.memory.setRawWord(LED_BUFFER_END - 0x4, 0x0);
+					Globals.memory.copyMMIOFast(LED_START, LED_BUFFER_START, LED_END - LED_START);
+				}
 			}
 			catch(AddressErrorException aee)
 			{
@@ -239,46 +278,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		}
 	}
 
-	protected void reset()
-	{
-		resetGraphicsMemory();
-		shouldRedraw = true;
-		updateDisplay();
-	}
-
-	protected JComponent getHelpComponent()
-	{
-		final String helpContent = "LED Display Simulator "
-			+ version
-			+ "\n\n"
-			+ "Use this program to simulate Memory-Mapped I/O (MMIO) for a LED display output "
-			+ "device. It may be run either from MARS' Tools menu or as a stand-alone application. "
-			+ "For the latter, simply write a driver to instantiate a "
-			+ this.getClass().getName() + " object "
-			+ "and invoke its go() method.\n" + "\n"
-			+ "The arrow keys can control movement.\n"
-			+ "\n"
-			/* + "Contact " + author + " with questions or comments.\n" */;
-		JButton help = new JButton("Help");
-		help.addActionListener(new ActionListener()
-		{
-			public void actionPerformed(ActionEvent e)
-			{
-				JTextArea ja = new JTextArea(helpContent);
-				ja.setRows(10);
-				ja.setColumns(40);
-				ja.setLineWrap(true);
-				ja.setWrapStyleWord(true);
-				JOptionPane.showMessageDialog(theWindow, new JScrollPane(ja),
-											  "Simulating the LED Display",
-											  JOptionPane.INFORMATION_MESSAGE);
-			}
-		});
-		return help;
-	}
-
-	private boolean shouldRedraw = true;
-
+	/** Called when running at non-realtime speed after each instruction. */
+	@Override
 	protected void updateDisplay()
 	{
 		if(shouldRedraw)
@@ -288,6 +289,36 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		}
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// Classic input
+
+	/** CLASSIC: set the key state to the new state, and update the value in MIPS memory
+	for the program to be able to read. */
+	private void changeKeyState(int newState)
+	{
+		keyState = newState;
+
+		if(!this.isBeingUsedAsAMarsTool || connectButton.isConnected())
+		{
+			try
+			{
+				synchronized(Globals.memoryAndRegistersLock)
+				{
+					Globals.memory.setRawWord(KEY_STATE, newState);
+				}
+			}
+			catch(AddressErrorException aee)
+			{
+				System.out.println("Tool author specified incorrect MMIO address!" + aee);
+				System.exit(0);
+			}
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Classic display
+
+	/** CLASSIC: color palette. */
 	static final Color[] PixelColors = new Color[]
 	{
 		new Color(0, 0, 0),       // black
@@ -310,6 +341,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		new Color(127, 127, 127), // light grey
 	};
 
+	/** CLASSIC: the actual graphical display. */
 	private class LEDDisplayPanel extends JPanel
 	{
 		private static final int CELL_DEFAULT_SIZE = 8;
@@ -392,26 +424,29 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 			try
 			{
-				for(int row = 0; row < N_ROWS; row++)
+				synchronized(Globals.memoryAndRegistersLock)
 				{
-					int y = row * cellSize;
-
-					for(int col = 0, x = 0; col < N_COLUMNS; col += 4, ptr += 4)
+					for(int row = 0; row < N_ROWS; row++)
 					{
-						int pixel = Globals.memory.getWordNoNotify(ptr);
+						int y = row * cellSize;
 
-						g.setColor(PixelColors[pixel & COLOR_MASK]);
-						g.fillRect(x, y, pixelSize, pixelSize);
-						x += cellSize;
-						g.setColor(PixelColors[(pixel >> 8) & COLOR_MASK]);
-						g.fillRect(x, y, pixelSize, pixelSize);
-						x += cellSize;
-						g.setColor(PixelColors[(pixel >> 16) & COLOR_MASK]);
-						g.fillRect(x, y, pixelSize, pixelSize);
-						x += cellSize;
-						g.setColor(PixelColors[(pixel >> 24) & COLOR_MASK]);
-						g.fillRect(x, y, pixelSize, pixelSize);
-						x += cellSize;
+						for(int col = 0, x = 0; col < N_COLUMNS; col += 4, ptr += 4)
+						{
+							int pixel = Globals.memory.getWordNoNotify(ptr);
+
+							g.setColor(PixelColors[pixel & COLOR_MASK]);
+							g.fillRect(x, y, pixelSize, pixelSize);
+							x += cellSize;
+							g.setColor(PixelColors[(pixel >> 8) & COLOR_MASK]);
+							g.fillRect(x, y, pixelSize, pixelSize);
+							x += cellSize;
+							g.setColor(PixelColors[(pixel >> 16) & COLOR_MASK]);
+							g.fillRect(x, y, pixelSize, pixelSize);
+							x += cellSize;
+							g.setColor(PixelColors[(pixel >> 24) & COLOR_MASK]);
+							g.fillRect(x, y, pixelSize, pixelSize);
+							x += cellSize;
+						}
 					}
 				}
 			}
@@ -425,11 +460,15 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		}
 	}
 
+	/** CLASSIC: quickly clears the graphics memory to 0 (black). */
 	private static void resetGraphicsMemory()
 	{
 		try
 		{
-			Globals.memory.zeroMMIOFast(LED_START, LED_END - LED_START);
+			synchronized(Globals.memoryAndRegistersLock)
+			{
+				Globals.memory.zeroMMIOFast(LED_START, LED_END - LED_START);
+			}
 		}
 		catch(AddressErrorException aee)
 		{
