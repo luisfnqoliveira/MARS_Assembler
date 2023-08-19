@@ -49,6 +49,21 @@ import mars.simulator.Exceptions;
  */
 public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 {
+	/*
+	Classic mode memory map
+	=======================
+
+		0xFFFF0000: DISPLAY_CTRL.w (write-only)
+		0xFFFF0004: DISPLAY_KEYS.w (read-only)
+		0xFFFF0008: DISPLAY_BASE.b (write-only) - start of user-written LED area
+		0xFFFF1007: DISPLAY_END.b - 1 (write-only) - end of user-written LED area
+
+		-- nothing --
+
+		0xFFFF1008: DISPLAY_BUFFER_START.b - start of internal buffer
+		0xFFFF2007: DISPLAY_BUFFER_END.b - 1 - end of internal buffer
+	*/
+
 	// --------------------------------------------------------------------------------------------
 	// Constants
 
@@ -59,16 +74,17 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	private static final String heading = "";
 	private static final int N_COLUMNS = 64;
 	private static final int N_ROWS = 64;
-	private static final int SCREEN_UPDATE = Memory.memoryMapBaseAddress;
-	private static final int KEY_STATE = SCREEN_UPDATE + Memory.WORD_LENGTH_BYTES;
-	private static final int LED_START = KEY_STATE + Memory.WORD_LENGTH_BYTES;
-	private static final int LED_END = LED_START + N_ROWS * N_COLUMNS;
+	private static final int DISPLAY_CTRL = Memory.memoryMapBaseAddress;
+	private static final int DISPLAY_KEYS = DISPLAY_CTRL + Memory.WORD_LENGTH_BYTES;
+	private static final int DISPLAY_BASE = DISPLAY_KEYS + Memory.WORD_LENGTH_BYTES;
+	private static final int DISPLAY_SIZE = N_ROWS * N_COLUMNS; // bytes
+	private static final int DISPLAY_END = DISPLAY_BASE + DISPLAY_SIZE;
 
 	// the 4096 is there to give a "buffer zone" between the user-written area and the
 	// display buffer. this way, writes past the end of the display will be invisible.
 	// ...it's just to give the students a little leeway. :P
-	private static final int LED_BUFFER_START = LED_END + 4096;
-	private static final int LED_BUFFER_END = LED_BUFFER_START + N_ROWS * N_COLUMNS;
+	private static final int DISPLAY_BUFFER_START = DISPLAY_END + 4096;
+	private static final int DISPLAY_BUFFER_END = DISPLAY_BUFFER_START + DISPLAY_SIZE;
 
 	private static final int KEY_U = 1;
 	private static final int KEY_D = 2;
@@ -83,8 +99,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	// Instance fields
 
 	private JPanel panel;
-	private LEDDisplayPanel displayPanel;
-	private int keyState;
+	private ClassicLEDDisplayPanel displayPanel;
+	private int classicKeyState;
 	private boolean shouldRedraw = true;
 
 	// --------------------------------------------------------------------------------------------
@@ -121,7 +137,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		panel = new JPanel();
 		panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
 
-		displayPanel = new LEDDisplayPanel();
+		displayPanel = new ClassicLEDDisplayPanel();
 
 		JPanel subPanel = new JPanel();
 		JCheckBox gridCheckBox = new JCheckBox("Show Grid Lines");
@@ -151,28 +167,28 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 			public void keyPressed(KeyEvent e) {
 				switch(e.getKeyCode()) {
-					case KeyEvent.VK_LEFT:  changeKeyState(keyState | KEY_L); break;
-					case KeyEvent.VK_RIGHT: changeKeyState(keyState | KEY_R); break;
-					case KeyEvent.VK_UP:    changeKeyState(keyState | KEY_U); break;
-					case KeyEvent.VK_DOWN:  changeKeyState(keyState | KEY_D); break;
-					case KeyEvent.VK_B:     changeKeyState(keyState | KEY_B); break;
-					case KeyEvent.VK_Z:     changeKeyState(keyState | KEY_Z); break;
-					case KeyEvent.VK_X:     changeKeyState(keyState | KEY_X); break;
-					case KeyEvent.VK_C:     changeKeyState(keyState | KEY_C); break;
+					case KeyEvent.VK_LEFT:  changeKeyState(classicKeyState | KEY_L); break;
+					case KeyEvent.VK_RIGHT: changeKeyState(classicKeyState | KEY_R); break;
+					case KeyEvent.VK_UP:    changeKeyState(classicKeyState | KEY_U); break;
+					case KeyEvent.VK_DOWN:  changeKeyState(classicKeyState | KEY_D); break;
+					case KeyEvent.VK_B:     changeKeyState(classicKeyState | KEY_B); break;
+					case KeyEvent.VK_Z:     changeKeyState(classicKeyState | KEY_Z); break;
+					case KeyEvent.VK_X:     changeKeyState(classicKeyState | KEY_X); break;
+					case KeyEvent.VK_C:     changeKeyState(classicKeyState | KEY_C); break;
 					default: break;
 				}
 			}
 
 			public void keyReleased(KeyEvent e) {
 				switch(e.getKeyCode()) {
-					case KeyEvent.VK_LEFT:  changeKeyState(keyState & ~KEY_L); break;
-					case KeyEvent.VK_RIGHT: changeKeyState(keyState & ~KEY_R); break;
-					case KeyEvent.VK_UP:    changeKeyState(keyState & ~KEY_U); break;
-					case KeyEvent.VK_DOWN:  changeKeyState(keyState & ~KEY_D); break;
-					case KeyEvent.VK_B:     changeKeyState(keyState & ~KEY_B); break;
-					case KeyEvent.VK_Z:     changeKeyState(keyState & ~KEY_Z); break;
-					case KeyEvent.VK_X:     changeKeyState(keyState & ~KEY_X); break;
-					case KeyEvent.VK_C:     changeKeyState(keyState & ~KEY_C); break;
+					case KeyEvent.VK_LEFT:  changeKeyState(classicKeyState & ~KEY_L); break;
+					case KeyEvent.VK_RIGHT: changeKeyState(classicKeyState & ~KEY_R); break;
+					case KeyEvent.VK_UP:    changeKeyState(classicKeyState & ~KEY_U); break;
+					case KeyEvent.VK_DOWN:  changeKeyState(classicKeyState & ~KEY_D); break;
+					case KeyEvent.VK_B:     changeKeyState(classicKeyState & ~KEY_B); break;
+					case KeyEvent.VK_Z:     changeKeyState(classicKeyState & ~KEY_Z); break;
+					case KeyEvent.VK_X:     changeKeyState(classicKeyState & ~KEY_X); break;
+					case KeyEvent.VK_C:     changeKeyState(classicKeyState & ~KEY_C); break;
 					default: break;
 				}
 			}
@@ -230,7 +246,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	@Override
 	protected void addAsObserver()
 	{
-		addAsObserver(SCREEN_UPDATE, KEY_STATE);
+		addAsObserver(DISPLAY_CTRL, DISPLAY_KEYS);
 	}
 
 	/** Called when the Reset button is clicked. */
@@ -248,8 +264,13 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	{
 		MemoryAccessNotice notice = (MemoryAccessNotice) accessNotice;
 
-		if(notice.getAccessType() == AccessNotice.WRITE && notice.getAddress() == SCREEN_UPDATE)
-		{
+		// Only care about writes.
+		if(notice.getAccessType() != AccessNotice.WRITE)
+			return;
+
+		// Can't actually switch on addresses because they're dynamic based on
+		// Memory.memoryMapBaseAddress.
+		if(notice.getAddress() == DISPLAY_CTRL) {
 			displayPanel.shouldClear = notice.getValue() != 0;
 			shouldRedraw = true;
 
@@ -259,9 +280,10 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 				synchronized(Globals.memoryAndRegistersLock)
 				{
 					// Ensure block for destination exists
-					Globals.memory.setRawWord(LED_BUFFER_START, 0x0);
-					Globals.memory.setRawWord(LED_BUFFER_END - 0x4, 0x0);
-					Globals.memory.copyMMIOFast(LED_START, LED_BUFFER_START, LED_END - LED_START);
+					Globals.memory.setRawWord(DISPLAY_BUFFER_START, 0x0);
+					Globals.memory.setRawWord(DISPLAY_BUFFER_END - 0x4, 0x0);
+					Globals.memory.copyMMIOFast(DISPLAY_BASE, DISPLAY_BUFFER_START,
+						DISPLAY_SIZE);
 				}
 			}
 			catch(AddressErrorException aee)
@@ -296,7 +318,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	for the program to be able to read. */
 	private void changeKeyState(int newState)
 	{
-		keyState = newState;
+		classicKeyState = newState;
 
 		if(!this.isBeingUsedAsAMarsTool || connectButton.isConnected())
 		{
@@ -304,7 +326,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			{
 				synchronized(Globals.memoryAndRegistersLock)
 				{
-					Globals.memory.setRawWord(KEY_STATE, newState);
+					Globals.memory.setRawWord(DISPLAY_KEYS, newState);
 				}
 			}
 			catch(AddressErrorException aee)
@@ -342,7 +364,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	};
 
 	/** CLASSIC: the actual graphical display. */
-	private class LEDDisplayPanel extends JPanel
+	private class ClassicLEDDisplayPanel extends JPanel
 	{
 		private static final int CELL_DEFAULT_SIZE = 8;
 		private static final int CELL_ZOOMED_SIZE = 12;
@@ -358,7 +380,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private boolean drawGridLines = false;
 		private boolean zoomed = false;
 
-		public LEDDisplayPanel() {
+		public ClassicLEDDisplayPanel() {
 			this.recalcSizes();
 
 			this.setFocusable(true);
@@ -420,7 +442,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 				g.fillRect(0, 0, displayWidth, displayHeight);
 			}
 
-			int ptr = LED_BUFFER_START;
+			int ptr = DISPLAY_BUFFER_START;
 
 			try
 			{
@@ -467,7 +489,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		{
 			synchronized(Globals.memoryAndRegistersLock)
 			{
-				Globals.memory.zeroMMIOFast(LED_START, LED_END - LED_START);
+				Globals.memory.zeroMMIOFast(DISPLAY_BASE, DISPLAY_SIZE);
 			}
 		}
 		catch(AddressErrorException aee)
