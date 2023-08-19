@@ -278,7 +278,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		}
 	}
 
-	/** Called when running at non-realtime speed after each instruction. */
+	/** Called any time an MMIO access is made. */
 	@Override
 	protected void updateDisplay()
 	{
