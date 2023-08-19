@@ -133,59 +133,40 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		panel.add(subPanel);
 		panel.add(displayPanel);
 
-		/* This is so hacky and verbose. I don't know of a better way. */
-		// JB: I feel you, Jose. "Verbose" is the best adjective for Java.
-		InputMap map = panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
-		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_LEFT,  0, false), "LeftKeyPressed"   );
-		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, 0, false), "RightKeyPressed"  );
-		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_UP,    0, false), "UpKeyPressed"     );
-		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN,  0, false), "DownKeyPressed"   );
-		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_B,     0, false), "BKeyPressed"      );
-		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_Z,     0, false), "ZKeyPressed"      );
-		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_X,     0, false), "XKeyPressed"      );
-		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_C,     0, false), "CKeyPressed"      );
-		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_LEFT,  0, true ), "LeftKeyReleased"  );
-		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, 0, true ), "RightKeyReleased" );
-		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_UP,    0, true ), "UpKeyReleased"    );
-		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN,  0, true ), "DownKeyReleased"  );
-		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_B,     0, true ), "BKeyReleased"     );
-		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_Z,     0, true ), "ZKeyReleased"     );
-		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_X,     0, true ), "XKeyReleased"     );
-		map.put(KeyStroke.getKeyStroke(KeyEvent.VK_C,     0, true ), "CKeyReleased"     );
+		displayPanel.addKeyListener(new KeyListener() {
+			public void keyTyped(KeyEvent e) {
+			}
 
-		ActionMap actions = panel.getActionMap();
-		actions.put("LeftKeyPressed",    new AbstractAction() {
-			public void actionPerformed(ActionEvent e) { changeKeyState(keyState | KEY_L);  } });
-		actions.put("RightKeyPressed",   new AbstractAction() {
-			public void actionPerformed(ActionEvent e) { changeKeyState(keyState | KEY_R);  } });
-		actions.put("UpKeyPressed",      new AbstractAction() {
-			public void actionPerformed(ActionEvent e) { changeKeyState(keyState | KEY_U);  } });
-		actions.put("DownKeyPressed",    new AbstractAction() {
-			public void actionPerformed(ActionEvent e) { changeKeyState(keyState | KEY_D);  } });
-		actions.put("BKeyPressed",       new AbstractAction() {
-			public void actionPerformed(ActionEvent e) { changeKeyState(keyState | KEY_B);  } });
-		actions.put("ZKeyPressed",       new AbstractAction() {
-			public void actionPerformed(ActionEvent e) { changeKeyState(keyState | KEY_Z);  } });
-		actions.put("XKeyPressed",       new AbstractAction() {
-			public void actionPerformed(ActionEvent e) { changeKeyState(keyState | KEY_X);  } });
-		actions.put("CKeyPressed",       new AbstractAction() {
-			public void actionPerformed(ActionEvent e) { changeKeyState(keyState | KEY_C);  } });
-		actions.put("LeftKeyReleased",   new AbstractAction() {
-			public void actionPerformed(ActionEvent e) { changeKeyState(keyState & ~KEY_L); } });
-		actions.put("RightKeyReleased",  new AbstractAction() {
-			public void actionPerformed(ActionEvent e) { changeKeyState(keyState & ~KEY_R); } });
-		actions.put("UpKeyReleased",     new AbstractAction() {
-			public void actionPerformed(ActionEvent e) { changeKeyState(keyState & ~KEY_U); } });
-		actions.put("DownKeyReleased",   new AbstractAction() {
-			public void actionPerformed(ActionEvent e) { changeKeyState(keyState & ~KEY_D); } });
-		actions.put("BKeyReleased",      new AbstractAction() {
-			public void actionPerformed(ActionEvent e) { changeKeyState(keyState & ~KEY_B); } });
-		actions.put("ZKeyReleased",      new AbstractAction() {
-			public void actionPerformed(ActionEvent e) { changeKeyState(keyState & ~KEY_Z); } });
-		actions.put("XKeyReleased",      new AbstractAction() {
-			public void actionPerformed(ActionEvent e) { changeKeyState(keyState & ~KEY_X); } });
-		actions.put("CKeyReleased",      new AbstractAction() {
-			public void actionPerformed(ActionEvent e) { changeKeyState(keyState & ~KEY_C); } });
+			public void keyPressed(KeyEvent e) {
+				switch(e.getKeyCode()) {
+					case KeyEvent.VK_LEFT:  changeKeyState(keyState | KEY_L); break;
+					case KeyEvent.VK_RIGHT: changeKeyState(keyState | KEY_R); break;
+					case KeyEvent.VK_UP:    changeKeyState(keyState | KEY_U); break;
+					case KeyEvent.VK_DOWN:  changeKeyState(keyState | KEY_D); break;
+					case KeyEvent.VK_B:     changeKeyState(keyState | KEY_B); break;
+					case KeyEvent.VK_Z:     changeKeyState(keyState | KEY_Z); break;
+					case KeyEvent.VK_X:     changeKeyState(keyState | KEY_X); break;
+					case KeyEvent.VK_C:     changeKeyState(keyState | KEY_C); break;
+					default: break;
+				}
+			}
+
+			public void keyReleased(KeyEvent e) {
+				switch(e.getKeyCode()) {
+					case KeyEvent.VK_LEFT:  changeKeyState(keyState & ~KEY_L); break;
+					case KeyEvent.VK_RIGHT: changeKeyState(keyState & ~KEY_R); break;
+					case KeyEvent.VK_UP:    changeKeyState(keyState & ~KEY_U); break;
+					case KeyEvent.VK_DOWN:  changeKeyState(keyState & ~KEY_D); break;
+					case KeyEvent.VK_B:     changeKeyState(keyState & ~KEY_B); break;
+					case KeyEvent.VK_Z:     changeKeyState(keyState & ~KEY_Z); break;
+					case KeyEvent.VK_X:     changeKeyState(keyState & ~KEY_X); break;
+					case KeyEvent.VK_C:     changeKeyState(keyState & ~KEY_C); break;
+					default: break;
+				}
+			}
+		});
+
+		displayPanel.requestFocusInWindow();
 
 		return panel;
 	}
@@ -200,6 +181,12 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 		if(dialog != null) {
 			dialog.setResizable(false);
+
+			dialog.addWindowFocusListener(new WindowAdapter() {
+				public void windowGainedFocus(WindowEvent e) {
+					displayPanel.requestFocusInWindow();
+				}
+			});
 		}
 	}
 
@@ -341,6 +328,24 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 		public LEDDisplayPanel() {
 			this.recalcSizes();
+
+			this.setFocusable(true);
+			this.setFocusTraversalKeysEnabled(false);
+			this.addMouseListener(new MouseAdapter() {
+				public void mouseClicked(MouseEvent e) {
+					requestFocusInWindow();
+				}
+			});
+
+			this.addFocusListener(new FocusListener() {
+				public void focusGained(FocusEvent e) {
+					// TODO: set a flag saying we have focus
+				}
+
+				public void focusLost(FocusEvent e) {
+					// TODO: set a flag saying we DON'T have focus
+				}
+			});
 		}
 
 		private void recalcSizes() {
@@ -415,6 +420,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 				System.out.println("Tool author specified incorrect MMIO address!" + aee);
 				System.exit(0);
 			}
+
+			// TODO: if we don't have focus, draw an overlay saying to click on the display
 		}
 	}
 
