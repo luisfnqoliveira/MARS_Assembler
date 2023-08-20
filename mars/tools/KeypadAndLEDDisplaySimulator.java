@@ -52,15 +52,231 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	Classic mode memory map
 	=======================
 
-		0xFFFF0000: DISPLAY_CTRL.w (write-only)
-		0xFFFF0004: DISPLAY_KEYS.w (read-only)
-		0xFFFF0008: DISPLAY_BASE.b (write-only) - start of user-written LED area
-		0xFFFF1007: DISPLAY_END.b - 1 (write-only) - end of user-written LED area
+	0xFFFF0000: DISPLAY_CTRL.w (WO)
+	0xFFFF0004: DISPLAY_KEYS.w (RO)
+	0xFFFF0008: DISPLAY_BASE.b (WO) - start of user-written LED area
+	0xFFFF1007: DISPLAY_END.b-1 (write-only) - end of user-written LED area
 
-		-- nothing --
+	-- nothing --
 
-		0xFFFF1008: DISPLAY_BUFFER_START.b - start of internal buffer
-		0xFFFF2007: DISPLAY_BUFFER_END.b - 1 - end of internal buffer
+	0xFFFF2008: DISPLAY_BUFFER_START.b - start of internal buffer
+	0xFFFF3007: DISPLAY_BUFFER_END.b-1 - end of internal buffer
+
+	Enhanced mode memory map
+	========================
+
+	GLOBAL REGISTERS:
+
+		0xFFFF0000: DISPLAY_CTRL.w           (WO, low 2 bits are mode)
+			00: undefined
+			01: framebuffer on
+			10: tilemap on
+			11: framebuffer and tilemap on
+		0xFFFF0004: DISPLAY_SYNC.w           (RW)
+			write to indicate frame is over and ready for display (value is ignored)
+			read to wait for next frame (always reads 0)
+		0xFFFF0008: DISPLAY_FB_CLEAR.w       (WO, clears framebuffer to BG color when written)
+		0xFFFF000C: DISPLAY_ORDER.w          (WO, order in which tilemap and framebuffer should
+			be composited - 0 = tilemap in front of framebuffer, 0 = tilemap behind framebuffer)
+
+	TILEMAP REGISTERS:
+
+		0xFFFF0010: DISPLAY_TM_SCX.w         (WO, tilemap X scroll position)
+		0xFFFF0014: DISPLAY_TM_SCY.w         (WO, tilemap Y scroll position)
+
+		-- blank --
+
+	INPUT REGISTERS:
+
+		0xFFFF0020: DISPLAY_KEY_HELD.w       (write to choose key, read to get state)
+		0xFFFF0024: DISPLAY_KEY_PRESSED.w    (write to choose key, read to get state)
+		0xFFFF0028: DISPLAY_KEY_RELEASED.w   (write to choose key, read to get state)
+		0xFFFF002C: DISPLAY_MOUSE_X.w        (RO, X position of mouse or -1 if mouse not over)
+		0xFFFF0030: DISPLAY_MOUSE_Y.w        (RO, Y position of mouse or -1 if mouse not over)
+		0xFFFF0034: DISPLAY_MOUSE_HELD.w     (RO, bitflags of mouse buttons held)
+		0xFFFF0038: DISPLAY_MOUSE_PRESSED.w  (RO, bitflags of mouse buttons pressed, incl wheel)
+		0xFFFF003C: DISPLAY_MOUSE_RELEASED.w (RO, bitflags of mouse buttons released)
+
+		-- blank --
+
+	PALETTE RAM:
+
+		0xFFFF0C00-0xFFFF0FFF: 256 4B palette entries, byte order [BB, GG, RR, 00]
+			(0x00RRGGBB in register becomes that in memory)
+
+	FRAMEBUFFER DATA:
+
+		0xFFFF1000-0xFFFF4FFF: 128x128 (16,384) 1B pixels, each is an index into the palette
+
+	TILEMAP AND SPRITE TABLES:
+
+		0xFFFF5000-0xFFFF57FF: 32x32 2B tilemap entries consisting of (tile, flags)
+			tile graphics are fetched from (0xFFFF6000 + tile * 64)
+			flags is xxxxHVP
+				H = horizontal flip
+				V = vertical flip
+				P = priority (appears over sprites)
+
+		0xFFFF5800-0xFFFF5FFF: 256 4B sprite entries consisting of (X, Y, tile, flags)
+			X and Y are signed
+			tile graphics are fetched from (0xFFFFA000 + tile * 64)
+			flags is XXYYxHVE
+				E = enable (1 for visible)
+				H = horizontal flip
+				V = vertical flip
+				XX = X size (00 = 8px, 01 = 16px, 10 = 32px, 11 = 64px)
+				YY = Y size (00 = 8px, 01 = 16px, 10 = 32px, 11 = 64px)
+				if either size > 8px, tiles are put in order left-to-right, top-to-bottom, like
+					1 2 3 4
+					5 6 7 8
+				or
+					1 2
+					3 4
+					5 6
+					7 8
+
+	GRAPHICS DATA:
+		0xFFFF6000-0xFFFF9FFF: 256 8x8 1Bpp indexed color tilemap tiles
+		0xFFFFA000-0xFFFFDFFF: 256 8x8 1Bpp indexed color sprite tiles
+
+	-- conspicuous blank space from 0xFFFFE000-0xFFFFFFFF that could be used for sound --
+
+	Modes and how to switch
+	=======================
+
+		MODE 0: Classic mode
+
+			It starts in mode 0, classic mode. This mode provides a 64x64-pixel linear
+			framebuffer, 1 byte per pixel, with a fixed 16-color palette.
+
+			A simple kind of double buffering is used to reduce the likelihood of tearing.
+			The back buffer is readable and writable by the user and exists in memory
+			in the address range [DISPLAY_BASE .. DISPLAY_END). The front buffer is
+			*technically* writable by the user but well-behaved users would never do this.
+
+			Writing 0 to DISPLAY_CTRL copies the back buffer into the front buffer.
+
+			Writing a 1 to DISPLAY_CTRL copies the back buffer into the front buffer,
+			then clears the back buffer to all 0 (black).
+
+			Input is limited to the keyboard arrow keys and Z, X, C, B keys. Input is
+			retrieved by reading from DISPLAY_KEYS, which returns the pressed state of
+			each key as bitflags.
+
+			As long as only the values 0 and 1 are written to DISPLAY_CTRL, it will stay
+			in mode 0.
+
+		MODE 1: Enhanced framebuffer
+
+			Writing a value > 256 (0x100) to DISPLAY_CTRL will switch into enhanced mode.
+			The mode number is the value written to (DISPLAY_CTRL & 3). If DISPLAY_CTRL & 3
+			is 0 and the value is > 256, the results are undefined. Don't do that.
+
+			All enhanced modes use a 128x128 display.
+
+			Mode 1 is similar to mode 0, but with higher capabilities. This mode provides
+			a linear framebuffer, 1 byte per pixel, with a user-definable 256-entry palette.
+
+			Palette entries are RGB888, padded to 4 bytes. The palette is initialized in
+			some way so that the palette index can be interpreted as RGB222 or RGB232 or
+			something so that you can get to drawing stuff to the screen right away.
+
+			The framebuffer is 128x128 pixels, the same size as the display. This already
+			takes up 16KB of the tight 64KB of MMIO space, so that's all you get.
+
+		MODE 2: Tilemap
+
+			Mode 2 is totally different. In this mode, the tilemap is used instead.
+			The tilemap is a 32x32-tile grid, where each tile is 8x8 pixels, for a total
+			of 256x256 pixels (4 full screens).
+
+			Each tile in the tilemap can be one of 256 tile graphics. There is enough
+			space for all 256 tile indexes to have their own 8x8 1Bpp images.
+
+			Each tile in the tilemap can also be flipped horizontally and/or vertically,
+			or set to "priority" so that it appears in front of sprites. (Sprites are
+			explained later.)
+
+			The tilemap can be scrolled freely at pixel resolution on both axes. The scroll
+			amount can be written as a signed integer but will be ANDed with 255. The tilemap
+			wraps around at the edges.
+
+		MODE 3: Both
+
+			Mode 3 displays the framebuffer and the tilemap, with the tilemap in front of
+			the framebuffer.
+
+	Palette and Transparency
+	========================
+
+		There is a single global 256-entry palette. Each palette entry is 4 bytes, and is an
+		RGB888 color with 1 byte unused. The tilemap and the sprites share the palette.
+
+		Palette entry 0 is special as it specifies the background color. In tilemap and sprite
+		graphics, a color index of 0 means "transparent," so this color will not appear in those
+		graphics.
+
+	Background Color
+	================
+
+		Palette entry 0 is the global background color to which the display is cleared before
+		drawing anything else.
+
+		If the framebuffer is visible, writing any value to DISPLAY_FB_CLEAR will fill the
+		entire framebuffer with the background color.
+
+		If the framebuffer is not visible but the tilemap is, the background color will appear
+		behind transparent pixels in tiles.
+
+
+
+	Sprites
+	=======
+
+		Sprites are available in any enhanced mode.
+
+		There can be up to 256 sprites onscreen. Each sprite can be anywhere from 8x8 to 64x64
+		pixels (1x1 to 8x8 tiles) in size, in powers of two, each dimension independently
+		settable. Each sprite can be positioned anywhere onscreen including off all four sides.
+		Each sprite can also be flipped horizontally or vertically.
+
+		Sprite priority is by order in the list. Sprite 0 appears on top of sprite 1, which
+		appears on top of sprite 2, etc.
+
+		There are no "per-scanline limits" on the number of visible sprites.
+
+		Sprite graphics are specified as 8x8 tiles just like the tilemap. For sprites bigger than
+		8x8 pixels (1x1 tile), the tiles are assumed to be contiguous in memory, and are drawn
+		in "reading order" (left-to-right, then top-to-bottom). So a 16x16 pixel sprite's tiles
+		would be arranged like this on screen, where each number is the order they'd appear in
+		memory:
+			1 2
+			3 4
+
+	Graphics Data
+	=============
+
+		The tilemap and the sprites each have their own independent graphics data areas.
+
+		The graphics are 8x8-pixel tiles, where each pixel is 1 byte, for a total of 64 bytes
+		per tile. The pixels are stored in "reading order". Each pixel is an index into the
+		global palette.
+
+	Screen Compositing
+	==================
+
+		If DISPLAY_ORDER is 0 (the default), the display elements are drawn from back (first drawn)
+		to front (last drawn) like so:
+
+			- Background color
+			- Framebuffer
+			- Tilemap tiles without priority
+			- Sprites, from sprite 255 down to sprite 0
+			- Tilemap tiles with priority
+
+		If DISPLAY_ORDER is set to 1, the framebuffer is instead drawn last, on top of
+		everything else.
+
 	*/
 
 	// --------------------------------------------------------------------------------------------
@@ -200,6 +416,9 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		System.out.println("BB: " + caps.getBackBufferCapabilities().isTrueVolatile());
 		System.out.println("FB: " + caps.getFrontBufferCapabilities().isTrueVolatile());
 		System.out.println("FC: " + caps.getFlipContents());
+
+		// TODO: experiment with driving painting from a separate thread instead of
+		// relying on repaint events
 	}
 
 	/** Called when the Connect button is clicked, to hook it into the memory subsystem. */
@@ -488,5 +707,14 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 			// TODO: if we don't have focus, draw an overlay saying to click on the display
 		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Enhanced display
+
+	private class EnhancedLEDDisplayPanel extends LEDDisplayPanel {
+		private static final int CELL_DEFAULT_SIZE = 4;
+		private static final int CELL_ZOOMED_SIZE = 6;
+
 	}
 }
