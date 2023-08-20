@@ -67,11 +67,21 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 	GLOBAL REGISTERS:
 
-		0xFFFF0000: DISPLAY_CTRL.w           (WO, low 2 bits are mode)
-			00: undefined
-			01: framebuffer on
-			10: tilemap on
-			11: framebuffer and tilemap on
+		0xFFFF0000: DISPLAY_CTRL.w           (WO)
+			low 2 bits are mode:
+				00: undefined
+				01: framebuffer on
+				10: tilemap on
+				11: framebuffer and tilemap on
+			bit 8 has no specific meaning but setting it along with mode switches to enhanced mode
+			bits 16-23 are the milliseconds per frame used by DISPLAY_SYNC, but limited to
+			the range [10, 100].
+
+			bits 9-15 and 24-31 are undefined atm
+
+			so set DISPLAY_CTRL to:
+				(ms_per_frame << 16) | 0x100 | mode
+
 		0xFFFF0004: DISPLAY_SYNC.w           (RW)
 			write to indicate frame is over and ready for display (value is ignored)
 			read to wait for next frame (always reads 0)
@@ -484,7 +494,6 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		protected KeypadAndLEDDisplaySimulator sim;
 
 		protected boolean haveFocus = false;
-		protected boolean shouldClear = false;
 		protected boolean shouldRedraw = true;
 		protected boolean drawGridLines = false;
 		protected boolean zoomed = false;
@@ -551,19 +560,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			}
 		}
 
-		public void setShouldClear(boolean c) {
-			this.shouldClear = c;
-		}
-
 		public void setShouldRedraw(boolean b) {
 			this.shouldRedraw = b;
-		}
-
-		public void clearIfNeeded() {
-			if(this.shouldClear) {
-				this.shouldClear = false;
-				this.resetGraphicsMemory();
-			}
 		}
 
 		public void redrawIfNeeded() {
@@ -631,6 +629,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 		private static final int COLOR_MASK = 15;
 
+		private boolean shouldClear = false;
 		private int keyState;
 
 		public ClassicLEDDisplayPanel(KeypadAndLEDDisplaySimulator sim) {
@@ -723,6 +722,17 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			this.clearIfNeeded();
 		}
 
+		private void setShouldClear(boolean c) {
+			this.shouldClear = c;
+		}
+
+		private void clearIfNeeded() {
+			if(this.shouldClear) {
+				this.shouldClear = false;
+				this.resetGraphicsMemory();
+			}
+		}
+
 		public void paintComponent(Graphics g) {
 			if(!sim.connectButton.isConnected()) {
 				g.setColor(Color.BLACK);
@@ -781,6 +791,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private static final int N_ROWS = 128;
 		private static final int CELL_DEFAULT_SIZE = 4;
 		private static final int CELL_ZOOMED_SIZE = 6;
+
+		private int msPerFrame = 16;
 
 		public EnhancedLEDDisplayPanel(KeypadAndLEDDisplaySimulator sim) {
 			super(sim, N_COLUMNS, N_ROWS, CELL_DEFAULT_SIZE, CELL_ZOOMED_SIZE);
