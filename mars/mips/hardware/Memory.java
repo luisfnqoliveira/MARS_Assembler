@@ -1327,7 +1327,7 @@ public class Memory extends Observable
 		if(endAddr != startAddr && endAddr % WORD_LENGTH_BYTES != 0)
 		{
 			throw new AddressErrorException("address not aligned on word boundary ",
-											Exceptions.ADDRESS_EXCEPTION_LOAD, startAddr);
+											Exceptions.ADDRESS_EXCEPTION_LOAD, endAddr);
 		}
 		// upper half of address space (above 0x7fffffff) has sign bit 1 thus is seen as
 		// negative.

@@ -566,6 +566,8 @@ public abstract class AbstractMarsToolAndApplication extends JFrame implements M
 		}
 		catch(AddressErrorException aee)
 		{
+			System.err.println("Reason why couldn't add tool as observer: " + aee);
+
 			if(this.isBeingUsedAsAMarsTool)
 				headingLabel.setText(errorMessage);
 			else
