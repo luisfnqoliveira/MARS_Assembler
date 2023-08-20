@@ -47,8 +47,7 @@ import mars.simulator.Exceptions;
  * @author Jarrett Billingsley
  * @version 1.1. 16 February 2010.
  */
-public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
-{
+public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication {
 	/*
 	Classic mode memory map
 	=======================
@@ -99,41 +98,35 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	// Instance fields
 
 	private JPanel panel;
-	private ClassicLEDDisplayPanel displayPanel;
-	private int classicKeyState;
+	private LEDDisplayPanel displayPanel;
 	private boolean shouldRedraw = true;
 
 	// --------------------------------------------------------------------------------------------
 	// Standalone main
 
-	public static void main(String[] args)
-	{
+	public static void main(String[] args) {
 		new KeypadAndLEDDisplaySimulator(title + " stand-alone, " + version, heading).go();
 	}
 
 	// --------------------------------------------------------------------------------------------
 	// AbstractMarsToolAndApplication implementation
 
-	public KeypadAndLEDDisplaySimulator(String title, String heading)
-	{
+	public KeypadAndLEDDisplaySimulator(String title, String heading) {
 		super(title, heading);
 	}
 
-	public KeypadAndLEDDisplaySimulator()
-	{
+	public KeypadAndLEDDisplaySimulator() {
 		super(title + ", " + version, heading);
 	}
 
 	@Override
-	public String getName()
-	{
+	public String getName() {
 		return "Keypad and LED Display Simulator";
 	}
 
 	/** Builds the actual GUI for the tool. */
 	@Override
-	protected JComponent buildMainDisplayArea()
-	{
+	protected JComponent buildMainDisplayArea() {
 		panel = new JPanel();
 		panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
 
@@ -160,39 +153,6 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 		panel.add(subPanel);
 		panel.add(displayPanel);
-
-		displayPanel.addKeyListener(new KeyListener() {
-			public void keyTyped(KeyEvent e) {
-			}
-
-			public void keyPressed(KeyEvent e) {
-				switch(e.getKeyCode()) {
-					case KeyEvent.VK_LEFT:  changeKeyState(classicKeyState | KEY_L); break;
-					case KeyEvent.VK_RIGHT: changeKeyState(classicKeyState | KEY_R); break;
-					case KeyEvent.VK_UP:    changeKeyState(classicKeyState | KEY_U); break;
-					case KeyEvent.VK_DOWN:  changeKeyState(classicKeyState | KEY_D); break;
-					case KeyEvent.VK_B:     changeKeyState(classicKeyState | KEY_B); break;
-					case KeyEvent.VK_Z:     changeKeyState(classicKeyState | KEY_Z); break;
-					case KeyEvent.VK_X:     changeKeyState(classicKeyState | KEY_X); break;
-					case KeyEvent.VK_C:     changeKeyState(classicKeyState | KEY_C); break;
-					default: break;
-				}
-			}
-
-			public void keyReleased(KeyEvent e) {
-				switch(e.getKeyCode()) {
-					case KeyEvent.VK_LEFT:  changeKeyState(classicKeyState & ~KEY_L); break;
-					case KeyEvent.VK_RIGHT: changeKeyState(classicKeyState & ~KEY_R); break;
-					case KeyEvent.VK_UP:    changeKeyState(classicKeyState & ~KEY_U); break;
-					case KeyEvent.VK_DOWN:  changeKeyState(classicKeyState & ~KEY_D); break;
-					case KeyEvent.VK_B:     changeKeyState(classicKeyState & ~KEY_B); break;
-					case KeyEvent.VK_Z:     changeKeyState(classicKeyState & ~KEY_Z); break;
-					case KeyEvent.VK_X:     changeKeyState(classicKeyState & ~KEY_X); break;
-					case KeyEvent.VK_C:     changeKeyState(classicKeyState & ~KEY_C); break;
-					default: break;
-				}
-			}
-		});
 
 		displayPanel.requestFocusInWindow();
 
@@ -244,24 +204,21 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 	/** Called when the Connect button is clicked, to hook it into the memory subsystem. */
 	@Override
-	protected void addAsObserver()
-	{
+	protected void addAsObserver() {
 		addAsObserver(DISPLAY_CTRL, DISPLAY_KEYS);
 	}
 
 	/** Called when the Reset button is clicked. */
 	@Override
-	protected void reset()
-	{
-		resetGraphicsMemory();
+	protected void reset() {
+		displayPanel.resetGraphicsMemory();
 		shouldRedraw = true;
 		updateDisplay();
 	}
 
 	/** Used to watch for writes to control registers. */
 	@Override
-	protected void processMIPSUpdate(Observable memory, AccessNotice accessNotice)
-	{
+	protected void processMIPSUpdate(Observable memory, AccessNotice accessNotice) {
 		MemoryAccessNotice notice = (MemoryAccessNotice) accessNotice;
 
 		// Only care about writes.
@@ -271,14 +228,12 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		// Can't actually switch on addresses because they're dynamic based on
 		// Memory.memoryMapBaseAddress.
 		if(notice.getAddress() == DISPLAY_CTRL) {
-			displayPanel.shouldClear = notice.getValue() != 0;
+			displayPanel.setShouldClear(notice.getValue() != 0);
 			shouldRedraw = true;
 
 			// Copy values from memory to internal buffer, reset if we must.
-			try
-			{
-				synchronized(Globals.memoryAndRegistersLock)
-				{
+			try {
+				synchronized(Globals.memoryAndRegistersLock) {
 					// Ensure block for destination exists
 					Globals.memory.setRawWord(DISPLAY_BUFFER_START, 0x0);
 					Globals.memory.setRawWord(DISPLAY_BUFFER_END - 0x4, 0x0);
@@ -286,63 +241,62 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 						DISPLAY_SIZE);
 				}
 			}
-			catch(AddressErrorException aee)
-			{
+			catch(AddressErrorException aee) {
 				System.out.println("Tool author specified incorrect MMIO address!" + aee);
 				System.exit(0);
 			}
 
-			if(displayPanel.shouldClear)
-			{
-				displayPanel.shouldClear = false;
-				resetGraphicsMemory();
-			}
+			displayPanel.clearIfNeeded();
 		}
 	}
 
 	/** Called any time an MMIO access is made. */
 	@Override
-	protected void updateDisplay()
-	{
-		if(shouldRedraw)
-		{
+	protected void updateDisplay() {
+		if(shouldRedraw) {
 			shouldRedraw = false;
 			displayPanel.repaint();
 		}
 	}
 
 	// --------------------------------------------------------------------------------------------
-	// Classic input
+	// Common base class for both kinds of displays
 
-	/** CLASSIC: set the key state to the new state, and update the value in MIPS memory
-	for the program to be able to read. */
-	private void changeKeyState(int newState)
-	{
-		classicKeyState = newState;
+	private abstract class LEDDisplayPanel extends JPanel {
+		private boolean haveFocus = false;
 
-		if(!this.isBeingUsedAsAMarsTool || connectButton.isConnected())
-		{
-			try
-			{
-				synchronized(Globals.memoryAndRegistersLock)
-				{
-					Globals.memory.setRawWord(DISPLAY_KEYS, newState);
+		public abstract void setGridLinesEnabled(boolean e);
+		public abstract void setZoomed(boolean e);
+		public abstract void setShouldClear(boolean c);
+		public abstract void clearIfNeeded();
+		public abstract void resetGraphicsMemory();
+
+		public LEDDisplayPanel() {
+			this.setFocusable(true);
+			this.setFocusTraversalKeysEnabled(false);
+			this.addMouseListener(new MouseAdapter() {
+				public void mouseClicked(MouseEvent e) {
+					requestFocusInWindow();
 				}
-			}
-			catch(AddressErrorException aee)
-			{
-				System.out.println("Tool author specified incorrect MMIO address!" + aee);
-				System.exit(0);
-			}
+			});
+
+			this.addFocusListener(new FocusListener() {
+				public void focusGained(FocusEvent e) {
+					haveFocus = true;
+				}
+
+				public void focusLost(FocusEvent e) {
+					haveFocus = false;
+				}
+			});
 		}
 	}
 
 	// --------------------------------------------------------------------------------------------
 	// Classic display
 
-	/** CLASSIC: color palette. */
-	static final Color[] PixelColors = new Color[]
-	{
+	/** color palette. has to be out here for some Java reason */
+	private static final Color[] ClassicPixelColors = new Color[] {
 		new Color(0, 0, 0),       // black
 		new Color(255, 0, 0),     // red
 		new Color(255, 127, 0),   // orange
@@ -364,8 +318,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	};
 
 	/** CLASSIC: the actual graphical display. */
-	private class ClassicLEDDisplayPanel extends JPanel
-	{
+	private class ClassicLEDDisplayPanel extends LEDDisplayPanel {
 		private static final int CELL_DEFAULT_SIZE = 8;
 		private static final int CELL_ZOOMED_SIZE = 12;
 		private static final int COLOR_MASK = 15;
@@ -376,58 +329,118 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private int displayWidth;
 		private int displayHeight;
 
-		public boolean shouldClear = false;
+		private boolean shouldClear = false;
 		private boolean drawGridLines = false;
 		private boolean zoomed = false;
 
+		private int keyState;
+
 		public ClassicLEDDisplayPanel() {
+			super();
+
 			this.recalcSizes();
 
-			this.setFocusable(true);
-			this.setFocusTraversalKeysEnabled(false);
-			this.addMouseListener(new MouseAdapter() {
-				public void mouseClicked(MouseEvent e) {
-					requestFocusInWindow();
-				}
-			});
-
-			this.addFocusListener(new FocusListener() {
-				public void focusGained(FocusEvent e) {
-					// TODO: set a flag saying we have focus
+			this.addKeyListener(new KeyListener() {
+				public void keyTyped(KeyEvent e) {
 				}
 
-				public void focusLost(FocusEvent e) {
-					// TODO: set a flag saying we DON'T have focus
+				public void keyPressed(KeyEvent e) {
+					switch(e.getKeyCode()) {
+						case KeyEvent.VK_LEFT:  changeKeyState(keyState | KEY_L); break;
+						case KeyEvent.VK_RIGHT: changeKeyState(keyState | KEY_R); break;
+						case KeyEvent.VK_UP:    changeKeyState(keyState | KEY_U); break;
+						case KeyEvent.VK_DOWN:  changeKeyState(keyState | KEY_D); break;
+						case KeyEvent.VK_B:     changeKeyState(keyState | KEY_B); break;
+						case KeyEvent.VK_Z:     changeKeyState(keyState | KEY_Z); break;
+						case KeyEvent.VK_X:     changeKeyState(keyState | KEY_X); break;
+						case KeyEvent.VK_C:     changeKeyState(keyState | KEY_C); break;
+						default: break;
+					}
+				}
+
+				public void keyReleased(KeyEvent e) {
+					switch(e.getKeyCode()) {
+						case KeyEvent.VK_LEFT:  changeKeyState(keyState & ~KEY_L); break;
+						case KeyEvent.VK_RIGHT: changeKeyState(keyState & ~KEY_R); break;
+						case KeyEvent.VK_UP:    changeKeyState(keyState & ~KEY_U); break;
+						case KeyEvent.VK_DOWN:  changeKeyState(keyState & ~KEY_D); break;
+						case KeyEvent.VK_B:     changeKeyState(keyState & ~KEY_B); break;
+						case KeyEvent.VK_Z:     changeKeyState(keyState & ~KEY_Z); break;
+						case KeyEvent.VK_X:     changeKeyState(keyState & ~KEY_X); break;
+						case KeyEvent.VK_C:     changeKeyState(keyState & ~KEY_C); break;
+						default: break;
+					}
 				}
 			});
 		}
 
 		private void recalcSizes() {
-			cellSize = cellSize = (zoomed ? CELL_ZOOMED_SIZE : CELL_DEFAULT_SIZE);
-			cellPadding = drawGridLines ? 1 : 0;
-			pixelSize = cellSize - cellPadding;
-			pixelSize = cellSize - cellPadding;
-			displayWidth = (N_COLUMNS * cellSize);
+			cellSize      = cellSize = (zoomed ? CELL_ZOOMED_SIZE : CELL_DEFAULT_SIZE);
+			cellPadding   = drawGridLines ? 1 : 0;
+			pixelSize     = cellSize - cellPadding;
+			pixelSize     = cellSize - cellPadding;
+			displayWidth  = (N_COLUMNS * cellSize);
 			displayHeight = (N_ROWS * cellSize);
 			this.setPreferredSize(new Dimension(displayWidth, displayHeight));
 		}
 
 		public void setGridLinesEnabled(boolean e) {
-			if(e != drawGridLines) {
-				drawGridLines = e;
+			if(e != this.drawGridLines) {
+				this.drawGridLines = e;
 				this.recalcSizes();
 			}
 		}
 
 		public void setZoomed(boolean e) {
-			if(e != zoomed) {
-				zoomed = e;
+			if(e != this.zoomed) {
+				this.zoomed = e;
 				this.recalcSizes();
 			}
 		}
 
-		public void paintComponent(Graphics g)
-		{
+		public void setShouldClear(boolean c) {
+			this.shouldClear = c;
+		}
+
+		public void clearIfNeeded() {
+			if(this.shouldClear) {
+				this.shouldClear = false;
+				this.resetGraphicsMemory();
+			}
+		}
+
+		/** set the key state to the new state, and update the value in MIPS memory
+		for the program to be able to read. */
+		private void changeKeyState(int newState) {
+			keyState = newState;
+
+			if(!isBeingUsedAsAMarsTool || connectButton.isConnected()) {
+				try {
+					synchronized(Globals.memoryAndRegistersLock) {
+						Globals.memory.setRawWord(DISPLAY_KEYS, newState);
+					}
+				}
+				catch(AddressErrorException aee) {
+					System.out.println("Tool author specified incorrect MMIO address!" + aee);
+					System.exit(0);
+				}
+			}
+		}
+
+		/** quickly clears the graphics memory to 0 (black). */
+		public void resetGraphicsMemory() {
+			try {
+				synchronized(Globals.memoryAndRegistersLock) {
+					Globals.memory.zeroMMIOFast(DISPLAY_BASE, DISPLAY_SIZE);
+				}
+			}
+			catch(AddressErrorException aee) {
+				System.out.println("Tool author specified incorrect MMIO address!" + aee);
+				System.exit(0);
+			}
+		}
+
+		public void paintComponent(Graphics g) {
 			if(!connectButton.isConnected()) {
 				g.setColor(Color.BLACK);
 				g.fillRect(0, 0, displayWidth, displayHeight);
@@ -444,58 +457,36 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 			int ptr = DISPLAY_BUFFER_START;
 
-			try
-			{
-				synchronized(Globals.memoryAndRegistersLock)
-				{
-					for(int row = 0; row < N_ROWS; row++)
-					{
+			try {
+				synchronized(Globals.memoryAndRegistersLock) {
+					for(int row = 0; row < N_ROWS; row++) {
 						int y = row * cellSize;
 
-						for(int col = 0, x = 0; col < N_COLUMNS; col += 4, ptr += 4)
-						{
+						for(int col = 0, x = 0; col < N_COLUMNS; col += 4, ptr += 4) {
 							int pixel = Globals.memory.getWordNoNotify(ptr);
 
-							g.setColor(PixelColors[pixel & COLOR_MASK]);
+							g.setColor(ClassicPixelColors[pixel & COLOR_MASK]);
 							g.fillRect(x, y, pixelSize, pixelSize);
 							x += cellSize;
-							g.setColor(PixelColors[(pixel >> 8) & COLOR_MASK]);
+							g.setColor(ClassicPixelColors[(pixel >> 8) & COLOR_MASK]);
 							g.fillRect(x, y, pixelSize, pixelSize);
 							x += cellSize;
-							g.setColor(PixelColors[(pixel >> 16) & COLOR_MASK]);
+							g.setColor(ClassicPixelColors[(pixel >> 16) & COLOR_MASK]);
 							g.fillRect(x, y, pixelSize, pixelSize);
 							x += cellSize;
-							g.setColor(PixelColors[(pixel >> 24) & COLOR_MASK]);
+							g.setColor(ClassicPixelColors[(pixel >> 24) & COLOR_MASK]);
 							g.fillRect(x, y, pixelSize, pixelSize);
 							x += cellSize;
 						}
 					}
 				}
 			}
-			catch(AddressErrorException aee)
-			{
+			catch(AddressErrorException aee) {
 				System.out.println("Tool author specified incorrect MMIO address!" + aee);
 				System.exit(0);
 			}
 
 			// TODO: if we don't have focus, draw an overlay saying to click on the display
-		}
-	}
-
-	/** CLASSIC: quickly clears the graphics memory to 0 (black). */
-	private static void resetGraphicsMemory()
-	{
-		try
-		{
-			synchronized(Globals.memoryAndRegistersLock)
-			{
-				Globals.memory.zeroMMIOFast(DISPLAY_BASE, DISPLAY_SIZE);
-			}
-		}
-		catch(AddressErrorException aee)
-		{
-			System.out.println("Tool author specified incorrect MMIO address!" + aee);
-			System.exit(0);
 		}
 	}
 }
