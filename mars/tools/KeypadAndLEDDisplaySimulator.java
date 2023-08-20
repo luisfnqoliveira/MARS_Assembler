@@ -577,29 +577,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	// --------------------------------------------------------------------------------------------
 	// Classic display
 
-	/** color palette. has to be out here for some Java reason */
-	private static final Color[] ClassicPixelColors = new Color[] {
-		new Color(0, 0, 0),       // black
-		new Color(255, 0, 0),     // red
-		new Color(255, 127, 0),   // orange
-		new Color(255, 255, 0),   // yellow
-		new Color(0, 255, 0),     // green
-		new Color(51, 102, 255),  // blue
-		new Color(255, 0, 255),   // magenta
-		new Color(255, 255, 255), // white
-
-		// extended colors!
-		new Color(63, 63, 63),    // dark grey
-		new Color(127, 0, 0),     // brick
-		new Color(127, 63, 0),    // brown
-		new Color(192, 142, 91),  // tan
-		new Color(0, 127, 0),     // dark green
-		new Color(25, 50, 127),   // dark blue
-		new Color(63, 0, 127),    // purple
-		new Color(127, 127, 127), // light grey
-	};
-
-	/** CLASSIC: the actual graphical display. */
+	/** The classic 64x64 graphical display with 8-key input. */
 	private static class ClassicLEDDisplayPanel extends LEDDisplayPanel {
 		private static final int N_COLUMNS = 64;
 		private static final int N_ROWS = 64;
@@ -627,6 +605,28 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private static final int DISPLAY_BUFFER_END = DISPLAY_BUFFER_START + DISPLAY_SIZE;
 
 		private static final int COLOR_MASK = 15;
+
+		/** color palette. */
+		private static final Color[] PixelColors = new Color[] {
+			new Color(0, 0, 0),       // black
+			new Color(255, 0, 0),     // red
+			new Color(255, 127, 0),   // orange
+			new Color(255, 255, 0),   // yellow
+			new Color(0, 255, 0),     // green
+			new Color(51, 102, 255),  // blue
+			new Color(255, 0, 255),   // magenta
+			new Color(255, 255, 255), // white
+
+			// extended colors!
+			new Color(63, 63, 63),    // dark grey
+			new Color(127, 0, 0),     // brick
+			new Color(127, 63, 0),    // brown
+			new Color(192, 142, 91),  // tan
+			new Color(0, 127, 0),     // dark green
+			new Color(25, 50, 127),   // dark blue
+			new Color(63, 0, 127),    // purple
+			new Color(127, 127, 127), // light grey
+		};
 
 		private boolean shouldClear = false;
 		private int keyState;
@@ -762,16 +762,16 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 						for(int col = 0, x = 0; col < N_COLUMNS; col += 4, ptr += 4) {
 							int pixel = Globals.memory.getWordNoNotify(ptr);
 
-							g.setColor(ClassicPixelColors[pixel & COLOR_MASK]);
+							g.setColor(PixelColors[pixel & COLOR_MASK]);
 							g.fillRect(x, y, pixelSize, pixelSize);
 							x += cellSize;
-							g.setColor(ClassicPixelColors[(pixel >> 8) & COLOR_MASK]);
+							g.setColor(PixelColors[(pixel >> 8) & COLOR_MASK]);
 							g.fillRect(x, y, pixelSize, pixelSize);
 							x += cellSize;
-							g.setColor(ClassicPixelColors[(pixel >> 16) & COLOR_MASK]);
+							g.setColor(PixelColors[(pixel >> 16) & COLOR_MASK]);
 							g.fillRect(x, y, pixelSize, pixelSize);
 							x += cellSize;
-							g.setColor(ClassicPixelColors[(pixel >> 24) & COLOR_MASK]);
+							g.setColor(PixelColors[(pixel >> 24) & COLOR_MASK]);
 							g.fillRect(x, y, pixelSize, pixelSize);
 							x += cellSize;
 						}
@@ -784,12 +784,14 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			}
 
 			// TODO: if we don't have focus, draw an overlay saying to click on the display
+			// (and make it an abstract method in the base class)
 		}
 	}
 
 	// --------------------------------------------------------------------------------------------
 	// Enhanced display
 
+	/** The new, enhanced display. */
 	private static class EnhancedLEDDisplayPanel extends LEDDisplayPanel {
 		private static final int N_COLUMNS = 128;
 		private static final int N_ROWS = 128;
