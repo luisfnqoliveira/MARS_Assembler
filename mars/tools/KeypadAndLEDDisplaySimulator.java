@@ -286,36 +286,21 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 	private static final String version = "Version 2";
 	private static final String title = "Keypad and LED Display MMIO Simulator";
-	private static final String heading = "";
-	private static final int N_COLUMNS = 64;
-	private static final int N_ROWS = 64;
+	private static final String heading = "Classic Mode";
+	private static final String enhancedHeading = "Enhanced Mode";
 	private static final int DISPLAY_CTRL = Memory.memoryMapBaseAddress;
-	private static final int DISPLAY_KEYS = DISPLAY_CTRL + Memory.WORD_LENGTH_BYTES;
-	private static final int DISPLAY_BASE = DISPLAY_KEYS + Memory.WORD_LENGTH_BYTES;
-	private static final int DISPLAY_SIZE = N_ROWS * N_COLUMNS; // bytes
-	private static final int DISPLAY_END = DISPLAY_BASE + DISPLAY_SIZE;
-
-	// the 4096 is there to give a "buffer zone" between the user-written area and the
-	// display buffer. this way, writes past the end of the display will be invisible.
-	// ...it's just to give the students a little leeway. :P
-	private static final int DISPLAY_BUFFER_START = DISPLAY_END + 4096;
-	private static final int DISPLAY_BUFFER_END = DISPLAY_BUFFER_START + DISPLAY_SIZE;
-
-	private static final int KEY_U = 1;
-	private static final int KEY_D = 2;
-	private static final int KEY_L = 4;
-	private static final int KEY_R = 8;
-	private static final int KEY_B = 16;
-	private static final int KEY_Z = 32;
-	private static final int KEY_X = 64;
-	private static final int KEY_C = 128;
+	private static final int ENHANCED_MODE_SWITCH_VALUE = 257; // 0x101
 
 	// --------------------------------------------------------------------------------------------
 	// Instance fields
 
 	private JPanel panel;
+	private JCheckBox gridCheckBox;
+	private JCheckBox zoomCheckBox;
 	private LEDDisplayPanel displayPanel;
-	private boolean shouldRedraw = true;
+	private ClassicLEDDisplayPanel classicDisplay;
+	private EnhancedLEDDisplayPanel enhancedDisplay;
+	private boolean isEnhanced = false;
 
 	// --------------------------------------------------------------------------------------------
 	// Standalone main
@@ -346,10 +331,13 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		panel = new JPanel();
 		panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
 
-		displayPanel = new ClassicLEDDisplayPanel();
+		classicDisplay = new ClassicLEDDisplayPanel(this);
+		enhancedDisplay = new EnhancedLEDDisplayPanel(this);
+
+		displayPanel = classicDisplay;
 
 		JPanel subPanel = new JPanel();
-		JCheckBox gridCheckBox = new JCheckBox("Show Grid Lines");
+		gridCheckBox = new JCheckBox("Show Grid Lines");
 		gridCheckBox.addItemListener((e) -> {
 			displayPanel.setGridLinesEnabled(e.getStateChange() == ItemEvent.SELECTED);
 			displayPanel.revalidate();
@@ -358,7 +346,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		});
 		subPanel.add(gridCheckBox);
 
-		JCheckBox zoomCheckBox = new JCheckBox("Zoom");
+		zoomCheckBox = new JCheckBox("Zoom");
 		zoomCheckBox.addItemListener((e) -> {
 			displayPanel.setZoomed(e.getStateChange() == ItemEvent.SELECTED);
 			displayPanel.revalidate();
@@ -424,14 +412,16 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	/** Called when the Connect button is clicked, to hook it into the memory subsystem. */
 	@Override
 	protected void addAsObserver() {
-		addAsObserver(DISPLAY_CTRL, DISPLAY_KEYS);
+		// end address has to be the address of the last *word* observed
+		int endAddress = Memory.memoryMapLimitAddress - Memory.WORD_LENGTH_BYTES + 1;
+		addAsObserver(Memory.memoryMapBaseAddress, endAddress);
 	}
 
 	/** Called when the Reset button is clicked. */
 	@Override
 	protected void reset() {
 		displayPanel.resetGraphicsMemory();
-		shouldRedraw = true;
+		displayPanel.setShouldRedraw(true);
 		updateDisplay();
 	}
 
@@ -440,40 +430,49 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	protected void processMIPSUpdate(Observable memory, AccessNotice accessNotice) {
 		MemoryAccessNotice notice = (MemoryAccessNotice) accessNotice;
 
-		// Only care about writes.
-		if(notice.getAccessType() != AccessNotice.WRITE)
-			return;
+		if(notice.getAccessType() == AccessNotice.WRITE) {
+			// Can't switch on addresses because they're dynamic based on
+			// Memory.memoryMapBaseAddress.
+			if(notice.getAddress() == DISPLAY_CTRL) {
+				int value = notice.getValue();
 
-		// Can't actually switch on addresses because they're dynamic based on
-		// Memory.memoryMapBaseAddress.
-		if(notice.getAddress() == DISPLAY_CTRL) {
-			displayPanel.setShouldClear(notice.getValue() != 0);
-			shouldRedraw = true;
-
-			// Copy values from memory to internal buffer, reset if we must.
-			try {
-				synchronized(Globals.memoryAndRegistersLock) {
-					// Ensure block for destination exists
-					Globals.memory.setRawWord(DISPLAY_BUFFER_START, 0x0);
-					Globals.memory.setRawWord(DISPLAY_BUFFER_END - 0x4, 0x0);
-					Globals.memory.copyMMIOFast(DISPLAY_BASE, DISPLAY_BUFFER_START,
-						DISPLAY_SIZE);
+				if(value >= ENHANCED_MODE_SWITCH_VALUE) {
+					this.switchToEnhancedMode();
 				}
-			}
-			catch(AddressErrorException aee) {
-				System.out.println("Tool author specified incorrect MMIO address!" + aee);
-				System.exit(0);
-			}
 
-			displayPanel.clearIfNeeded();
+				this.displayPanel.writeToCtrl(value);
+			}
+		} else {
+			// reads...
 		}
 	}
 
 	/** Called any time an MMIO access is made. */
 	@Override
 	protected void updateDisplay() {
-		if(shouldRedraw) {
-			shouldRedraw = false;
+		displayPanel.redrawIfNeeded();
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Mode switching
+
+	private void switchToEnhancedMode() {
+		if(!isEnhanced) {
+			isEnhanced = true;
+
+			panel.remove(classicDisplay);
+			panel.add(enhancedDisplay);
+			displayPanel = enhancedDisplay;
+
+			gridCheckBox.setSelected(false);
+			gridCheckBox.setEnabled(false);
+			displayPanel.setZoomed(zoomCheckBox.isSelected());
+
+			if(this.isBeingUsedAsAMarsTool)
+				headingLabel.setText(enhancedHeading);
+
+			displayPanel.revalidate();
+			this.theWindow.pack();
 			displayPanel.repaint();
 		}
 	}
@@ -481,16 +480,28 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	// --------------------------------------------------------------------------------------------
 	// Common base class for both kinds of displays
 
-	private abstract class LEDDisplayPanel extends JPanel {
-		private boolean haveFocus = false;
+	private static abstract class LEDDisplayPanel extends JPanel {
+		protected KeypadAndLEDDisplaySimulator sim;
 
-		public abstract void setGridLinesEnabled(boolean e);
-		public abstract void setZoomed(boolean e);
-		public abstract void setShouldClear(boolean c);
-		public abstract void clearIfNeeded();
-		public abstract void resetGraphicsMemory();
+		protected boolean haveFocus = false;
+		protected boolean shouldClear = false;
+		protected boolean shouldRedraw = true;
+		protected boolean drawGridLines = false;
+		protected boolean zoomed = false;
 
-		public LEDDisplayPanel() {
+		protected final int nColumns;
+		protected final int nRows;
+		protected final int cellDefaultSize;
+		protected final int cellZoomedSize;
+		protected int cellSize;
+		protected int cellPadding = 0;
+		protected int pixelSize;
+		protected int displayWidth;
+		protected int displayHeight;
+
+		public LEDDisplayPanel(KeypadAndLEDDisplaySimulator sim,
+			int nColumns, int nRows, int cellDefaultSize, int cellZoomedSize) {
+			this.sim = sim;
 			this.setFocusable(true);
 			this.setFocusTraversalKeysEnabled(false);
 			this.addMouseListener(new MouseAdapter() {
@@ -508,7 +519,62 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 					haveFocus = false;
 				}
 			});
+
+			this.nColumns = nColumns;
+			this.nRows = nRows;
+			this.cellDefaultSize = cellDefaultSize;
+			this.cellZoomedSize = cellZoomedSize;
+			this.recalcSizes();
 		}
+
+		protected void recalcSizes() {
+			cellSize      = zoomed ? cellZoomedSize : cellDefaultSize;
+			cellPadding   = drawGridLines ? 1 : 0;
+			pixelSize     = cellSize - cellPadding;
+			pixelSize     = cellSize - cellPadding;
+			displayWidth  = (nColumns * cellSize);
+			displayHeight = (nRows * cellSize);
+			this.setPreferredSize(new Dimension(displayWidth, displayHeight));
+		}
+
+		public void setGridLinesEnabled(boolean e) {
+			if(e != this.drawGridLines) {
+				this.drawGridLines = e;
+				this.recalcSizes();
+			}
+		}
+
+		public void setZoomed(boolean e) {
+			if(e != this.zoomed) {
+				this.zoomed = e;
+				this.recalcSizes();
+			}
+		}
+
+		public void setShouldClear(boolean c) {
+			this.shouldClear = c;
+		}
+
+		public void setShouldRedraw(boolean b) {
+			this.shouldRedraw = b;
+		}
+
+		public void clearIfNeeded() {
+			if(this.shouldClear) {
+				this.shouldClear = false;
+				this.resetGraphicsMemory();
+			}
+		}
+
+		public void redrawIfNeeded() {
+			if(this.shouldRedraw) {
+				this.shouldRedraw = false;
+				this.repaint();
+			}
+		}
+
+		protected abstract void resetGraphicsMemory();
+		public abstract void writeToCtrl(int value);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -537,27 +603,38 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	};
 
 	/** CLASSIC: the actual graphical display. */
-	private class ClassicLEDDisplayPanel extends LEDDisplayPanel {
+	private static class ClassicLEDDisplayPanel extends LEDDisplayPanel {
+		private static final int N_COLUMNS = 64;
+		private static final int N_ROWS = 64;
 		private static final int CELL_DEFAULT_SIZE = 8;
 		private static final int CELL_ZOOMED_SIZE = 12;
+
+		private static final int KEY_U = 1;
+		private static final int KEY_D = 2;
+		private static final int KEY_L = 4;
+		private static final int KEY_R = 8;
+		private static final int KEY_B = 16;
+		private static final int KEY_Z = 32;
+		private static final int KEY_X = 64;
+		private static final int KEY_C = 128;
+
+		private static final int DISPLAY_KEYS = DISPLAY_CTRL + Memory.WORD_LENGTH_BYTES;
+		private static final int DISPLAY_BASE = DISPLAY_KEYS + Memory.WORD_LENGTH_BYTES;
+		private static final int DISPLAY_SIZE = N_ROWS * N_COLUMNS; // bytes
+		private static final int DISPLAY_END = DISPLAY_BASE + DISPLAY_SIZE;
+
+		// the 4096 is there to give a "buffer zone" between the user-written area and the
+		// display buffer. this way, writes past the end of the display will be invisible.
+		// ...it's just to give the students a little leeway. :P
+		private static final int DISPLAY_BUFFER_START = DISPLAY_END + 4096;
+		private static final int DISPLAY_BUFFER_END = DISPLAY_BUFFER_START + DISPLAY_SIZE;
+
 		private static final int COLOR_MASK = 15;
-
-		private int cellSize = CELL_DEFAULT_SIZE;
-		private int cellPadding = 0;
-		private int pixelSize;
-		private int displayWidth;
-		private int displayHeight;
-
-		private boolean shouldClear = false;
-		private boolean drawGridLines = false;
-		private boolean zoomed = false;
 
 		private int keyState;
 
-		public ClassicLEDDisplayPanel() {
-			super();
-
-			this.recalcSizes();
+		public ClassicLEDDisplayPanel(KeypadAndLEDDisplaySimulator sim) {
+			super(sim, N_COLUMNS, N_ROWS, CELL_DEFAULT_SIZE, CELL_ZOOMED_SIZE);
 
 			this.addKeyListener(new KeyListener() {
 				public void keyTyped(KeyEvent e) {
@@ -585,47 +662,10 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 						case KeyEvent.VK_DOWN:  changeKeyState(keyState & ~KEY_D); break;
 						case KeyEvent.VK_B:     changeKeyState(keyState & ~KEY_B); break;
 						case KeyEvent.VK_Z:     changeKeyState(keyState & ~KEY_Z); break;
-						case KeyEvent.VK_X:     changeKeyState(keyState & ~KEY_X); break;
-						case KeyEvent.VK_C:     changeKeyState(keyState & ~KEY_C); break;
 						default: break;
 					}
 				}
 			});
-		}
-
-		private void recalcSizes() {
-			cellSize      = cellSize = (zoomed ? CELL_ZOOMED_SIZE : CELL_DEFAULT_SIZE);
-			cellPadding   = drawGridLines ? 1 : 0;
-			pixelSize     = cellSize - cellPadding;
-			pixelSize     = cellSize - cellPadding;
-			displayWidth  = (N_COLUMNS * cellSize);
-			displayHeight = (N_ROWS * cellSize);
-			this.setPreferredSize(new Dimension(displayWidth, displayHeight));
-		}
-
-		public void setGridLinesEnabled(boolean e) {
-			if(e != this.drawGridLines) {
-				this.drawGridLines = e;
-				this.recalcSizes();
-			}
-		}
-
-		public void setZoomed(boolean e) {
-			if(e != this.zoomed) {
-				this.zoomed = e;
-				this.recalcSizes();
-			}
-		}
-
-		public void setShouldClear(boolean c) {
-			this.shouldClear = c;
-		}
-
-		public void clearIfNeeded() {
-			if(this.shouldClear) {
-				this.shouldClear = false;
-				this.resetGraphicsMemory();
-			}
 		}
 
 		/** set the key state to the new state, and update the value in MIPS memory
@@ -633,7 +673,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private void changeKeyState(int newState) {
 			keyState = newState;
 
-			if(!isBeingUsedAsAMarsTool || connectButton.isConnected()) {
+			if(!sim.isBeingUsedAsAMarsTool || sim.connectButton.isConnected()) {
 				try {
 					synchronized(Globals.memoryAndRegistersLock) {
 						Globals.memory.setRawWord(DISPLAY_KEYS, newState);
@@ -647,7 +687,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		}
 
 		/** quickly clears the graphics memory to 0 (black). */
-		public void resetGraphicsMemory() {
+		@Override
+		protected void resetGraphicsMemory() {
 			try {
 				synchronized(Globals.memoryAndRegistersLock) {
 					Globals.memory.zeroMMIOFast(DISPLAY_BASE, DISPLAY_SIZE);
@@ -659,8 +700,31 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			}
 		}
 
+		@Override
+		public void writeToCtrl(int value) {
+			this.setShouldClear(value != 0);
+			this.setShouldRedraw(true);
+
+			// Copy values from memory to internal buffer, reset if we must.
+			try {
+				synchronized(Globals.memoryAndRegistersLock) {
+					// Ensure block for destination exists
+					Globals.memory.setRawWord(DISPLAY_BUFFER_START, 0x0);
+					Globals.memory.setRawWord(DISPLAY_BUFFER_END - 0x4, 0x0);
+					Globals.memory.copyMMIOFast(DISPLAY_BASE, DISPLAY_BUFFER_START,
+						DISPLAY_SIZE);
+				}
+			}
+			catch(AddressErrorException aee) {
+				System.out.println("Tool author specified incorrect MMIO address!" + aee);
+				System.exit(0);
+			}
+
+			this.clearIfNeeded();
+		}
+
 		public void paintComponent(Graphics g) {
-			if(!connectButton.isConnected()) {
+			if(!sim.connectButton.isConnected()) {
 				g.setColor(Color.BLACK);
 				g.fillRect(0, 0, displayWidth, displayHeight);
 				g.setColor(Color.RED);
@@ -712,9 +776,32 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	// --------------------------------------------------------------------------------------------
 	// Enhanced display
 
-	private class EnhancedLEDDisplayPanel extends LEDDisplayPanel {
+	private static class EnhancedLEDDisplayPanel extends LEDDisplayPanel {
+		private static final int N_COLUMNS = 128;
+		private static final int N_ROWS = 128;
 		private static final int CELL_DEFAULT_SIZE = 4;
 		private static final int CELL_ZOOMED_SIZE = 6;
 
+		public EnhancedLEDDisplayPanel(KeypadAndLEDDisplaySimulator sim) {
+			super(sim, N_COLUMNS, N_ROWS, CELL_DEFAULT_SIZE, CELL_ZOOMED_SIZE);
+		}
+
+		@Override
+		protected void resetGraphicsMemory() {
+			// no!!!!!
+		}
+
+		@Override
+		public void writeToCtrl(int value) {
+			// TODO
+		}
+
+		public void paintComponent(Graphics g) {
+			g.setColor(Color.BLACK);
+			g.fillRect(0, 0, displayWidth, displayHeight);
+			g.setColor(Color.RED);
+			g.setFont(new Font("Sans-Serif", Font.BOLD, 24));
+			g.drawString("~Enhanced~", 10, displayHeight - 10);
+		}
 	}
 }
