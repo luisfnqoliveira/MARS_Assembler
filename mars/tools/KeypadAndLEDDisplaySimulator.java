@@ -430,8 +430,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	/** Called when the Reset button is clicked. */
 	@Override
 	protected void reset() {
-		displayPanel.resetGraphicsMemory();
-		displayPanel.setShouldRedraw(true);
+		displayPanel.reset();
 		updateDisplay();
 	}
 
@@ -571,7 +570,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			}
 		}
 
-		protected abstract void resetGraphicsMemory();
+		public abstract void reset();
 		public abstract void writeToCtrl(int value);
 	}
 
@@ -687,16 +686,9 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 		/** quickly clears the graphics memory to 0 (black). */
 		@Override
-		protected void resetGraphicsMemory() {
-			try {
-				synchronized(Globals.memoryAndRegistersLock) {
-					Globals.memory.zeroMMIOFast(DISPLAY_BASE, DISPLAY_SIZE);
-				}
-			}
-			catch(AddressErrorException aee) {
-				System.out.println("Tool author specified incorrect MMIO address!" + aee);
-				System.exit(0);
-			}
+		public void reset() {
+			this.resetGraphicsMemory();
+			this.setShouldRedraw(true);
 		}
 
 		@Override
@@ -730,6 +722,18 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			if(this.shouldClear) {
 				this.shouldClear = false;
 				this.resetGraphicsMemory();
+			}
+		}
+
+		private void resetGraphicsMemory() {
+			try {
+				synchronized(Globals.memoryAndRegistersLock) {
+					Globals.memory.zeroMMIOFast(DISPLAY_BASE, DISPLAY_SIZE);
+				}
+			}
+			catch(AddressErrorException aee) {
+				System.out.println("Tool author specified incorrect MMIO address!" + aee);
+				System.exit(0);
 			}
 		}
 
@@ -799,8 +803,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		}
 
 		@Override
-		protected void resetGraphicsMemory() {
-			// no!!!!!
+		public void reset() {
+			// ??????
 		}
 
 		@Override
