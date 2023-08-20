@@ -82,12 +82,12 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			so set DISPLAY_CTRL to:
 				(ms_per_frame << 16) | 0x100 | mode
 
-		0xFFFF0004: DISPLAY_SYNC.w           (RW)
+		0xFFFF0004: DISPLAY_ORDER.w          (WO, order in which tilemap and framebuffer should
+			be composited - 0 = tilemap in front of framebuffer, 0 = tilemap behind framebuffer)
+		0xFFFF0008: DISPLAY_SYNC.w           (RW)
 			write to indicate frame is over and ready for display (value is ignored)
 			read to wait for next frame (always reads 0)
-		0xFFFF0008: DISPLAY_FB_CLEAR.w       (WO, clears framebuffer to BG color when written)
-		0xFFFF000C: DISPLAY_ORDER.w          (WO, order in which tilemap and framebuffer should
-			be composited - 0 = tilemap in front of framebuffer, 0 = tilemap behind framebuffer)
+		0xFFFF000C: DISPLAY_FB_CLEAR.w       (WO, clears framebuffer to BG color when written)
 
 	TILEMAP REGISTERS:
 
@@ -737,6 +737,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			}
 		}
 
+		@Override
 		public void paintComponent(Graphics g) {
 			if(!sim.connectButton.isConnected()) {
 				g.setColor(Color.BLACK);
@@ -793,16 +794,57 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 	/** The new, enhanced display. */
 	private static class EnhancedLEDDisplayPanel extends LEDDisplayPanel {
+		// Display and framebuffer size
 		private static final int N_COLUMNS = 128;
 		private static final int N_ROWS = 128;
 		private static final int CELL_DEFAULT_SIZE = 4;
 		private static final int CELL_ZOOMED_SIZE = 6;
 
+		// Tilemap constants
+		private static final int N_TM_COLUMNS = 32;
+		private static final int N_TM_ROWS = 32;
+
+		// Tilemap/sprite flag constants
+		private static final int PRIORITY = 1; // for tiles
+		private static final int ENABLE = 1; // for sprites
+		private static final int VFLIP = 2; // tiles + sprites
+		private static final int HFLIP = 4; // tiles + sprites
+
+		// DISPLAY_CTRL
 		private int msPerFrame = 16;
+		private boolean fbEnabled = true;
+		private boolean tmEnabled = false;
+
+		// DISPLAY_ORDER
+		private boolean fbInFront = false;
+
+		// DISPLAY_TM_SCX/SCY
+		private int tmScx = 0;
+		private int tmScy = 0;
+
+		// Palette RAM
+		private byte[][] paletteRam = new byte[256][4];
+
+		// Framebuffer RAM
+		private byte[] fbRam = new byte[N_COLUMNS * N_ROWS];
+
+		// Tilemap table and graphics
+		private byte[] tmTable = new byte[N_TM_COLUMNS * N_TM_ROWS * 2];
+		private byte[] tmGraphics = new byte[256 * 8 * 8];
+
+		// Sprite table and graphics
+		private byte[] sprTable = new byte[256 * 4];
+		private byte[] sprGraphics = new byte[256 * 8 * 8];
+
+		// ----------------------------------------------------------------------------------------
+		// Constructor
 
 		public EnhancedLEDDisplayPanel(KeypadAndLEDDisplaySimulator sim) {
 			super(sim, N_COLUMNS, N_ROWS, CELL_DEFAULT_SIZE, CELL_ZOOMED_SIZE);
 		}
+
+		// ----------------------------------------------------------------------------------------
+		// Base class method implementations
 
 		@Override
 		public void reset() {
@@ -814,6 +856,10 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			// TODO
 		}
 
+		// ----------------------------------------------------------------------------------------
+		// Component method overrides
+
+		@Override
 		public void paintComponent(Graphics g) {
 			g.setColor(Color.BLACK);
 			g.fillRect(0, 0, displayWidth, displayHeight);
