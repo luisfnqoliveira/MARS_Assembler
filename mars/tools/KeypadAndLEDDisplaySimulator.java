@@ -460,7 +460,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	/** Called any time an MMIO access is made. */
 	@Override
 	protected void updateDisplay() {
-		displayPanel.redrawIfNeeded();
+		displayPanel.repaintIfNeeded();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -494,7 +494,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		protected KeypadAndLEDDisplaySimulator sim;
 
 		protected boolean haveFocus = false;
-		protected boolean shouldRedraw = true;
+		protected boolean shouldRepaint = true;
 		protected boolean drawGridLines = false;
 		protected boolean zoomed = false;
 
@@ -560,13 +560,13 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			}
 		}
 
-		public void setShouldRedraw(boolean b) {
-			this.shouldRedraw = b;
+		public void setShouldRepaint(boolean b) {
+			this.shouldRepaint = b;
 		}
 
-		public void redrawIfNeeded() {
-			if(this.shouldRedraw) {
-				this.shouldRedraw = false;
+		public void repaintIfNeeded() {
+			if(this.shouldRepaint) {
+				this.shouldRepaint = false;
 				this.repaint();
 			}
 		}
