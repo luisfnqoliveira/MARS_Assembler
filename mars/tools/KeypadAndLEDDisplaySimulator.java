@@ -403,6 +403,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			}
 		});
 
+		/*
+
 		System.out.println("double-buffered? " + theWindow.isDoubleBuffered());
 
 		// must call this so the call to createBufferStrategy succeeds
@@ -422,6 +424,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		System.out.println("BB: " + caps.getBackBufferCapabilities().isTrueVolatile());
 		System.out.println("FB: " + caps.getFrontBufferCapabilities().isTrueVolatile());
 		System.out.println("FC: " + caps.getFlipContents());
+		*/
 
 		// TODO: experiment with driving painting from a separate thread instead of
 		// relying on repaint events
