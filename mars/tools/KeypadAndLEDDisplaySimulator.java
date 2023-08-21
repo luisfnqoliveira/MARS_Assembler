@@ -662,6 +662,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 						case KeyEvent.VK_DOWN:  changeKeyState(keyState & ~KEY_D); break;
 						case KeyEvent.VK_B:     changeKeyState(keyState & ~KEY_B); break;
 						case KeyEvent.VK_Z:     changeKeyState(keyState & ~KEY_Z); break;
+						case KeyEvent.VK_X:     changeKeyState(keyState & ~KEY_X); break;
+						case KeyEvent.VK_C:     changeKeyState(keyState & ~KEY_C); break;
 						default: break;
 					}
 				}
