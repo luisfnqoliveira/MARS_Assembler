@@ -500,6 +500,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	private static abstract class LEDDisplayPanel extends JPanel {
 		protected KeypadAndLEDDisplaySimulator sim;
 
+		protected Font bigFont = new Font("Sans-Serif", Font.BOLD, 24);
+
 		protected boolean haveFocus = false;
 		protected boolean shouldRepaint = true;
 		protected boolean drawGridLines = false;
@@ -529,10 +531,12 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			this.addFocusListener(new FocusListener() {
 				public void focusGained(FocusEvent e) {
 					haveFocus = true;
+					repaint();
 				}
 
 				public void focusLost(FocusEvent e) {
 					haveFocus = false;
+					repaint();
 				}
 			});
 
@@ -578,8 +582,30 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			}
 		}
 
+		@Override
+		public void paintComponent(Graphics g) {
+			if(!sim.connectButton.isConnected()) {
+				g.setColor(Color.BLACK);
+				g.fillRect(0, 0, displayWidth, displayHeight);
+				g.setColor(Color.RED);
+				g.setFont(bigFont);
+				g.drawString("vvvv CLICK THE CONNECT BUTTON!", 10, displayHeight - 10);
+			} else {
+				this.paintDisplay(g);
+
+				if(!haveFocus) {
+					g.setColor(new Color(0, 0, 0, 127));
+					g.fillRect(0, 0, displayWidth, displayHeight);
+					g.setColor(Color.YELLOW);
+					g.setFont(bigFont);
+					g.drawString("Click here to interact.", 10, displayHeight / 2);
+				}
+			}
+		}
+
 		public abstract void reset();
 		public abstract void writeToCtrl(int value);
+		protected abstract void paintDisplay(Graphics g);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -753,34 +779,23 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		}
 
 		@Override
-		public void paintComponent(Graphics g) {
-			if(!sim.connectButton.isConnected()) {
-				g.setColor(Color.BLACK);
-				g.fillRect(0, 0, displayWidth, displayHeight);
-				g.setColor(Color.RED);
-				g.setFont(new Font("Sans-Serif", Font.BOLD, 24));
-				g.drawString("vvvv CLICK THE CONNECT BUTTON!", 10, displayHeight - 10);
-			} else {
-				synchronized(image) {
-					g.drawImage(image, 0, 0, displayWidth, displayHeight, null);
+		protected void paintDisplay(Graphics g) {
+			synchronized(image) {
+				g.drawImage(image, 0, 0, displayWidth, displayHeight, null);
+			}
+
+			if(drawGridLines) {
+				g.setColor(Color.GRAY);
+
+				for(int col = 0; col < N_COLUMNS; col++) {
+					int x = col * cellSize;
+					g.drawLine(x, 0, x, displayHeight);
 				}
 
-				if(drawGridLines) {
-					g.setColor(Color.GRAY);
-
-					for(int col = 0; col < N_COLUMNS; col++) {
-						int x = col * cellSize;
-						g.drawLine(x, 0, x, displayHeight);
-					}
-
-					for(int row = 0; row < N_ROWS; row++) {
-						int y = row * cellSize;
-						g.drawLine(0, y, displayWidth, y);
-					}
+				for(int row = 0; row < N_ROWS; row++) {
+					int y = row * cellSize;
+					g.drawLine(0, y, displayWidth, y);
 				}
-
-				// TODO: if we don't have focus, draw an overlay saying to click on the display
-				// (and make it an abstract method in the base class)
 			}
 		}
 	}
@@ -852,11 +867,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			// TODO
 		}
 
-		// ----------------------------------------------------------------------------------------
-		// Component method overrides
-
 		@Override
-		public void paintComponent(Graphics g) {
+		public void paintDisplay(Graphics g) {
 			g.setColor(Color.BLACK);
 			g.fillRect(0, 0, displayWidth, displayHeight);
 			g.setColor(Color.RED);
