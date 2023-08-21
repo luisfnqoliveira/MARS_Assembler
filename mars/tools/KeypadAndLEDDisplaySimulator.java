@@ -527,7 +527,9 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			this.setFocusTraversalKeysEnabled(false);
 			this.addMouseListener(new MouseAdapter() {
 				public void mouseClicked(MouseEvent e) {
-					requestFocusInWindow();
+					if(!haveFocus) {
+						requestFocusInWindow();
+					}
 				}
 			});
 
