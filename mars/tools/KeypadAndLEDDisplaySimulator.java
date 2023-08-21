@@ -612,11 +612,9 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			}
 		}
 
-		// handle writes to MMIO addresses other than DISPLAY_CTRL; by default does nothing.
-		public void handleWrite(int addr, int length, int value) {}
-
 		public abstract void reset();
 		public abstract void writeToCtrl(int value);
+		public abstract void handleWrite(int addr, int length, int value);
 		protected abstract void paintDisplay(Graphics g);
 	}
 
@@ -668,6 +666,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			new int[]{127, 127, 127}, // light grey
 		};
 
+		private boolean doingSomethingWeird = false;
 		private int keyState = 0;
 		private BufferedImage image =
 			new BufferedImage(N_COLUMNS, N_ROWS, BufferedImage.TYPE_INT_RGB);
@@ -740,6 +739,15 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			this.setShouldRepaint(true);
 		}
 
+		@Override
+		public void handleWrite(int addr, int length, int value) {
+			int offset = addr - Memory.memoryMapBaseAddress;
+
+			if(offset > 0x1007) {
+				doingSomethingWeird = true;
+			}
+		}
+
 		private void resetGraphicsMemory(boolean clearBuffer) {
 			synchronized(Globals.memoryAndRegistersLock) {
 				// I hate using magic values like this but: these are the addresses of
@@ -808,6 +816,17 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 					int y = row * cellSize;
 					g.drawLine(0, y, displayWidth, y);
 				}
+			}
+
+			if(doingSomethingWeird) {
+				g.setColor(new Color(0, 0, 0, 127));
+				g.fillRect(0, 0, displayWidth, displayHeight);
+				g.setColor(Color.YELLOW);
+				g.setFont(bigFont);
+				g.drawString("This window needs to be open and", 10, 40);
+				g.drawString("connected before you run your", 10, 70);
+				g.drawString("program. Stop the program, hit", 10, 100);
+				g.drawString("assemble, and hit run.", 10, 130);
 			}
 		}
 	}
