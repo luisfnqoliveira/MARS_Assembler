@@ -97,7 +97,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		0xFFFF0008: DISPLAY_SYNC.w           (RW)
 			write to indicate frame is over and ready for display (value is ignored)
 			read to wait for next frame (always reads 0)
-		0xFFFF000C: DISPLAY_FB_CLEAR.w       (WO, clears framebuffer to BG color when written)
+		0xFFFF000C: DISPLAY_FB_CLEAR.w       (WO, clears framebuffer to color 0 when written)
 		0xFFFF0010: DISPLAY_PALETTE_RESET.w  (WO, resets palette to default values when written)
 
 	TILEMAP REGISTERS:
@@ -244,7 +244,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		drawing anything else.
 
 		If the framebuffer is visible, writing any value to DISPLAY_FB_CLEAR will fill the
-		entire framebuffer with the background color.
+		entire framebuffer with color index 0.
 
 		If the framebuffer is not visible but the tilemap is, the background color will appear
 		behind transparent pixels in tiles.
@@ -287,7 +287,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		If DISPLAY_ORDER is 0 (the default), the display elements are drawn from back (first drawn)
 		to front (last drawn) like so:
 
-			- Background color (if framebuffer is not visible)
+			- Background color
 			- Framebuffer
 			- Tilemap tiles without priority
 			- Sprites, from sprite 255 down to sprite 0
@@ -646,24 +646,24 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 		/** color palette. */
 		private static final int[][] PixelColors = new int[][] {
-			new int[]{0, 0, 0},       // black
-			new int[]{255, 0, 0},     // red
-			new int[]{255, 127, 0},   // orange
-			new int[]{255, 255, 0},   // yellow
-			new int[]{0, 255, 0},     // green
-			new int[]{51, 102, 255},  // blue
-			new int[]{255, 0, 255},   // magenta
-			new int[]{255, 255, 255}, // white
+			{0, 0, 0},       // black
+			{255, 0, 0},     // red
+			{255, 127, 0},   // orange
+			{255, 255, 0},   // yellow
+			{0, 255, 0},     // green
+			{51, 102, 255},  // blue
+			{255, 0, 255},   // magenta
+			{255, 255, 255}, // white
 
 			// extended colors!
-			new int[]{63, 63, 63},    // dark grey
-			new int[]{127, 0, 0},     // brick
-			new int[]{127, 63, 0},    // brown
-			new int[]{192, 142, 91},  // tan
-			new int[]{0, 127, 0},     // dark green
-			new int[]{25, 50, 127},   // dark blue
-			new int[]{63, 0, 127},    // purple
-			new int[]{127, 127, 127}, // light grey
+			{63, 63, 63},    // dark grey
+			{127, 0, 0},     // brick
+			{127, 63, 0},    // brown
+			{192, 142, 91},  // tan
+			{0, 127, 0},     // dark green
+			{25, 50, 127},   // dark blue
+			{63, 0, 127},    // purple
+			{127, 127, 127}, // light grey
 		};
 
 		private boolean doingSomethingWeird = false;
@@ -879,7 +879,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private int[][] paletteRam = new int[256][4];
 
 		// Shadow for the background color entry - paletteRam[0] is set to transparent
-		private int[] bgColor = new int[]{ 0, 0, 0, 255 };
+		private int[] bgColor = { 0, 0, 0, 255 };
 
 		// Framebuffer RAM
 		private byte[] fbRam = new byte[N_COLUMNS * N_ROWS];
@@ -892,9 +892,13 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private byte[] sprTable = new byte[256 * 4];
 		private byte[] sprGraphics = new byte[256 * 8 * 8];
 
+		// Dirty flags (set to true if things are changed, forcing a redraw of those layers)
+		private boolean isPalDirty = true;
+		private boolean isFbDirty = true;
+		private boolean isTmDirty = true;
+		private boolean isSprDirty = true;
+
 		// Compositing layers
-		private BufferedImage bgColorLayer =
-			new BufferedImage(N_COLUMNS, N_ROWS, BufferedImage.TYPE_INT_ARGB);
 		private BufferedImage fbLayer =
 			new BufferedImage(N_COLUMNS, N_ROWS, BufferedImage.TYPE_INT_ARGB);
 		private BufferedImage tmLayerLo =
@@ -959,7 +963,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			g.drawString(msPerFrame + " ms/frame", 10, 90);
 			*/
 
-			g.drawImage(bgColorLayer, 0, 0, displayWidth, displayHeight, null);
+			g.drawImage(finalImage, 0, 0, displayWidth, displayHeight, null);
 		}
 
 		// big ugly thing to dispatch MMIO writes to their appropriate methods
@@ -1032,46 +1036,6 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		}
 
 		// TODO
-		private void compositeFrame() {
-			this.setShouldRepaint(true);
-		}
-		// TODO
-		private void clearFb() { }
-
-		private void writePalette(int offs, int length, int value) {
-			int entry = offs / 4;
-
-			if(entry == 0) {
-				// SPECIAL CASE for the BG color
-				this.setColor(bgColor, offs, length, value);
-				this.buildBgColorLayer();
-			} else {
-				this.setColor(paletteRam[entry], offs, length, value);
-			}
-		}
-
-		private void setColor(int[] color, int offs, int length, int value) {
-			if(length == 4) {
-				color[0] = (value >>> 16) & 0xFF;
-				color[1] = (value >>> 8) & 0xFF;
-				color[2] = value & 0xFF;
-			} else if(length == 1) {
-				// can't modify alpha
-				if(offs < 3) {
-					// 0 is blue, 1 is green, 2 is red
-					color[2 - offs] = value & 0xFF;
-				}
-			} else if(offs == 0) {
-				color[1] = (value >>> 8) & 0xFF;
-				color[2] = value & 0xFF;
-			} else {
-				color[0] = value & 0xFF;
-			}
-		}
-
-		// TODO
-		private void writeFb(int offs, int length, int value) { }
-		// TODO
 		private void writeTmTable(int offs, int length, int value) { }
 		// TODO
 		private void writeSprTable(int offs, int length, int value) { }
@@ -1083,7 +1047,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		// ----------------------------------------------------------------------------------------
 		// Palette methods
 
-		private static int[] Intensities = new int[]{ 0, 63, 127, 255 };
+		private static int[] Intensities = { 0, 63, 127, 255 };
 
 		// Initialize the palette RAM to a default palette, so you can start
 		// drawing stuff right away without needing to do so from software.
@@ -1121,16 +1085,137 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 				int v = (i - 128) * 2;
 				paletteRam[i] = new int[] { v, v, v, 255 };
 			}
-
-			// since we changed the palette, have to update the BG Color layer
-			this.buildBgColorLayer();
 		}
 
-		private void buildBgColorLayer() {
-			var g = bgColorLayer.createGraphics();
-			g.setColor(new Color(bgColor[0], bgColor[1], bgColor[2]));
-			g.fillRect(0, 0, N_COLUMNS, N_ROWS);
+		private void writePalette(int offs, int length, int value) {
+			int entry = offs / 4;
+
+			if(entry == 0) {
+				// SPECIAL CASE for the BG color
+				this.setColor(bgColor, offs, length, value);
+				// the BG color entry is not used for anything other than the BG
+				// color layer, so we don't have to mark the palette dirty.
+			} else {
+				this.setColor(paletteRam[entry], offs, length, value);
+				isPalDirty = true;
+			}
+		}
+
+		private void setColor(int[] color, int offs, int length, int value) {
+			if(length == 4) {
+				color[0] = (value >>> 16) & 0xFF;
+				color[1] = (value >>> 8) & 0xFF;
+				color[2] = value & 0xFF;
+			} else if(length == 1) {
+				// can't modify alpha
+				if(offs < 3) {
+					// 0 is blue, 1 is green, 2 is red
+					color[2 - offs] = value & 0xFF;
+				}
+			} else if(offs == 0) {
+				color[1] = (value >>> 8) & 0xFF;
+				color[2] = value & 0xFF;
+			} else {
+				color[0] = value & 0xFF;
+			}
+		}
+
+		// ----------------------------------------------------------------------------------------
+		// Framebuffer methods
+
+		private void clearFb() {
+			Arrays.fill(fbRam, 0, fbRam.length, (byte)0);
+			isFbDirty = true;
+		}
+
+		private void writeFb(int offs, int length, int value) {
+			fbRam[offs] = (byte)(value & 0xFF);
+
+			if(length > 1) {
+				fbRam[offs + 1] = (byte)((value >>> 8) & 0xFF);
+
+				if(length > 2) {
+					fbRam[offs + 2] = (byte)((value >>> 16) & 0xFF);
+					fbRam[offs + 3] = (byte)((value >>> 24) & 0xFF);
+				}
+			}
+
+			isFbDirty = true;
+		}
+
+		private void buildFbLayer() {
+			var r = fbLayer.getRaster();
+
+			for(int y = 0; y < N_ROWS; y++) {
+				for(int x = 0; x < N_COLUMNS; x++) {
+					// yes, use the transparent color 0 if the index is 0;
+					// the BG color will show through this image if so.
+					// also have to do some Dumb Shit to zero extend the byte
+					int colorIndex = ((int)fbRam[y*N_COLUMNS + x]) & 0xFF;
+					r.setPixel(x, y, paletteRam[colorIndex]);
+				}
+			}
+
+			isFbDirty = false;
+		}
+
+		// ----------------------------------------------------------------------------------------
+		// Compositing methods
+
+		// TODO
+		private void compositeFrame() {
+			// if the palette changed, everything has to change.
+			if(isPalDirty) {
+				if(fbEnabled)
+					isFbDirty = true;
+				if(tmEnabled)
+					isTmDirty = true;
+
+				isSprDirty = true;
+			}
+
+			if(fbEnabled && isFbDirty) {
+				this.buildFbLayer();
+			}
+
+			// TODO
+			// if(tmEnabled && isTmDirty) {
+			// 	this.buildTmLayers();
+			// }
+
+			// TODO
+			// if(isSprDirty) {
+			// 	this.buildSpriteLayer();
+			// }
+
+			// composite all layers into the final image
+
+			var g = finalImage.createGraphics();
+			var bg = new Color(bgColor[0], bgColor[1], bgColor[2]);
+
+			if(fbEnabled && !tmEnabled) {
+				g.drawImage(fbLayer, 0, 0, N_COLUMNS, N_ROWS, bg, null);
+				g.drawImage(spriteLayer, 0, 0, N_COLUMNS, N_ROWS, null);
+			} else if(tmEnabled && !fbEnabled) {
+				g.drawImage(tmLayerLo, 0, 0, N_COLUMNS, N_ROWS, bg, null);
+				g.drawImage(spriteLayer, 0, 0, N_COLUMNS, N_ROWS, null);
+				g.drawImage(tmLayerHi, 0, 0, N_COLUMNS, N_ROWS, null);
+			} else if(fbInFront) {
+				g.drawImage(tmLayerLo, 0, 0, N_COLUMNS, N_ROWS, bg, null);
+				g.drawImage(spriteLayer, 0, 0, N_COLUMNS, N_ROWS, null);
+				g.drawImage(tmLayerHi, 0, 0, N_COLUMNS, N_ROWS, null);
+				g.drawImage(fbLayer, 0, 0, N_COLUMNS, N_ROWS, null);
+			} else {
+				g.drawImage(fbLayer, 0, 0, N_COLUMNS, N_ROWS, bg, null);
+				g.drawImage(tmLayerLo, 0, 0, N_COLUMNS, N_ROWS, null);
+				g.drawImage(spriteLayer, 0, 0, N_COLUMNS, N_ROWS, null);
+				g.drawImage(tmLayerHi, 0, 0, N_COLUMNS, N_ROWS, null);
+			}
+
 			g.dispose();
+
+			this.setShouldRepaint(true);
+			this.repaintIfNeeded();
 		}
 	}
 }
