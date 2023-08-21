@@ -4,6 +4,7 @@ import javax.swing.*;
 import javax.swing.plaf.basic.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.image.*;
 import java.util.*;
 
 import mars.Globals;
@@ -628,8 +629,9 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			new Color(127, 127, 127), // light grey
 		};
 
-		private boolean shouldClear = false;
-		private int keyState;
+		private int keyState = 0;
+		private BufferedImage image =
+			new BufferedImage(N_COLUMNS, N_ROWS, BufferedImage.TYPE_INT_RGB);
 
 		public ClassicLEDDisplayPanel(KeypadAndLEDDisplaySimulator sim) {
 			super(sim, N_COLUMNS, N_ROWS, CELL_DEFAULT_SIZE, CELL_ZOOMED_SIZE);
@@ -693,7 +695,6 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 		@Override
 		public void writeToCtrl(int value) {
-			this.setShouldClear(value != 0);
 			this.setShouldRedraw(true);
 
 			// Copy values from memory to internal buffer, reset if we must.
@@ -711,18 +712,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 				System.exit(0);
 			}
 
-			this.clearIfNeeded();
-		}
-
-		private void setShouldClear(boolean c) {
-			this.shouldClear = c;
-		}
-
-		private void clearIfNeeded() {
-			if(this.shouldClear) {
-				this.shouldClear = false;
+			if(value != 0)
 				this.resetGraphicsMemory();
-			}
 		}
 
 		private void resetGraphicsMemory() {
@@ -747,6 +738,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 				g.drawString("vvvv CLICK THE CONNECT BUTTON!", 10, displayHeight - 10);
 				return;
 			}
+
+			// g.drawImage(image, 0, 0, displayWidth, displayHeight, null);
 
 			if(drawGridLines) {
 				g.setColor(Color.GRAY);
