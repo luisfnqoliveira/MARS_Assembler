@@ -1155,6 +1155,35 @@ public class Memory extends Observable
 			return new ProgramStatement(get(address, WORD_LENGTH_BYTES), address);
 	}
 
+	////////////////////////////////////////////////////////////////////////////////
+	/**
+	 * A bit naughty, ensures a given MMIO page exists and returns a reference to the
+	 * backing data array. This gives MMIO tools direct access to the underlying memory
+	 * without any address validity checks etc. Note that users should still lock on
+	 * Globals.memoryAndRegistersLock when accessing these arrays for obvious reasons.
+	 * I guess you should probably synchronize on that before calling this, too.
+	 *
+	 * NOTE: because the memory blocks get recreated every time you assemble a program,
+	 * you should NOT cache the result of this method. Use it every time you need to
+	 * access the memory page. Otherwise you will end up with stale references.
+	 *
+	 * @param page is the page number [0, 15] of MMIO to get. In the default memory map,
+	 * page 0 is [0xFFFF0000, 0xFFFF0FFF], page 1 is [0xFFFF1000, 0xFFFF1FFF] etc.
+	 * @throws IllegalArgumentException if {@code page} is out of the valid range.
+	 */
+
+	public int[] getMMIOPage(int page) {
+		if(page < 0 || page >= MMIO_TABLE_LENGTH) {
+			throw new IllegalArgumentException(String.format(
+				"invalid page %s (must be in range [0, %s)", page, MMIO_TABLE_LENGTH));
+		}
+
+		if(memoryMapBlockTable[page] == null) {
+			memoryMapBlockTable[page] = new int[BLOCK_LENGTH_WORDS];
+		}
+
+		return memoryMapBlockTable[page];
+	}
 
 	/*********************************  THE UTILITIES  *************************************/
 

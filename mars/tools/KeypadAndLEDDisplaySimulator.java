@@ -58,13 +58,20 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	0xFFFF0008: DISPLAY_BASE.b (WO) - start of user-written LED area
 	0xFFFF1007: DISPLAY_END.b-1 (write-only) - end of user-written LED area
 
-	-- nothing --
-
-	0xFFFF2008: DISPLAY_BUFFER_START.b - start of internal buffer
-	0xFFFF3007: DISPLAY_BUFFER_END.b-1 - end of internal buffer
+	The old implementation had a "secret" buffer from 0xFFFF2008 to 0xFFFF3007 which was
+	*technically* accessible by user programs, but no correctly-written program would ever
+	do that. The new implementation has no such buffer anymore, so writing to this region
+	has no effect.
 
 	Enhanced mode memory map
 	========================
+
+	MMIO Page  0: global, tilemap control, input, and palette RAM
+	MMIO Pages 1-4: framebuffer data
+	MMIO Page  5: tilemap table and sprite table
+	MMIO Pages 6-9: tilemap graphics
+	MMIO Pages A-D: sprite graphics
+	MMIO Pages E-F: unused right now
 
 	GLOBAL REGISTERS:
 
@@ -599,34 +606,28 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private static final int DISPLAY_SIZE = N_ROWS * N_COLUMNS; // bytes
 		private static final int DISPLAY_END = DISPLAY_BASE + DISPLAY_SIZE;
 
-		// the 4096 is there to give a "buffer zone" between the user-written area and the
-		// display buffer. this way, writes past the end of the display will be invisible.
-		// ...it's just to give the students a little leeway. :P
-		private static final int DISPLAY_BUFFER_START = DISPLAY_END + 4096;
-		private static final int DISPLAY_BUFFER_END = DISPLAY_BUFFER_START + DISPLAY_SIZE;
-
 		private static final int COLOR_MASK = 15;
 
 		/** color palette. */
-		private static final Color[] PixelColors = new Color[] {
-			new Color(0, 0, 0),       // black
-			new Color(255, 0, 0),     // red
-			new Color(255, 127, 0),   // orange
-			new Color(255, 255, 0),   // yellow
-			new Color(0, 255, 0),     // green
-			new Color(51, 102, 255),  // blue
-			new Color(255, 0, 255),   // magenta
-			new Color(255, 255, 255), // white
+		private static final int[][] PixelColors = new int[][] {
+			new int[]{0, 0, 0},       // black
+			new int[]{255, 0, 0},     // red
+			new int[]{255, 127, 0},   // orange
+			new int[]{255, 255, 0},   // yellow
+			new int[]{0, 255, 0},     // green
+			new int[]{51, 102, 255},  // blue
+			new int[]{255, 0, 255},   // magenta
+			new int[]{255, 255, 255}, // white
 
 			// extended colors!
-			new Color(63, 63, 63),    // dark grey
-			new Color(127, 0, 0),     // brick
-			new Color(127, 63, 0),    // brown
-			new Color(192, 142, 91),  // tan
-			new Color(0, 127, 0),     // dark green
-			new Color(25, 50, 127),   // dark blue
-			new Color(63, 0, 127),    // purple
-			new Color(127, 127, 127), // light grey
+			new int[]{63, 63, 63},    // dark grey
+			new int[]{127, 0, 0},     // brick
+			new int[]{127, 63, 0},    // brown
+			new int[]{192, 142, 91},  // tan
+			new int[]{0, 127, 0},     // dark green
+			new int[]{25, 50, 127},   // dark blue
+			new int[]{63, 0, 127},    // purple
+			new int[]{127, 127, 127}, // light grey
 		};
 
 		private int keyState = 0;
@@ -676,14 +677,9 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			keyState = newState;
 
 			if(!sim.isBeingUsedAsAMarsTool || sim.connectButton.isConnected()) {
-				try {
-					synchronized(Globals.memoryAndRegistersLock) {
-						Globals.memory.setRawWord(DISPLAY_KEYS, newState);
-					}
-				}
-				catch(AddressErrorException aee) {
-					System.out.println("Tool author specified incorrect MMIO address!" + aee);
-					System.exit(0);
+				synchronized(Globals.memoryAndRegistersLock) {
+					// 1 is (DISPLAY_KEYS - MMIO Base) / 4
+					Globals.memory.getMMIOPage(0)[1] = newState;
 				}
 			}
 		}
@@ -691,43 +687,69 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		/** quickly clears the graphics memory to 0 (black). */
 		@Override
 		public void reset() {
-			this.resetGraphicsMemory();
-			this.setShouldRedraw(true);
+			this.resetGraphicsMemory(true);
+			this.setShouldRepaint(true);
 		}
 
 		@Override
 		public void writeToCtrl(int value) {
-			this.setShouldRedraw(true);
-
 			// Copy values from memory to internal buffer, reset if we must.
-			try {
-				synchronized(Globals.memoryAndRegistersLock) {
-					// Ensure block for destination exists
-					Globals.memory.setRawWord(DISPLAY_BUFFER_START, 0x0);
-					Globals.memory.setRawWord(DISPLAY_BUFFER_END - 0x4, 0x0);
-					Globals.memory.copyMMIOFast(DISPLAY_BASE, DISPLAY_BUFFER_START,
-						DISPLAY_SIZE);
-				}
-			}
-			catch(AddressErrorException aee) {
-				System.out.println("Tool author specified incorrect MMIO address!" + aee);
-				System.exit(0);
-			}
+			this.updateImage();
 
 			if(value != 0)
-				this.resetGraphicsMemory();
+				this.resetGraphicsMemory(false);
+
+			this.setShouldRepaint(true);
 		}
 
-		private void resetGraphicsMemory() {
-			try {
-				synchronized(Globals.memoryAndRegistersLock) {
-					Globals.memory.zeroMMIOFast(DISPLAY_BASE, DISPLAY_SIZE);
+		private void resetGraphicsMemory(boolean clearBuffer) {
+			synchronized(Globals.memoryAndRegistersLock) {
+				// I hate using magic values like this but: these are the addresses of
+				// DISPLAY_BASE and DISPLAY_END, minus the MMIO base address, divided
+				// by 4 since the array indexes are words, not bytes.
+				Arrays.fill(Globals.memory.getMMIOPage(0), 2, 1024, 0);
+				Arrays.fill(Globals.memory.getMMIOPage(1), 0,    2, 0);
+
+				if(clearBuffer) {
+					this.clearImage();
 				}
 			}
-			catch(AddressErrorException aee) {
-				System.out.println("Tool author specified incorrect MMIO address!" + aee);
-				System.exit(0);
+		}
+
+		// grab values out of RAM and turn them into image pixels
+		private void updateImage() {
+			synchronized(image) {
+				synchronized(Globals.memoryAndRegistersLock) {
+					int[] page = Globals.memory.getMMIOPage(0);
+					int ptr = 2;
+					var r = image.getRaster();
+
+					for(int row = 0; row < N_ROWS; row++) {
+						for(int col = 0; col < N_COLUMNS; col += 4, ptr++) {
+							// hacky, but.
+							if(ptr == 1024) {
+								ptr = 0;
+								page = Globals.memory.getMMIOPage(1);
+							}
+
+							int pixel = page[ptr];
+
+							r.setPixel(col, row, PixelColors[pixel & COLOR_MASK]);
+							r.setPixel(col + 1, row, PixelColors[(pixel >> 8) & COLOR_MASK]);
+							r.setPixel(col + 2, row, PixelColors[(pixel >> 16) & COLOR_MASK]);
+							r.setPixel(col + 3, row, PixelColors[(pixel >> 24) & COLOR_MASK]);
+						}
+					}
+				}
 			}
+		}
+
+		// Clear the image to black
+		private void clearImage() {
+			var g = image.createGraphics();
+			g.setColor(Color.BLACK);
+			g.fillRect(0, 0, image.getWidth(), image.getHeight());
+			g.dispose();
 		}
 
 		@Override
@@ -738,49 +760,28 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 				g.setColor(Color.RED);
 				g.setFont(new Font("Sans-Serif", Font.BOLD, 24));
 				g.drawString("vvvv CLICK THE CONNECT BUTTON!", 10, displayHeight - 10);
-				return;
-			}
+			} else {
+				synchronized(image) {
+					g.drawImage(image, 0, 0, displayWidth, displayHeight, null);
+				}
 
-			// g.drawImage(image, 0, 0, displayWidth, displayHeight, null);
+				if(drawGridLines) {
+					g.setColor(Color.GRAY);
 
-			if(drawGridLines) {
-				g.setColor(Color.GRAY);
-				g.fillRect(0, 0, displayWidth, displayHeight);
-			}
+					for(int col = 0; col < N_COLUMNS; col++) {
+						int x = col * cellSize;
+						g.drawLine(x, 0, x, displayHeight);
+					}
 
-			int ptr = DISPLAY_BUFFER_START;
-
-			try {
-				synchronized(Globals.memoryAndRegistersLock) {
 					for(int row = 0; row < N_ROWS; row++) {
 						int y = row * cellSize;
-
-						for(int col = 0, x = 0; col < N_COLUMNS; col += 4, ptr += 4) {
-							int pixel = Globals.memory.getWordNoNotify(ptr);
-
-							g.setColor(PixelColors[pixel & COLOR_MASK]);
-							g.fillRect(x, y, pixelSize, pixelSize);
-							x += cellSize;
-							g.setColor(PixelColors[(pixel >> 8) & COLOR_MASK]);
-							g.fillRect(x, y, pixelSize, pixelSize);
-							x += cellSize;
-							g.setColor(PixelColors[(pixel >> 16) & COLOR_MASK]);
-							g.fillRect(x, y, pixelSize, pixelSize);
-							x += cellSize;
-							g.setColor(PixelColors[(pixel >> 24) & COLOR_MASK]);
-							g.fillRect(x, y, pixelSize, pixelSize);
-							x += cellSize;
-						}
+						g.drawLine(0, y, displayWidth, y);
 					}
 				}
-			}
-			catch(AddressErrorException aee) {
-				System.out.println("Tool author specified incorrect MMIO address!" + aee);
-				System.exit(0);
-			}
 
-			// TODO: if we don't have focus, draw an overlay saying to click on the display
-			// (and make it an abstract method in the base class)
+				// TODO: if we don't have focus, draw an overlay saying to click on the display
+				// (and make it an abstract method in the base class)
+			}
 		}
 	}
 
