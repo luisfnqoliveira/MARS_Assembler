@@ -81,7 +81,9 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 				01: framebuffer on
 				10: tilemap on
 				11: framebuffer and tilemap on
+
 			bit 8 has no specific meaning but setting it along with mode switches to enhanced mode
+
 			bits 16-23 are the milliseconds per frame used by DISPLAY_SYNC, but limited to
 			the range [10, 100].
 
@@ -91,29 +93,30 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 				(ms_per_frame << 16) | 0x100 | mode
 
 		0xFFFF0004: DISPLAY_ORDER.w          (WO, order in which tilemap and framebuffer should
-			be composited - 0 = tilemap in front of framebuffer, 0 = tilemap behind framebuffer)
+			be composited - 0 = tilemap in front of framebuffer, 1 = tilemap behind framebuffer)
 		0xFFFF0008: DISPLAY_SYNC.w           (RW)
 			write to indicate frame is over and ready for display (value is ignored)
 			read to wait for next frame (always reads 0)
 		0xFFFF000C: DISPLAY_FB_CLEAR.w       (WO, clears framebuffer to BG color when written)
+		0xFFFF0010: DISPLAY_PALETTE_RESET.w  (WO, resets palette to default values when written)
 
 	TILEMAP REGISTERS:
 
-		0xFFFF0010: DISPLAY_TM_SCX.w         (WO, tilemap X scroll position)
-		0xFFFF0014: DISPLAY_TM_SCY.w         (WO, tilemap Y scroll position)
+		0xFFFF0020: DISPLAY_TM_SCX.w         (WO, tilemap X scroll position)
+		0xFFFF0024: DISPLAY_TM_SCY.w         (WO, tilemap Y scroll position)
 
 		-- blank --
 
 	INPUT REGISTERS:
 
-		0xFFFF0020: DISPLAY_KEY_HELD.w       (write to choose key, read to get state)
-		0xFFFF0024: DISPLAY_KEY_PRESSED.w    (write to choose key, read to get state)
-		0xFFFF0028: DISPLAY_KEY_RELEASED.w   (write to choose key, read to get state)
-		0xFFFF002C: DISPLAY_MOUSE_X.w        (RO, X position of mouse or -1 if mouse not over)
-		0xFFFF0030: DISPLAY_MOUSE_Y.w        (RO, Y position of mouse or -1 if mouse not over)
-		0xFFFF0034: DISPLAY_MOUSE_HELD.w     (RO, bitflags of mouse buttons held)
-		0xFFFF0038: DISPLAY_MOUSE_PRESSED.w  (RO, bitflags of mouse buttons pressed, incl wheel)
-		0xFFFF003C: DISPLAY_MOUSE_RELEASED.w (RO, bitflags of mouse buttons released)
+		0xFFFF0040: DISPLAY_KEY_HELD.w       (write to choose key, read to get state)
+		0xFFFF0044: DISPLAY_KEY_PRESSED.w    (write to choose key, read to get state)
+		0xFFFF0048: DISPLAY_KEY_RELEASED.w   (write to choose key, read to get state)
+		0xFFFF004C: DISPLAY_MOUSE_X.w        (RO, X position of mouse or -1 if mouse not over)
+		0xFFFF0050: DISPLAY_MOUSE_Y.w        (RO, Y position of mouse or -1 if mouse not over)
+		0xFFFF0054: DISPLAY_MOUSE_HELD.w     (RO, bitflags of mouse buttons held)
+		0xFFFF0058: DISPLAY_MOUSE_PRESSED.w  (RO, bitflags of mouse buttons pressed, incl wheel)
+		0xFFFF005C: DISPLAY_MOUSE_RELEASED.w (RO, bitflags of mouse buttons released)
 
 		-- blank --
 
@@ -246,8 +249,6 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		If the framebuffer is not visible but the tilemap is, the background color will appear
 		behind transparent pixels in tiles.
 
-
-
 	Sprites
 	=======
 
@@ -286,7 +287,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		If DISPLAY_ORDER is 0 (the default), the display elements are drawn from back (first drawn)
 		to front (last drawn) like so:
 
-			- Background color
+			- Background color (if framebuffer is not visible)
 			- Framebuffer
 			- Tilemap tiles without priority
 			- Sprites, from sprite 255 down to sprite 0
@@ -461,6 +462,9 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 				}
 
 				this.displayPanel.writeToCtrl(value);
+			} else {
+				this.displayPanel.handleWrite(
+					notice.getAddress(), notice.getLength(), notice.getValue());
 			}
 		} else {
 			// reads...
@@ -607,6 +611,9 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 				}
 			}
 		}
+
+		// handle writes to MMIO addresses other than DISPLAY_CTRL; by default does nothing.
+		public void handleWrite(int addr, int length, int value) {}
 
 		public abstract void reset();
 		public abstract void writeToCtrl(int value);
@@ -810,6 +817,17 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 	/** The new, enhanced display. */
 	private static class EnhancedLEDDisplayPanel extends LEDDisplayPanel {
+		// Mode bits
+		private static final int MODE_FB_ENABLE = 1;
+		private static final int MODE_TM_ENABLE = 2;
+		private static final int MODE_MASK = 3;
+
+		// Framerate
+		private static final int MS_PER_FRAME_SHIFT = 16;
+		private static final int MS_PER_FRAME_MASK = 0xFF;
+		private static final int MIN_MS_PER_FRAME = 10;
+		private static final int MAX_MS_PER_FRAME = 100;
+
 		// Display and framebuffer size
 		private static final int N_COLUMNS = 128;
 		private static final int N_ROWS = 128;
@@ -828,7 +846,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 		// DISPLAY_CTRL
 		private int msPerFrame = 16;
-		private boolean fbEnabled = true;
+		private boolean fbEnabled = false;
 		private boolean tmEnabled = false;
 
 		// DISPLAY_ORDER
@@ -838,8 +856,11 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private int tmScx = 0;
 		private int tmScy = 0;
 
-		// Palette RAM
-		private byte[][] paletteRam = new byte[256][4];
+		// Palette RAM (ints, because setPixel expects ints)
+		private int[][] paletteRam = new int[256][4];
+
+		// Shadow for the background color entry - paletteRam[0] is set to transparent
+		private int[] bgColor = new int[]{ 0, 0, 0, 255 };
 
 		// Framebuffer RAM
 		private byte[] fbRam = new byte[N_COLUMNS * N_ROWS];
@@ -852,11 +873,26 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private byte[] sprTable = new byte[256 * 4];
 		private byte[] sprGraphics = new byte[256 * 8 * 8];
 
+		// Compositing layers
+		private BufferedImage bgColorLayer =
+			new BufferedImage(N_COLUMNS, N_ROWS, BufferedImage.TYPE_INT_ARGB);
+		private BufferedImage fbLayer =
+			new BufferedImage(N_COLUMNS, N_ROWS, BufferedImage.TYPE_INT_ARGB);
+		private BufferedImage tmLayerLo =
+			new BufferedImage(N_COLUMNS, N_ROWS, BufferedImage.TYPE_INT_ARGB);
+		private BufferedImage tmLayerHi =
+			new BufferedImage(N_COLUMNS, N_ROWS, BufferedImage.TYPE_INT_ARGB);
+		private BufferedImage spriteLayer =
+			new BufferedImage(N_COLUMNS, N_ROWS, BufferedImage.TYPE_INT_ARGB);
+		private BufferedImage finalImage =
+			new BufferedImage(N_COLUMNS, N_ROWS, BufferedImage.TYPE_INT_ARGB);
+
 		// ----------------------------------------------------------------------------------------
 		// Constructor
 
 		public EnhancedLEDDisplayPanel(KeypadAndLEDDisplaySimulator sim) {
 			super(sim, N_COLUMNS, N_ROWS, CELL_DEFAULT_SIZE, CELL_ZOOMED_SIZE);
+			this.initializePaletteRam();
 		}
 
 		// ----------------------------------------------------------------------------------------
@@ -864,21 +900,218 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 		@Override
 		public void reset() {
-			// ??????
+			this.initializePaletteRam();
 		}
 
 		@Override
 		public void writeToCtrl(int value) {
-			// TODO
+			int mode = value & MODE_MASK;
+
+			// handle the undefined case by treating it like mode 1
+			if(mode == 0)
+				mode = MODE_FB_ENABLE;
+
+			this.fbEnabled = (mode & MODE_FB_ENABLE) != 0;
+			this.tmEnabled = (mode & MODE_TM_ENABLE) != 0;
+
+			// extract ms/frame and clamp to valid range
+			int msPerFrame = (value >> MS_PER_FRAME_SHIFT) & MS_PER_FRAME_MASK;
+			msPerFrame = Math.min(msPerFrame, MAX_MS_PER_FRAME);
+			msPerFrame = Math.max(msPerFrame, MIN_MS_PER_FRAME);
+
+			this.msPerFrame = msPerFrame;
 		}
 
 		@Override
 		public void paintDisplay(Graphics g) {
+			/*
 			g.setColor(Color.BLACK);
 			g.fillRect(0, 0, displayWidth, displayHeight);
 			g.setColor(Color.RED);
-			g.setFont(new Font("Sans-Serif", Font.BOLD, 24));
-			g.drawString("~Enhanced~", 10, displayHeight - 10);
+			g.setFont(bigFont);
+			g.drawString("~Enhanced~", 10, 30);
+
+			if(fbEnabled)
+				g.drawString("FB", 10, 60);
+
+			if(tmEnabled)
+				g.drawString("TM", 60, 60);
+
+			g.drawString(msPerFrame + " ms/frame", 10, 90);
+			*/
+
+			g.drawImage(bgColorLayer, 0, 0, displayWidth, displayHeight, null);
+		}
+
+		// big ugly thing to dispatch MMIO writes to their appropriate methods
+		@Override
+		public void handleWrite(int addr, int length, int value) {
+			int page = (addr >> 12) & 0xF;
+			int offs = addr & 0xFFF;
+
+			switch(page) {
+				// MMIO Page 0: global, tilemap control, input, and palette RAM
+				case 0:
+					// ignore non-word stores
+					if(offs < 0x40 && length == Memory.WORD_LENGTH_BYTES) {
+						switch(offs) {
+							// 0xFFFF0004: DISPLAY_ORDER
+							case 0x004: this.fbInFront = value != 0; break;
+							// 0xFFFF0008: DISPLAY_SYNC
+							case 0x008: this.compositeFrame(); break;
+							// 0xFFFF000C: DISPLAY_FB_CLEAR
+							case 0x00C: this.clearFb(); break;
+							// 0xFFFF0010: DISPLAY_PALETTE_RESET
+							case 0x010: this.initializePaletteRam(); break;
+							// 0xFFFF0020: DISPLAY_TM_SCX
+							case 0x020: this.tmScx = value; break;
+							// 0xFFFF0024: DISPLAY_TM_SCY
+							case 0x024: this.tmScy = value; break;
+							default: break;
+						}
+					} else if(offs <= 0x48) {
+						// TODO: input stuff
+						// 0xFFFF0040: DISPLAY_KEY_HELD
+						// 0xFFFF0044: DISPLAY_KEY_PRESSED
+						// 0xFFFF0048: DISPLAY_KEY_RELEASED
+					} else if(offs >= 0xC00) {
+						this.writePalette(offs - 0xC00, length, value);
+					}
+					break;
+
+				// MMIO Pages 1-4: framebuffer data
+				case 1: case 2: case 3: case 4:
+					// 0xFFFF1000-0xFFFF4FFF: 128x128 (16,384) 1B pixels
+					this.writeFb((addr & 0xFFFF) - 0x1000, length, value);
+					break;
+
+				// MMIO Page 5: tilemap table and sprite table
+				case 5:
+					if(offs < 0x800) {
+						// 0xFFFF5000-0xFFFF57FF: 32x32 2B tilemap entries
+						this.writeTmTable(offs, length, value);
+					} else {
+						// 0xFFFF5800-0xFFFF5FFF: 256 4B sprite entries
+						this.writeSprTable(offs - 0x800, length, value);
+					}
+					break;
+
+				// MMIO Pages 6-9: tilemap graphics
+				case 6: case 7: case 8: case 9:
+					this.writeTmGfx((addr & 0xFFFF) - 0x6000, length, value);
+					break;
+
+				// MMIO Pages A-D: sprite graphics
+				case 0xA: case 0xB: case 0xC: case 0xD:
+					this.writeSprGfx((addr & 0xFFFF) - 0xA000, length, value);
+					break;
+
+				// MMIO Pages E-F: unused right now
+				default:
+					break;
+			}
+		}
+
+		// TODO
+		private void compositeFrame() {
+			this.setShouldRepaint(true);
+		}
+		// TODO
+		private void clearFb() { }
+
+		private void writePalette(int offs, int length, int value) {
+			int entry = offs / 4;
+
+			if(entry == 0) {
+				// SPECIAL CASE for the BG color
+				this.setColor(bgColor, offs, length, value);
+				this.buildBgColorLayer();
+			} else {
+				this.setColor(paletteRam[entry], offs, length, value);
+			}
+		}
+
+		private void setColor(int[] color, int offs, int length, int value) {
+			if(length == 4) {
+				color[0] = (value >>> 16) & 0xFF;
+				color[1] = (value >>> 8) & 0xFF;
+				color[2] = value & 0xFF;
+			} else if(length == 1) {
+				// can't modify alpha
+				if(offs < 3) {
+					// 0 is blue, 1 is green, 2 is red
+					color[2 - offs] = value & 0xFF;
+				}
+			} else if(offs == 0) {
+				color[1] = (value >>> 8) & 0xFF;
+				color[2] = value & 0xFF;
+			} else {
+				color[0] = value & 0xFF;
+			}
+		}
+
+		// TODO
+		private void writeFb(int offs, int length, int value) { }
+		// TODO
+		private void writeTmTable(int offs, int length, int value) { }
+		// TODO
+		private void writeSprTable(int offs, int length, int value) { }
+		// TODO
+		private void writeTmGfx(int offs, int length, int value) { }
+		// TODO
+		private void writeSprGfx(int offs, int length, int value) { }
+
+		// ----------------------------------------------------------------------------------------
+		// Palette methods
+
+		private static int[] Intensities = new int[]{ 0, 63, 127, 255 };
+
+		// Initialize the palette RAM to a default palette, so you can start
+		// drawing stuff right away without needing to do so from software.
+		private void initializePaletteRam() {
+			// entry 0 of the *array* is transparent, so that the methods for
+			// drawing pixels don't have to special-case.
+			paletteRam[0] = new int[]{ 0, 0, 0, 0 };
+
+			// *this* is what the users actually write into when they write
+			// to palette entry 0 to set the background color.
+			bgColor = new int[]{ 0, 0, 0, 255 };
+
+			// first 64 entries are the index, interpreted as RGB222.
+			for(int i = 1; i < 64; i++) {
+				int r = Intensities[(i >> 4) & 3];
+				int g = Intensities[(i >> 2) & 3];
+				int b = Intensities[i & 3];
+				paletteRam[i] = new int[]{ r, g, b, 255 };
+			}
+
+			// next 16 entries are the classic display panel colors; so
+			// you can convert classic colors to palette indexes by adding 64
+			for(int i = 64; i < 80; i++) {
+				var c = ClassicLEDDisplayPanel.PixelColors[i - 64];
+				paletteRam[i] = new int[] { c[0], c[1], c[2], 255 };
+			}
+
+			// rest of first half of palette is pure black
+			for(int i = 80; i < 128; i++) {
+				paletteRam[i] = new int[] { 0, 0, 0, 255 };
+			}
+
+			// second half of palette is a smooth grayscale
+			for(int i = 128; i < 256; i++) {
+				int v = (i - 128) * 2;
+				paletteRam[i] = new int[] { v, v, v, 255 };
+			}
+
+			// since we changed the palette, have to update the BG Color layer
+			this.buildBgColorLayer();
+		}
+
+		private void buildBgColorLayer() {
+			var g = bgColorLayer.createGraphics();
+			g.setColor(new Color(bgColor[0], bgColor[1], bgColor[2]));
+			g.fillRect(0, 0, N_COLUMNS, N_ROWS);
+			g.dispose();
 		}
 	}
 }
