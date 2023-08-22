@@ -1216,7 +1216,6 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		// ----------------------------------------------------------------------------------------
 		// Compositing methods
 
-		// TODO
 		private void compositeFrame() {
 			// if the palette changed, everything has to change.
 			if(isPalDirty) {
@@ -1245,22 +1244,22 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			var bg = new Color(bgColor[0], bgColor[1], bgColor[2]);
 
 			if(fbEnabled && !tmEnabled) {
-				g.drawImage(fbLayer, 0, 0, N_COLUMNS, N_ROWS, bg, null);
+				g.drawImage(fbLayer,     0, 0, N_COLUMNS, N_ROWS, bg, null);
 				g.drawImage(spriteLayer, 0, 0, N_COLUMNS, N_ROWS, null);
 			} else if(tmEnabled && !fbEnabled) {
-				g.drawImage(tmLayerLo, 0, 0, N_COLUMNS, N_ROWS, bg, null);
+				g.drawImage(tmLayerLo,   0, 0, N_COLUMNS, N_ROWS, bg, null);
 				g.drawImage(spriteLayer, 0, 0, N_COLUMNS, N_ROWS, null);
-				g.drawImage(tmLayerHi, 0, 0, N_COLUMNS, N_ROWS, null);
+				g.drawImage(tmLayerHi,   0, 0, N_COLUMNS, N_ROWS, null);
 			} else if(fbInFront) {
-				g.drawImage(tmLayerLo, 0, 0, N_COLUMNS, N_ROWS, bg, null);
+				g.drawImage(tmLayerLo,   0, 0, N_COLUMNS, N_ROWS, bg, null);
 				g.drawImage(spriteLayer, 0, 0, N_COLUMNS, N_ROWS, null);
-				g.drawImage(tmLayerHi, 0, 0, N_COLUMNS, N_ROWS, null);
-				g.drawImage(fbLayer, 0, 0, N_COLUMNS, N_ROWS, null);
+				g.drawImage(tmLayerHi,   0, 0, N_COLUMNS, N_ROWS, null);
+				g.drawImage(fbLayer,     0, 0, N_COLUMNS, N_ROWS, null);
 			} else {
-				g.drawImage(fbLayer, 0, 0, N_COLUMNS, N_ROWS, bg, null);
-				g.drawImage(tmLayerLo, 0, 0, N_COLUMNS, N_ROWS, null);
+				g.drawImage(fbLayer,     0, 0, N_COLUMNS, N_ROWS, bg, null);
+				g.drawImage(tmLayerLo,   0, 0, N_COLUMNS, N_ROWS, null);
 				g.drawImage(spriteLayer, 0, 0, N_COLUMNS, N_ROWS, null);
-				g.drawImage(tmLayerHi, 0, 0, N_COLUMNS, N_ROWS, null);
+				g.drawImage(tmLayerHi,   0, 0, N_COLUMNS, N_ROWS, null);
 			}
 
 			g.dispose();
