@@ -42,6 +42,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 public class ProcessingException extends Exception
 {
 	private ErrorList errs;
+	private boolean isBreakpoint = false;
 
 	/**
 	 * Constructor for ProcessingException.
@@ -75,6 +76,11 @@ public class ProcessingException extends Exception
 	 **/
 	public ProcessingException(ProgramStatement ps, String m)
 	{
+		commonCtorBullshit(ps, m);
+	}
+
+	private void commonCtorBullshit(ProgramStatement ps, String m)
+	{
 		errs = new ErrorList();
 		errs.add(new ErrorMessage(ps, "Runtime exception at " +
 								  Binary.intToHexString(RegisterFile.getProgramCounter() - Instruction.INSTRUCTION_LENGTH) +
@@ -96,8 +102,16 @@ public class ProcessingException extends Exception
 	 **/
 	public ProcessingException(ProgramStatement ps, String m, int cause)
 	{
-		this(ps, m);
-		Exceptions.setRegisters(cause);
+		if(cause == Exceptions.BREAKPOINT_EXCEPTION) {
+			isBreakpoint = true;
+		} else {
+			commonCtorBullshit(ps, m);
+			Exceptions.setRegisters(cause);
+		}
+	}
+
+	public boolean isBreakpoint() {
+		return this.isBreakpoint;
 	}
 
 

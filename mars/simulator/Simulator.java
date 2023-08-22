@@ -375,11 +375,15 @@ public class Simulator extends Observable
 					{
 						if(pe.errors() == null)
 						{
-							this.constructReturnReason = NORMAL_TERMINATION;
-							this.done = true;
-							SystemIO.resetFiles(); // close any files opened in MIPS program
-							Simulator.getInstance().notifyObserversOfExecutionStop(maxSteps, pc);
-							return new Boolean(done); // execution completed without error.
+							if(pe.isBreakpoint())
+								return this.breakpointHit(pc);
+							else {
+								this.constructReturnReason = NORMAL_TERMINATION;
+								this.done = true;
+								SystemIO.resetFiles(); // close any files opened in MIPS program
+								Simulator.getInstance().notifyObserversOfExecutionStop(maxSteps, pc);
+								return new Boolean(done); // execution completed without error.
+							}
 						}
 						else
 						{
@@ -432,10 +436,7 @@ public class Simulator extends Observable
 				if((breakPoints != null) &&
 						(Arrays.binarySearch(breakPoints, RegisterFile.getProgramCounter()) >= 0))
 				{
-					this.constructReturnReason = BREAKPOINT;
-					this.done = false;
-					Simulator.getInstance().notifyObserversOfExecutionStop(maxSteps, pc);
-					return new Boolean(done); // false;
+					return this.breakpointHit(pc);
 				}
 				// Check number of MIPS instructions executed.  Return if at limit (-1 is no limit).
 				if(maxSteps > 0)
@@ -510,6 +511,12 @@ public class Simulator extends Observable
 			return new Boolean(done); // true;  // execution completed
 		}
 
+		private Object breakpointHit(int pc) {
+			this.constructReturnReason = BREAKPOINT;
+			this.done = false;
+			Simulator.getInstance().notifyObserversOfExecutionStop(maxSteps, pc);
+			return new Boolean(done); // false;
+		}
 
 		/**
 		 *   This method is invoked by the SwingWorker when the "construct" method returns.
