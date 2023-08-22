@@ -1354,7 +1354,14 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 					// the BG color will show through this image if so.
 					// also have to do some Dumb Shit to zero extend the byte
 					int colorIndex = ((int)fbRam[y*N_COLUMNS + x]) & 0xFF;
-					r.setPixel(x, y, paletteRam[(colorIndex + fbPalOffs) & 0xFF]);
+
+					if(colorIndex == 0) {
+						r.setPixel(x, y, paletteRam[0]);
+					} else {
+						// technically it'd be possible to have TWO transparent colors since
+						// the palette index wraps around to 0, but whatever.
+						r.setPixel(x, y, paletteRam[(colorIndex + fbPalOffs) & 0xFF]);
+					}
 				}
 			}
 
