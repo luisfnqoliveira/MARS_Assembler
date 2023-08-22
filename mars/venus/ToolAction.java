@@ -71,6 +71,8 @@ public class ToolAction extends AbstractAction
 			// in ToolLoader's loadMarsTools() method.
 			((MarsTool)this.toolClass.newInstance()).action();
 		}
-		catch(Exception ex) { }
+		catch(Exception ex) {
+			ex.printStackTrace();
+		}
 	}
 }
