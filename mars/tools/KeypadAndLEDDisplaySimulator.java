@@ -96,7 +96,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			write to indicate frame is over and ready for display (value is ignored)
 			read to wait for next frame (always reads 0)
 
-		0xFFFF0008: DISPLAY_PALETTE_RESET.w  (WO, resets palette to default values when written)
+		0xFFFF0008: DISPLAY_RESET.w          (WO, clears/resets all graphics RAM to defaults)
 
 	FRAMEBUFFER REGISTERS:
 
@@ -875,7 +875,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	private static class EnhancedLEDDisplayPanel extends LEDDisplayPanel {
 		// Register addresses
 		private static final int DISPLAY_SYNC           = 0xFFFF0004;
-		private static final int DISPLAY_PALETTE_RESET  = 0xFFFF0008;
+		private static final int DISPLAY_RESET          = 0xFFFF0008;
 		private static final int DISPLAY_FB_CLEAR       = 0xFFFF0010;
 		private static final int DISPLAY_FB_IN_FRONT    = 0xFFFF0014;
 		private static final int DISPLAY_FB_PAL_OFFS    = 0xFFFF0018;
@@ -1029,7 +1029,9 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 		@Override
 		public void reset() {
-			this.initializePaletteRam();
+			// ??????? do we really wanna do anything when they hit this button?
+			// sure seems like it'd just fuck everything up if they hit it in
+			// the middle of a program.
 		}
 
 		@Override
@@ -1084,7 +1086,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 						switch(addr) {
 							case DISPLAY_SYNC:          this.finishFrame();            break;
-							case DISPLAY_PALETTE_RESET: this.initializePaletteRam();   break;
+							case DISPLAY_RESET:         this.resetEverything();        break;
 							case DISPLAY_FB_CLEAR:      this.clearFb();                break;
 							case DISPLAY_FB_IN_FRONT:   this.fbInFront = value != 0;   break;
 							case DISPLAY_FB_PAL_OFFS:   this.fbPalOffs = value & 0xFF; break;
@@ -1141,6 +1143,20 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		}
 
 		// ----------------------------------------------------------------------------------------
+		// Reset
+
+		private void resetEverything() {
+			this.initializePaletteRam();
+			this.clearFb();
+			this.clearTmRam();
+			this.clearSprRam();
+			fbPalOffs = 0;
+			tmScx = 0;
+			tmScy = 0;
+			tmPalOffs = 0;
+		}
+
+		// ----------------------------------------------------------------------------------------
 		// Input
 
 		private void putMouseButtonsInRam() {
@@ -1190,7 +1206,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		}
 
 		// ----------------------------------------------------------------------------------------
-		// Palette methods
+		// Palette
 
 		private static int[] Rgb222Intensities = { 0, 63, 127, 255 };
 
@@ -1230,6 +1246,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 				int v = (i - 128) * 2;
 				paletteRam[i] = new int[] { v, v, v, 255 };
 			}
+
+			isPalDirty = true;
 		}
 
 		private void writePalette(int offs, int length, int value) {
@@ -1266,7 +1284,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		}
 
 		// ----------------------------------------------------------------------------------------
-		// Framebuffer methods
+		// Framebuffer
 
 		private void clearFb() {
 			Arrays.fill(fbRam, 0, fbRam.length, (byte)0);
@@ -1305,7 +1323,13 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		}
 
 		// ----------------------------------------------------------------------------------------
-		// Tilemap methods
+		// Tilemap
+
+		private void clearTmRam() {
+			Arrays.fill(tmTable, 0, tmTable.length, (byte)0);
+			Arrays.fill(tmGraphics, 0, tmGraphics.length, (byte)0);
+			isTmDirty = true;
+		}
 
 		// TODO
 		private void writeTmTable(int offs, int length, int value) { }
@@ -1315,7 +1339,13 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private void buildTmLayers() { }
 
 		// ----------------------------------------------------------------------------------------
-		// Sprite methods
+		// Sprite
+
+		private void clearSprRam() {
+			Arrays.fill(sprTable, 0, sprTable.length, (byte)0);
+			Arrays.fill(sprGraphics, 0, sprGraphics.length, (byte)0);
+			isSprDirty = true;
+		}
 
 		// TODO
 		private void writeSprTable(int offs, int length, int value) { }
@@ -1325,7 +1355,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private void buildSpriteLayer() { }
 
 		// ----------------------------------------------------------------------------------------
-		// Compositing methods
+		// Compositing
 
 		private void compositeFrame() {
 			// if the palette changed, everything has to change.

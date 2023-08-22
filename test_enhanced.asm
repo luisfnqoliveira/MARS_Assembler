@@ -29,11 +29,8 @@ main:
 	#li t0, 1
 	#sw t0, DISPLAY_ORDER
 
-	# reset palette
-	sw zero, DISPLAY_PALETTE_RESET
-
-	# clear the framebuffer
-	sw zero, DISPLAY_FB_CLEAR
+	# reset everything
+	sw zero, DISPLAY_RESET
 
 	#j test_fb_palette_offset
 	j test_mouse
