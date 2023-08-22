@@ -38,6 +38,7 @@ public class DefaultInputHandler extends InputHandler
 	public void addDefaultKeyBindings()
 	{
 		addKeyBinding("BACK_SPACE", BACKSPACE);
+		addKeyBinding("S+BACK_SPACE", BACKSPACE);
 		addKeyBinding("C+BACK_SPACE", BACKSPACE_WORD);
 		addKeyBinding("A+BACK_SPACE", BACKSPACE_WORD);
 		addKeyBinding("DELETE", DELETE);
@@ -47,6 +48,7 @@ public class DefaultInputHandler extends InputHandler
 		addKeyBinding("TAB", INSERT_TAB_OR_INDENT);
 		addKeyBinding("S+TAB", DEDENT);
 		addKeyBinding("SPACE", INSERT_SPACE_OR_YELL);
+		addKeyBinding("S+SPACE", INSERT_SPACE_OR_YELL);
 
 		addKeyBinding("INSERT", OVERWRITE);
 		addKeyBinding("C+\\", TOGGLE_RECT);
