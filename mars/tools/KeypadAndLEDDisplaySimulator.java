@@ -92,14 +92,17 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			so set DISPLAY_CTRL to:
 				(ms_per_frame << 16) | 0x100 | mode
 
-		0xFFFF0004: DISPLAY_ORDER.w          (WO, order in which tilemap and framebuffer should
-			be composited - 0 = tilemap in front of framebuffer, 1 = tilemap behind framebuffer)
-		0xFFFF0008: DISPLAY_SYNC.w           (RW)
+		0xFFFF0004: DISPLAY_SYNC.w           (RW)
 			write to indicate frame is over and ready for display (value is ignored)
 			read to wait for next frame (always reads 0)
-		0xFFFF000C: DISPLAY_FB_CLEAR.w       (WO, clears framebuffer to color 0 when written)
-		0xFFFF0010: DISPLAY_PALETTE_RESET.w  (WO, resets palette to default values when written)
-		0xFFFF0014: DISPLAY_FB_PAL_OFFS.w    (WO, framebuffer palette offset)
+
+		0xFFFF0008: DISPLAY_PALETTE_RESET.w  (WO, resets palette to default values when written)
+
+	FRAMEBUFFER REGISTERS:
+
+		0xFFFF0010: DISPLAY_FB_CLEAR.w       (WO, clears framebuffer to color 0 when written)
+		0xFFFF0014: DISPLAY_FB_IN_FRONT.w    (WO, 1 puts framebuffer in front of everything else)
+		0xFFFF0018: DISPLAY_FB_PAL_OFFS.w    (WO, framebuffer palette offset)
 
 	TILEMAP REGISTERS:
 
@@ -984,16 +987,18 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 							break;
 
 						switch(offs) {
-							// 0xFFFF0004: DISPLAY_ORDER
-							case 0x004: this.fbInFront = value != 0; break;
-							// 0xFFFF0008: DISPLAY_SYNC
-							case 0x008: this.compositeFrame(); break;
-							// 0xFFFF000C: DISPLAY_FB_CLEAR
-							case 0x00C: this.clearFb(); break;
-							// 0xFFFF0010: DISPLAY_PALETTE_RESET
-							case 0x010: this.initializePaletteRam(); break;
-							// 0xFFFF0014: DISPLAY_FB_PAL_OFFS
-							case 0x014: this.fbPalOffs = value & 0xFF; break;
+							// 0xFFFF0004: DISPLAY_SYNC
+							case 0x004: this.compositeFrame(); break;
+							// 0xFFFF0008: DISPLAY_PALETTE_RESET
+							case 0x008: this.initializePaletteRam(); break;
+
+							// 0xFFFF0010: DISPLAY_FB_CLEAR
+							case 0x010: this.clearFb(); break;
+							// 0xFFFF0014: DISPLAY_FB_IN_FRONT
+							case 0x014: this.fbInFront = value != 0; break;
+							// 0xFFFF0018: DISPLAY_FB_PAL_OFFS
+							case 0x018: this.fbPalOffs = value & 0xFF; break;
+
 							// 0xFFFF0020: DISPLAY_TM_SCX
 							case 0x020: this.tmScx = value & 0x7F; break;
 							// 0xFFFF0024: DISPLAY_TM_SCY
@@ -1050,8 +1055,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			int page = (addr >> 12) & 0xF;
 			int offs = addr & 0xFFF;
 
-			// 0xFFFF0008: DISPLAY_SYNC (read to wait for next frame)
-			if(page == 0 && offs == 0x008) {
+			// 0xFFFF0004: DISPLAY_SYNC (read to wait for next frame)
+			if(page == 0 && offs == 0x004) {
 				this.waitForNextFrame();
 			}
 		}
