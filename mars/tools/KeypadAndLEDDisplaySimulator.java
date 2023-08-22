@@ -99,12 +99,13 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			read to wait for next frame (always reads 0)
 		0xFFFF000C: DISPLAY_FB_CLEAR.w       (WO, clears framebuffer to color 0 when written)
 		0xFFFF0010: DISPLAY_PALETTE_RESET.w  (WO, resets palette to default values when written)
+		0xFFFF0014: DISPLAY_FB_PAL_OFFS.w    (WO, framebuffer palette offset)
 
 	TILEMAP REGISTERS:
 
 		0xFFFF0020: DISPLAY_TM_SCX.w         (WO, tilemap X scroll position)
 		0xFFFF0024: DISPLAY_TM_SCY.w         (WO, tilemap Y scroll position)
-		0xFFFF0028: DISPLAY_TM_PAL_OFFS.w    (WO, tilemap palette offset (added to each index))
+		0xFFFF0028: DISPLAY_TM_PAL_OFFS.w    (WO, tilemap palette offset)
 
 		-- blank --
 
@@ -873,8 +874,9 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private boolean fbEnabled = false;
 		private boolean tmEnabled = false;
 
-		// DISPLAY_ORDER
+		// Framebuffer registers
 		private boolean fbInFront = false;
+		private int fbPalOffs = 0;
 
 		// Tilemap registers
 		private int tmScx = 0;
@@ -976,8 +978,11 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			switch(page) {
 				// MMIO Page 0: global, tilemap control, input, and palette RAM
 				case 0:
-					// ignore non-word stores
-					if(offs < 0x40 && length == Memory.WORD_LENGTH_BYTES) {
+					if(offs < 0x40) {
+						// ignore non-word stores
+						if(length != Memory.WORD_LENGTH_BYTES)
+							break;
+
 						switch(offs) {
 							// 0xFFFF0004: DISPLAY_ORDER
 							case 0x004: this.fbInFront = value != 0; break;
@@ -987,6 +992,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 							case 0x00C: this.clearFb(); break;
 							// 0xFFFF0010: DISPLAY_PALETTE_RESET
 							case 0x010: this.initializePaletteRam(); break;
+							// 0xFFFF0014: DISPLAY_FB_PAL_OFFS
+							case 0x014: this.fbPalOffs = value & 0xFF; break;
 							// 0xFFFF0020: DISPLAY_TM_SCX
 							case 0x020: this.tmScx = value & 0x7F; break;
 							// 0xFFFF0024: DISPLAY_TM_SCY
@@ -1174,7 +1181,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 					// the BG color will show through this image if so.
 					// also have to do some Dumb Shit to zero extend the byte
 					int colorIndex = ((int)fbRam[y*N_COLUMNS + x]) & 0xFF;
-					r.setPixel(x, y, paletteRam[colorIndex]);
+					r.setPixel(x, y, paletteRam[(colorIndex + fbPalOffs) & 0xFF]);
 				}
 			}
 
