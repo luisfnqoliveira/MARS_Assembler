@@ -480,6 +480,14 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	}
 
 	// --------------------------------------------------------------------------------------------
+	// Helper
+
+	private boolean okayToWriteToMemory() {
+		return !this.isBeingUsedAsAMarsTool || (
+			this.connectButton != null && this.connectButton.isConnected());
+	}
+
+	// --------------------------------------------------------------------------------------------
 	// Mode switching
 
 	private void switchToEnhancedMode() {
@@ -716,7 +724,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private void changeKeyState(int newState) {
 			keyState = newState;
 
-			if(!sim.isBeingUsedAsAMarsTool || sim.connectButton.isConnected()) {
+			if(sim.okayToWriteToMemory()) {
 				synchronized(Globals.memoryAndRegistersLock) {
 					// 1 is (DISPLAY_KEYS - MMIO Base) / 4
 					Globals.memory.getMMIOPage(0)[1] = newState;
@@ -871,6 +879,16 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private static final int VFLIP = 2; // tiles + sprites
 		private static final int HFLIP = 4; // tiles + sprites
 
+		// Mouse button constants
+		private static final int MOUSE_LBUTTON = 1;
+		private static final int MOUSE_RBUTTON = 2;
+		private static final int MOUSE_MBUTTON = 4;
+
+		// Input stuff
+		private int mouseButtons = 0;
+		private int lastMouseButtons = 0;
+		private boolean mouseOver = false;
+
 		// DISPLAY_CTRL
 		private int msPerFrame = 16;
 		private long lastFrameTime = 0;
@@ -927,6 +945,38 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		public EnhancedLEDDisplayPanel(KeypadAndLEDDisplaySimulator sim) {
 			super(sim, N_COLUMNS, N_ROWS, CELL_DEFAULT_SIZE, CELL_ZOOMED_SIZE);
 			this.initializePaletteRam();
+
+			this.addMouseListener(new MouseAdapter() {
+				public void mousePressed(MouseEvent e) {
+					if(SwingUtilities.isLeftMouseButton(e))        mouseButtons |= MOUSE_LBUTTON;
+					else if(SwingUtilities.isRightMouseButton(e))  mouseButtons |= MOUSE_RBUTTON;
+					else if(SwingUtilities.isMiddleMouseButton(e)) mouseButtons |= MOUSE_MBUTTON;
+				}
+
+				public void mouseReleased(MouseEvent e) {
+					if(SwingUtilities.isLeftMouseButton(e))        mouseButtons &= ~MOUSE_LBUTTON;
+					else if(SwingUtilities.isRightMouseButton(e))  mouseButtons &= ~MOUSE_RBUTTON;
+					else if(SwingUtilities.isMiddleMouseButton(e)) mouseButtons &= ~MOUSE_MBUTTON;
+				}
+
+				public void mouseEntered(MouseEvent e) {
+					mouseOver = true;
+				}
+
+				public void mouseExited(MouseEvent e) {
+					mouseOver = false;
+				}
+			});
+
+			this.addMouseMotionListener(new MouseMotionAdapter() {
+				public void mouseMoved(MouseEvent e) {
+					changeMousePosition(e.getX() / cellSize, e.getY() / cellSize);
+				}
+
+				public void mouseDragged(MouseEvent e) {
+					changeMousePosition(e.getX() / cellSize, e.getY() / cellSize);
+				}
+			});
 		}
 
 		// ----------------------------------------------------------------------------------------
@@ -935,6 +985,22 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		@Override
 		public void reset() {
 			this.initializePaletteRam();
+		}
+
+		@Override
+		public void paintDisplay(Graphics g) {
+			g.drawImage(finalImage, 0, 0, displayWidth, displayHeight, null);
+
+			// g.setColor(Color.WHITE);
+			// g.setFont(bigFont);
+
+			// if(fbEnabled)
+			// 	g.drawString("FB", 10, 60);
+
+			// if(tmEnabled)
+			// 	g.drawString("TM", 60, 60);
+
+			// g.drawString(msPerFrame + " ms/frame", 10, 90);
 		}
 
 		@Override
@@ -956,22 +1022,6 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			this.msPerFrame = msPerFrame;
 		}
 
-		@Override
-		public void paintDisplay(Graphics g) {
-			g.drawImage(finalImage, 0, 0, displayWidth, displayHeight, null);
-
-			// g.setColor(Color.WHITE);
-			// g.setFont(bigFont);
-
-			// if(fbEnabled)
-			// 	g.drawString("FB", 10, 60);
-
-			// if(tmEnabled)
-			// 	g.drawString("TM", 60, 60);
-
-			// g.drawString(msPerFrame + " ms/frame", 10, 90);
-		}
-
 		// big ugly thing to dispatch MMIO writes to their appropriate methods
 		@Override
 		public void handleWrite(int addr, int length, int value) {
@@ -988,7 +1038,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 						switch(offs) {
 							// 0xFFFF0004: DISPLAY_SYNC
-							case 0x004: this.compositeFrame(); break;
+							case 0x004: this.finishFrame(); break;
 							// 0xFFFF0008: DISPLAY_PALETTE_RESET
 							case 0x008: this.initializePaletteRam(); break;
 
@@ -1062,7 +1112,50 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		}
 
 		// ----------------------------------------------------------------------------------------
+		// Input
+
+		private void putMouseButtonsInRam() {
+			if(sim.okayToWriteToMemory()) {
+				synchronized(Globals.memoryAndRegistersLock) {
+					// (DISPLAY_MOUSE_HELD - MMIO Base) / 4 ==
+					// (0xFFFF0054 - 0xFFFF0000) / 4 == 21
+					Globals.memory.getMMIOPage(0)[21] = mouseButtons;
+					Globals.memory.getMMIOPage(0)[22] = mouseButtons & ~lastMouseButtons;
+					Globals.memory.getMMIOPage(0)[23] = lastMouseButtons & ~mouseButtons;
+				}
+			}
+		}
+
+		private void changeMousePosition(int x, int y) {
+			if(sim.okayToWriteToMemory()) {
+				synchronized(Globals.memoryAndRegistersLock) {
+					// (DISPLAY_MOUSE_X - MMIO Base) / 4 ==
+					// (0xFFFF004C - 0xFFFF0000) / 4 == 19
+					Globals.memory.getMMIOPage(0)[19] = x;
+
+					// (DISPLAY_MOUSE_Y - MMIO Base) / 4 ==
+					// (0xFFFF0050 - 0xFFFF0000) / 4 == 20
+					Globals.memory.getMMIOPage(0)[20] = y;
+				}
+			}
+		}
+
+		// ----------------------------------------------------------------------------------------
 		// Frame synchronization
+
+		private void finishFrame() {
+			this.compositeFrame();
+
+			// kind of a hack, but you can't really make the RAM "default" to a value.
+			// mouse position still reads as (0, 0) for the very first frame but this
+			// is the best I've been able to come up with.
+			if(!mouseOver) {
+				this.changeMousePosition(-1, -1);
+			}
+
+			this.putMouseButtonsInRam();
+			lastMouseButtons = mouseButtons;
+		}
 
 		private void waitForNextFrame() {
 			long nsPerFrame = this.msPerFrame * 1000000L;

@@ -32,6 +32,18 @@ main:
 	# reset palette
 	sw zero, DISPLAY_PALETTE_RESET
 
+	# clear the framebuffer
+	sw zero, DISPLAY_FB_CLEAR
+
+	#j test_fb_palette_offset
+	j test_mouse
+
+	li v0, 10
+	syscall
+
+# -------------------------------------------------------------------------------------------------
+
+test_fb_palette_offset:
 	# put some bullshit in the framebuffer
 	li t0, DISPLAY_FB_RAM
 	li s0, 0
@@ -58,7 +70,27 @@ main:
 		lw zero, DISPLAY_SYNC
 	j _loop
 
-	li v0, 10
-	syscall
+# -------------------------------------------------------------------------------------------------
 
+test_mouse:
 
+	_loop:
+		lw t0, DISPLAY_MOUSE_X
+		blt t0, 0, _endif
+			lw t1, DISPLAY_MOUSE_Y
+			lw t2, DISPLAY_MOUSE_HELD
+			and t2, t2, MOUSE_LBUTTON
+			beq t2, 0, _endif
+				mul t1, t1, DISPLAY_W
+				add t0, t0, t1
+				add t0, t0, DISPLAY_FB_RAM
+
+				li t1, COLOR_BLUE
+				sb t1, (t0)
+		_endif:
+
+		# flip
+		sw zero, DISPLAY_SYNC
+		# sync
+		lw zero, DISPLAY_SYNC
+	j _loop

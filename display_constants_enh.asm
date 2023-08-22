@@ -35,3 +35,27 @@
 .eqv DISPLAY_SPR_TABLE      0xFFFF5800
 .eqv DISPLAY_TM_GFX         0xFFFF6000
 .eqv DISPLAY_SPR_GFX        0xFFFFA000
+
+.eqv MOUSE_LBUTTON 1
+.eqv MOUSE_RBUTTON 2
+.eqv MOUSE_MBUTTON 4
+
+# Classic color palette indexes in the default palette
+.eqv COLOR_BLACK       64
+.eqv COLOR_RED         65
+.eqv COLOR_ORANGE      66
+.eqv COLOR_YELLOW      67
+.eqv COLOR_GREEN       68
+.eqv COLOR_BLUE        69
+.eqv COLOR_MAGENTA     70
+.eqv COLOR_WHITE       71
+.eqv COLOR_DARK_GREY   72
+.eqv COLOR_DARK_GRAY   72
+.eqv COLOR_BRICK       73
+.eqv COLOR_BROWN       74
+.eqv COLOR_TAN         75
+.eqv COLOR_DARK_GREEN  76
+.eqv COLOR_DARK_BLUE   77
+.eqv COLOR_PURPLE      78
+.eqv COLOR_LIGHT_GREY  79
+.eqv COLOR_LIGHT_GRAY  79
