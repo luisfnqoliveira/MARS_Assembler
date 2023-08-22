@@ -714,10 +714,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		public ClassicLEDDisplayPanel(KeypadAndLEDDisplaySimulator sim) {
 			super(sim, N_COLUMNS, N_ROWS, CELL_DEFAULT_SIZE, CELL_ZOOMED_SIZE);
 
-			this.addKeyListener(new KeyListener() {
-				public void keyTyped(KeyEvent e) {
-				}
-
+			this.addKeyListener(new KeyAdapter() {
 				public void keyPressed(KeyEvent e) {
 					switch(e.getKeyCode()) {
 						case KeyEvent.VK_LEFT:  changeKeyState(keyState | KEY_L); break;
@@ -934,6 +931,11 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private int lastMouseButtons = 0;
 		private boolean mouseOver = false;
 
+		// Sets of held keys. Since there are unlikely to be more than a few keys held
+		// down at any time, a capacity of 16 should be more than sufficient.
+		private Set<Integer> keyState = Collections.synchronizedSet(new HashSet<>(16));
+		private Set<Integer> lastKeyState = Collections.synchronizedSet(new HashSet<>(16));
+
 		// DISPLAY_CTRL
 		private int msPerFrame = 16;
 		private long lastFrameTime = 0;
@@ -990,6 +992,20 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		public EnhancedLEDDisplayPanel(KeypadAndLEDDisplaySimulator sim) {
 			super(sim, N_COLUMNS, N_ROWS, CELL_DEFAULT_SIZE, CELL_ZOOMED_SIZE);
 			this.initializePaletteRam();
+
+			this.addKeyListener(new KeyListener() {
+				public void keyTyped(KeyEvent e) {
+					// TODO: maybe?????? text input? idk.
+				}
+
+				public void keyPressed(KeyEvent e) {
+					keyState.add(e.getKeyCode());
+				}
+
+				public void keyReleased(KeyEvent e) {
+					keyState.remove(e.getKeyCode());
+				}
+			});
 
 			this.addMouseListener(new MouseAdapter() {
 				public void mousePressed(MouseEvent e) {
@@ -1093,10 +1109,9 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 							case DISPLAY_TM_SCX:        this.tmScx = value & 0x7F;     break;
 							case DISPLAY_TM_SCY:        this.tmScy = value & 0x7F;     break;
 							case DISPLAY_TM_PAL_OFFS:   this.tmPalOffs = value & 0xFF; break;
-							// TODO: input stuff
-							// case DISPLAY_KEY_HELD:
-							// case DISPLAY_KEY_PRESSED:
-							// case DISPLAY_KEY_RELEASED:
+							case DISPLAY_KEY_HELD:      this.updateKeyHeld(value);     break;
+							case DISPLAY_KEY_PRESSED:   this.updateKeyPressed(value);  break;
+							case DISPLAY_KEY_RELEASED:  this.updateKeyReleased(value); break;
 							default: break;
 						}
 					}
@@ -1154,6 +1169,11 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			tmScx = 0;
 			tmScy = 0;
 			tmPalOffs = 0;
+
+			// ooh there we go.
+			if(!mouseOver) {
+				this.changeMousePosition(-1, -1);
+			}
 		}
 
 		// ----------------------------------------------------------------------------------------
@@ -1174,21 +1194,40 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			}
 		}
 
+		private void updateKeyHeld(int keyCode) {
+			synchronized(Globals.memoryAndRegistersLock) {
+				sim.writeWordToMemory(DISPLAY_KEY_HELD, keyState.contains(keyCode) ? 1 : 0);
+			}
+		}
+
+		private void updateKeyPressed(int keyCode) {
+			synchronized(Globals.memoryAndRegistersLock) {
+				boolean pressed = keyState.contains(keyCode) && !lastKeyState.contains(keyCode);
+				sim.writeWordToMemory(DISPLAY_KEY_PRESSED, pressed ? 1 : 0);
+			}
+		}
+
+		private void updateKeyReleased(int keyCode) {
+			synchronized(Globals.memoryAndRegistersLock) {
+				boolean released = lastKeyState.contains(keyCode) && !keyState.contains(keyCode);
+				sim.writeWordToMemory(DISPLAY_KEY_RELEASED, released ? 1 : 0);
+			}
+		}
+
 		// ----------------------------------------------------------------------------------------
 		// Frame synchronization
 
 		private void finishFrame() {
+			// Update graphics
 			this.compositeFrame();
 
-			// kind of a hack, but you can't really make the RAM "default" to a value.
-			// mouse position still reads as (0, 0) for the very first frame but this
-			// is the best I've been able to come up with.
-			if(!mouseOver) {
-				this.changeMousePosition(-1, -1);
-			}
-
+			// Update input
 			this.putMouseButtonsInRam();
 			lastMouseButtons = mouseButtons;
+
+			// we're talking n = 4 or 5 at the most, here.
+			lastKeyState.clear();
+			lastKeyState.addAll(keyState);
 		}
 
 		private void waitForNextFrame() {

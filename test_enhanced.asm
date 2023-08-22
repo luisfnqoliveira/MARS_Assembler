@@ -33,7 +33,8 @@ main:
 	sw zero, DISPLAY_RESET
 
 	#j test_fb_palette_offset
-	j test_mouse
+	#j test_mouse
+	j test_kb
 
 	li v0, 10
 	syscall
@@ -89,5 +90,70 @@ test_mouse:
 		# flip
 		sw zero, DISPLAY_SYNC
 		# sync
+		lw zero, DISPLAY_SYNC
+	j _loop
+
+# -------------------------------------------------------------------------------------------------
+
+.data
+dot_x: .word 63
+dot_y: .word 63
+.text
+
+is_key_held:
+	sw a0, DISPLAY_KEY_HELD
+	lw v0, DISPLAY_KEY_HELD
+	jr ra
+
+test_kb:
+	_loop:
+		li a0, KEY_UP
+		jal is_key_held
+		beq v0, 0, _endif_u
+			lw t0, dot_y
+			beq t0, 0, _endif_u
+				sub t0, t0, 1
+				sw t0, dot_y
+		_endif_u:
+
+		li a0, KEY_DOWN
+		jal is_key_held
+		beq v0, 0, _endif_d
+			lw t0, dot_y
+			beq t0, 127, _endif_d
+				add t0, t0, 1
+				sw t0, dot_y
+		_endif_d:
+
+		li a0, KEY_LEFT
+		jal is_key_held
+		beq v0, 0, _endif_l
+			lw t0, dot_x
+			beq t0, 0, _endif_l
+				sub t0, t0, 1
+				sw t0, dot_x
+		_endif_l:
+
+		li a0, KEY_RIGHT
+		jal is_key_held
+		beq v0, 0, _endif_r
+			lw t0, dot_x
+			beq t0, 127, _endif_r
+				add t0, t0, 1
+				sw t0, dot_x
+		_endif_r:
+
+		sw zero, DISPLAY_FB_CLEAR
+
+		lw  t0, dot_x
+		lw  t1, dot_y
+		mul t1, t1, DISPLAY_W
+		add t0, t0, t1
+		add t0, t0, DISPLAY_FB_RAM
+
+		li t1, COLOR_WHITE
+		sb t1, (t0)
+
+		sw zero, DISPLAY_SYNC
 		lw zero, DISPLAY_SYNC
 	j _loop
