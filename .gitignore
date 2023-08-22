@@ -6,3 +6,4 @@ commitmsg.txt
 astyle*
 *.jar
 *.asm
+!test_enhanced.asm
