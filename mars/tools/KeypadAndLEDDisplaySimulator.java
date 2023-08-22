@@ -463,7 +463,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 					notice.getAddress(), notice.getLength(), notice.getValue());
 			}
 		} else {
-			// reads...
+			this.displayPanel.handleRead(
+				notice.getAddress(), notice.getLength(), notice.getValue());
 		}
 	}
 
@@ -611,6 +612,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		public abstract void reset();
 		public abstract void writeToCtrl(int value);
 		public abstract void handleWrite(int addr, int length, int value);
+		public abstract void handleRead(int addr, int length, int value);
 		protected abstract void paintDisplay(Graphics g);
 	}
 
@@ -744,6 +746,11 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			}
 		}
 
+		@Override
+		public void handleRead(int addr, int length, int value) {
+			// do NOTHING
+		}
+
 		private void resetGraphicsMemory(boolean clearBuffer) {
 			synchronized(Globals.memoryAndRegistersLock) {
 				// I hate using magic values like this but: these are the addresses of
@@ -861,6 +868,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 		// DISPLAY_CTRL
 		private int msPerFrame = 16;
+		private long lastFrameTime = 0;
 		private boolean fbEnabled = false;
 		private boolean tmEnabled = false;
 
@@ -945,15 +953,16 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		public void paintDisplay(Graphics g) {
 			g.drawImage(finalImage, 0, 0, displayWidth, displayHeight, null);
 
-			/*
-			if(fbEnabled)
-				g.drawString("FB", 10, 60);
+			// g.setColor(Color.WHITE);
+			// g.setFont(bigFont);
 
-			if(tmEnabled)
-				g.drawString("TM", 60, 60);
+			// if(fbEnabled)
+			// 	g.drawString("FB", 10, 60);
 
-			g.drawString(msPerFrame + " ms/frame", 10, 90);
-			*/
+			// if(tmEnabled)
+			// 	g.drawString("TM", 60, 60);
+
+			// g.drawString(msPerFrame + " ms/frame", 10, 90);
 		}
 
 		// big ugly thing to dispatch MMIO writes to their appropriate methods
@@ -1025,19 +1034,38 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			}
 		}
 
-		// TODO
-		private void writeTmTable(int offs, int length, int value) { }
-		// TODO
-		private void writeSprTable(int offs, int length, int value) { }
-		// TODO
-		private void writeTmGfx(int offs, int length, int value) { }
-		// TODO
-		private void writeSprGfx(int offs, int length, int value) { }
+		@Override
+		public void handleRead(int addr, int length, int value) {
+			int page = (addr >> 12) & 0xF;
+			int offs = addr & 0xFFF;
+
+			// 0xFFFF0008: DISPLAY_SYNC (read to wait for next frame)
+			if(page == 0 && offs == 0x008) {
+				this.waitForNextFrame();
+			}
+		}
+
+		// ----------------------------------------------------------------------------------------
+		// Frame synchronization
+
+		private void waitForNextFrame() {
+			long nsPerFrame = this.msPerFrame * 1000000L;
+			long now = System.nanoTime();
+			long delay = nsPerFrame - Math.min(Math.max(0, now - this.lastFrameTime), nsPerFrame);
+
+			if(delay > 0) {
+				try {
+					Thread.sleep(delay / 1000000, (int)(delay % 1000000));
+				} catch(InterruptedException e) {}
+			}
+
+			this.lastFrameTime = System.nanoTime();
+		}
 
 		// ----------------------------------------------------------------------------------------
 		// Palette methods
 
-		private static int[] Intensities = { 0, 63, 127, 255 };
+		private static int[] Rgb222Intensities = { 0, 63, 127, 255 };
 
 		// Initialize the palette RAM to a default palette, so you can start
 		// drawing stuff right away without needing to do so from software.
@@ -1052,9 +1080,9 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 			// first 64 entries are the index, interpreted as RGB222.
 			for(int i = 1; i < 64; i++) {
-				int r = Intensities[(i >> 4) & 3];
-				int g = Intensities[(i >> 2) & 3];
-				int b = Intensities[i & 3];
+				int r = Rgb222Intensities[(i >> 4) & 3];
+				int g = Rgb222Intensities[(i >> 2) & 3];
+				int b = Rgb222Intensities[i & 3];
 				paletteRam[i] = new int[]{ r, g, b, 255 };
 			}
 
@@ -1150,6 +1178,26 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		}
 
 		// ----------------------------------------------------------------------------------------
+		// Tilemap methods
+
+		// TODO
+		private void writeTmTable(int offs, int length, int value) { }
+		// TODO
+		private void writeTmGfx(int offs, int length, int value) { }
+		// TODO
+		private void buildTmLayers() { }
+
+		// ----------------------------------------------------------------------------------------
+		// Sprite methods
+
+		// TODO
+		private void writeSprTable(int offs, int length, int value) { }
+		// TODO
+		private void writeSprGfx(int offs, int length, int value) { }
+		// TODO
+		private void buildSpriteLayer() { }
+
+		// ----------------------------------------------------------------------------------------
 		// Compositing methods
 
 		// TODO
@@ -1168,18 +1216,15 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 				this.buildFbLayer();
 			}
 
-			// TODO
-			// if(tmEnabled && isTmDirty) {
-			// 	this.buildTmLayers();
-			// }
+			if(tmEnabled && isTmDirty) {
+				this.buildTmLayers();
+			}
 
-			// TODO
-			// if(isSprDirty) {
-			// 	this.buildSpriteLayer();
-			// }
+			if(isSprDirty) {
+				this.buildSpriteLayer();
+			}
 
 			// composite all layers into the final image
-
 			var g = finalImage.createGraphics();
 			var bg = new Color(bgColor[0], bgColor[1], bgColor[2]);
 
