@@ -141,20 +141,18 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		0xFFFF5800-0xFFFF5FFF: 256 4B sprite entries consisting of (X, Y, tile, flags)
 			X and Y are signed
 			tile graphics are fetched from (0xFFFFA000 + tile * 64)
-			flags is XXYYxHVE
+			flags is PPPPSHVE
 				E = enable (1 for visible)
-				H = horizontal flip
 				V = vertical flip
-				XX = X size (00 = 8px, 01 = 16px, 10 = 32px, 11 = 64px)
-				YY = Y size (00 = 8px, 01 = 16px, 10 = 32px, 11 = 64px)
-				if either size > 8px, tiles are put in order left-to-right, top-to-bottom, like
-					1 2 3 4
-					5 6 7 8
-				or
-					1 2
-					3 4
-					5 6
-					7 8
+				H = horizontal flip
+				S = size (0 = 8x8 (1 tile), 1 = 16x16 (4 tiles))
+					for 16x16 sprites, tiles are put in order left-to-right, top-to-bottom, like:
+						1 2
+						3 4
+				PPPP = palette row index
+					this * 16 is added to all color indexes in sprite graphics when drawn, so that
+					you can reuse the same sprite graphics with multiple palettes without having
+					to update the palette RAM
 
 	GRAPHICS DATA:
 		0xFFFF6000-0xFFFF9FFF: 256 8x8 1Bpp indexed color tilemap tiles
@@ -254,21 +252,19 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 		Sprites are available in any enhanced mode.
 
-		There can be up to 256 sprites onscreen. Each sprite can be anywhere from 8x8 to 64x64
-		pixels (1x1 to 8x8 tiles) in size, in powers of two, each dimension independently
-		settable. Each sprite can be positioned anywhere onscreen including off all four sides.
-		Each sprite can also be flipped horizontally or vertically.
+		There can be up to 256 sprites onscreen. Each sprite can be either 8x8 pixels (1 tile) or
+		16x16 pixels (4 tiles). Each sprite can be positioned anywhere onscreen including off all
+		four sides. Each sprite can also be flipped horizontally or vertically.
 
 		Sprite priority is by order in the list. Sprite 0 appears on top of sprite 1, which
 		appears on top of sprite 2, etc.
 
 		There are no "per-scanline limits" on the number of visible sprites.
 
-		Sprite graphics are specified as 8x8 tiles just like the tilemap. For sprites bigger than
-		8x8 pixels (1x1 tile), the tiles are assumed to be contiguous in memory, and are drawn
-		in "reading order" (left-to-right, then top-to-bottom). So a 16x16 pixel sprite's tiles
-		would be arranged like this on screen, where each number is the order they'd appear in
-		memory:
+		Sprite graphics are specified as 8x8 tiles just like the tilemap. For 16x16 pixel sprites,
+		the four tiles for the sprite are assumed to be contiguous in memory, and are drawn
+		in "reading order" (left-to-right, then top-to-bottom). If tiles 1, 2, 3, 4 are contiguous
+		in memory, then they are drawn in this arrangement:
 			1 2
 			3 4
 
