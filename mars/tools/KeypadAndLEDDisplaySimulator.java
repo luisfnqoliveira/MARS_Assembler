@@ -977,9 +977,9 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 							// 0xFFFF0010: DISPLAY_PALETTE_RESET
 							case 0x010: this.initializePaletteRam(); break;
 							// 0xFFFF0020: DISPLAY_TM_SCX
-							case 0x020: this.tmScx = value; break;
+							case 0x020: this.tmScx = value & 0x7F; break;
 							// 0xFFFF0024: DISPLAY_TM_SCY
-							case 0x024: this.tmScy = value; break;
+							case 0x024: this.tmScy = value & 0x7F; break;
 							default: break;
 						}
 					} else if(offs <= 0x48) {
