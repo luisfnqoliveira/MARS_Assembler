@@ -947,13 +947,9 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 		@Override
 		public void paintDisplay(Graphics g) {
-			/*
-			g.setColor(Color.BLACK);
-			g.fillRect(0, 0, displayWidth, displayHeight);
-			g.setColor(Color.RED);
-			g.setFont(bigFont);
-			g.drawString("~Enhanced~", 10, 30);
+			g.drawImage(finalImage, 0, 0, displayWidth, displayHeight, null);
 
+			/*
 			if(fbEnabled)
 				g.drawString("FB", 10, 60);
 
@@ -962,8 +958,6 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 			g.drawString(msPerFrame + " ms/frame", 10, 90);
 			*/
-
-			g.drawImage(finalImage, 0, 0, displayWidth, displayHeight, null);
 		}
 
 		// big ugly thing to dispatch MMIO writes to their appropriate methods
@@ -1213,9 +1207,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			}
 
 			g.dispose();
-
-			this.setShouldRepaint(true);
-			this.repaintIfNeeded();
+			this.repaint();
 		}
 	}
 }
