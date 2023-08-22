@@ -104,6 +104,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 		0xFFFF0020: DISPLAY_TM_SCX.w         (WO, tilemap X scroll position)
 		0xFFFF0024: DISPLAY_TM_SCY.w         (WO, tilemap Y scroll position)
+		0xFFFF0028: DISPLAY_TM_PAL_OFFS.w    (WO, tilemap palette offset (added to each index))
 
 		-- blank --
 
@@ -875,9 +876,10 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		// DISPLAY_ORDER
 		private boolean fbInFront = false;
 
-		// DISPLAY_TM_SCX/SCY
+		// Tilemap registers
 		private int tmScx = 0;
 		private int tmScy = 0;
+		private int tmPalOffs = 0;
 
 		// Palette RAM (ints, because setPixel expects ints)
 		private int[][] paletteRam = new int[256][4];
@@ -989,6 +991,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 							case 0x020: this.tmScx = value & 0x7F; break;
 							// 0xFFFF0024: DISPLAY_TM_SCY
 							case 0x024: this.tmScy = value & 0x7F; break;
+							// 0xFFFF0028: DISPLAY_TM_PAL_OFFS
+							case 0x028: this.tmPalOffs = value & 0xFF; break;
 							default: break;
 						}
 					} else if(offs <= 0x48) {
