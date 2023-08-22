@@ -61,7 +61,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	The old implementation had a "secret" buffer from 0xFFFF2008 to 0xFFFF3007 which was
 	*technically* accessible by user programs, but no correctly-written program would ever
 	do that. The new implementation has no such buffer anymore, so writing to this region
-	has no effect.
+	has no effect (other than making it show a message that you're doing something wrong).
 
 	Enhanced mode memory map
 	========================
@@ -308,7 +308,13 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	private static final String title = "Keypad and LED Display MMIO Simulator";
 	private static final String heading = "Classic Mode";
 	private static final String enhancedHeading = "Enhanced Mode";
-	private static final int DISPLAY_CTRL = Memory.memoryMapBaseAddress;
+
+	// Technically the base address is not fixed and could change based on memory
+	// configuration. But the two nonstandard configurations have only 256 *bytes*
+	// of MMIO space, which is nowhere near enough for us, and we never use it anyway,
+	// so let's just hardcode it! Fuck it!
+	private static final int MMIO_BASE = 0xFFFF0000;
+	private static final int DISPLAY_CTRL = MMIO_BASE;
 	private static final int ENHANCED_MODE_SWITCH_VALUE = 257; // 0x101
 
 	// --------------------------------------------------------------------------------------------
@@ -453,8 +459,6 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		MemoryAccessNotice notice = (MemoryAccessNotice) accessNotice;
 
 		if(notice.getAccessType() == AccessNotice.WRITE) {
-			// Can't switch on addresses because they're dynamic based on
-			// Memory.memoryMapBaseAddress.
 			if(notice.getAddress() == DISPLAY_CTRL) {
 				int value = notice.getValue();
 
@@ -480,11 +484,35 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	}
 
 	// --------------------------------------------------------------------------------------------
-	// Helper
+	// Memory helpers
 
 	private boolean okayToWriteToMemory() {
 		return !this.isBeingUsedAsAMarsTool || (
 			this.connectButton != null && this.connectButton.isConnected());
+	}
+
+	private void writeWordToMemory(int addr, int value) {
+		if(okayToWriteToMemory()) {
+			Globals.memory.getMMIOPage((addr >> 12) & 0xF)[(addr - MMIO_BASE) / 4] = value;
+		}
+	}
+
+	private void fillMemory(int startAddr, int endAddr, int fillValue) {
+		int startPage = (startAddr >> 12) & 0xF;
+		int endPage = ((endAddr - 4) >> 12) & 0xF;
+
+		if(startPage == endPage) {
+			int startOffset = (startAddr & 0xFFF) / 4;
+			int numWords = (endAddr - startAddr) / 4;
+			int endOffset = startOffset + numWords;
+			Arrays.fill(Globals.memory.getMMIOPage(startPage), startOffset, endOffset, fillValue);
+		} else {
+			System.err.println(String.format(
+				"fillMemory bad addresses (0x%08X to 0x%08X), fillValue = 0x%08X\n",
+				startAddr,
+				endAddr,
+				fillValue));
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -648,10 +676,11 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private static final int KEY_X = 64;
 		private static final int KEY_C = 128;
 
-		private static final int DISPLAY_KEYS = DISPLAY_CTRL + Memory.WORD_LENGTH_BYTES;
-		private static final int DISPLAY_BASE = DISPLAY_KEYS + Memory.WORD_LENGTH_BYTES;
+		private static final int DISPLAY_KEYS = 0xFFFF0004;
+		private static final int DISPLAY_BASE = 0xFFFF0008;
 		private static final int DISPLAY_SIZE = N_ROWS * N_COLUMNS; // bytes
-		private static final int DISPLAY_END = DISPLAY_BASE + DISPLAY_SIZE;
+		private static final int DISPLAY_END  = DISPLAY_BASE + DISPLAY_SIZE;
+		private static final int DISPLAY_SPLIT = 0xFFFF1000;
 
 		private static final int COLOR_MASK = 15;
 
@@ -724,11 +753,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private void changeKeyState(int newState) {
 			keyState = newState;
 
-			if(sim.okayToWriteToMemory()) {
-				synchronized(Globals.memoryAndRegistersLock) {
-					// 1 is (DISPLAY_KEYS - MMIO Base) / 4
-					Globals.memory.getMMIOPage(0)[1] = newState;
-				}
+			synchronized(Globals.memoryAndRegistersLock) {
+				sim.writeWordToMemory(DISPLAY_KEYS, newState);
 			}
 		}
 
@@ -752,9 +778,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 		@Override
 		public void handleWrite(int addr, int length, int value) {
-			int offset = addr - Memory.memoryMapBaseAddress;
-
-			if(offset > 0x1007) {
+			if(addr >= DISPLAY_END) {
 				doingSomethingWeird = true;
 			}
 		}
@@ -766,11 +790,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 		private void resetGraphicsMemory(boolean clearBuffer) {
 			synchronized(Globals.memoryAndRegistersLock) {
-				// I hate using magic values like this but: these are the addresses of
-				// DISPLAY_BASE and DISPLAY_END, minus the MMIO base address, divided
-				// by 4 since the array indexes are words, not bytes.
-				Arrays.fill(Globals.memory.getMMIOPage(0), 2, 1024, 0);
-				Arrays.fill(Globals.memory.getMMIOPage(1), 0,    2, 0);
+				sim.fillMemory(DISPLAY_BASE, DISPLAY_SPLIT, 0);
+				sim.fillMemory(DISPLAY_SPLIT, DISPLAY_END, 0);
 
 				if(clearBuffer) {
 					this.clearImage();
@@ -789,7 +810,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 					for(int row = 0; row < N_ROWS; row++) {
 						for(int col = 0; col < N_COLUMNS; col += 4, ptr++) {
 							// hacky, but.
-							if(ptr == 1024) {
+							if(ptr == (DISPLAY_SPLIT & 0xFFFF) / 4) {
 								ptr = 0;
 								page = Globals.memory.getMMIOPage(1);
 							}
@@ -852,6 +873,30 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 	/** The new, enhanced display. */
 	private static class EnhancedLEDDisplayPanel extends LEDDisplayPanel {
+		// Register addresses
+		private static final int DISPLAY_SYNC           = 0xFFFF0004;
+		private static final int DISPLAY_PALETTE_RESET  = 0xFFFF0008;
+		private static final int DISPLAY_FB_CLEAR       = 0xFFFF0010;
+		private static final int DISPLAY_FB_IN_FRONT    = 0xFFFF0014;
+		private static final int DISPLAY_FB_PAL_OFFS    = 0xFFFF0018;
+		private static final int DISPLAY_TM_SCX         = 0xFFFF0020;
+		private static final int DISPLAY_TM_SCY         = 0xFFFF0024;
+		private static final int DISPLAY_TM_PAL_OFFS    = 0xFFFF0028;
+		private static final int DISPLAY_KEY_HELD       = 0xFFFF0040;
+		private static final int DISPLAY_KEY_PRESSED    = 0xFFFF0044;
+		private static final int DISPLAY_KEY_RELEASED   = 0xFFFF0048;
+		private static final int DISPLAY_MOUSE_X        = 0xFFFF004C;
+		private static final int DISPLAY_MOUSE_Y        = 0xFFFF0050;
+		private static final int DISPLAY_MOUSE_HELD     = 0xFFFF0054;
+		private static final int DISPLAY_MOUSE_PRESSED  = 0xFFFF0058;
+		private static final int DISPLAY_MOUSE_RELEASED = 0xFFFF005C;
+		private static final int DISPLAY_PALETTE_RAM    = 0xFFFF0C00;
+		private static final int DISPLAY_FB_RAM         = 0xFFFF1000;
+		private static final int DISPLAY_TM_TABLE       = 0xFFFF5000;
+		private static final int DISPLAY_SPR_TABLE      = 0xFFFF5800;
+		private static final int DISPLAY_TM_GFX         = 0xFFFF6000;
+		private static final int DISPLAY_SPR_GFX        = 0xFFFFA000;
+
 		// Mode bits
 		private static final int MODE_FB_ENABLE = 1;
 		private static final int MODE_TM_ENABLE = 2;
@@ -1026,72 +1071,60 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		@Override
 		public void handleWrite(int addr, int length, int value) {
 			int page = (addr >> 12) & 0xF;
-			int offs = addr & 0xFFF;
 
 			switch(page) {
 				// MMIO Page 0: global, tilemap control, input, and palette RAM
 				case 0:
-					if(offs < 0x40) {
+					if(addr >= DISPLAY_PALETTE_RAM) {
+						this.writePalette(addr - DISPLAY_PALETTE_RAM, length, value);
+					} else {
 						// ignore non-word stores
 						if(length != Memory.WORD_LENGTH_BYTES)
 							break;
 
-						switch(offs) {
-							// 0xFFFF0004: DISPLAY_SYNC
-							case 0x004: this.finishFrame(); break;
-							// 0xFFFF0008: DISPLAY_PALETTE_RESET
-							case 0x008: this.initializePaletteRam(); break;
-
-							// 0xFFFF0010: DISPLAY_FB_CLEAR
-							case 0x010: this.clearFb(); break;
-							// 0xFFFF0014: DISPLAY_FB_IN_FRONT
-							case 0x014: this.fbInFront = value != 0; break;
-							// 0xFFFF0018: DISPLAY_FB_PAL_OFFS
-							case 0x018: this.fbPalOffs = value & 0xFF; break;
-
-							// 0xFFFF0020: DISPLAY_TM_SCX
-							case 0x020: this.tmScx = value & 0x7F; break;
-							// 0xFFFF0024: DISPLAY_TM_SCY
-							case 0x024: this.tmScy = value & 0x7F; break;
-							// 0xFFFF0028: DISPLAY_TM_PAL_OFFS
-							case 0x028: this.tmPalOffs = value & 0xFF; break;
+						switch(addr) {
+							case DISPLAY_SYNC:          this.finishFrame();            break;
+							case DISPLAY_PALETTE_RESET: this.initializePaletteRam();   break;
+							case DISPLAY_FB_CLEAR:      this.clearFb();                break;
+							case DISPLAY_FB_IN_FRONT:   this.fbInFront = value != 0;   break;
+							case DISPLAY_FB_PAL_OFFS:   this.fbPalOffs = value & 0xFF; break;
+							case DISPLAY_TM_SCX:        this.tmScx = value & 0x7F;     break;
+							case DISPLAY_TM_SCY:        this.tmScy = value & 0x7F;     break;
+							case DISPLAY_TM_PAL_OFFS:   this.tmPalOffs = value & 0xFF; break;
+							// TODO: input stuff
+							// case DISPLAY_KEY_HELD:
+							// case DISPLAY_KEY_PRESSED:
+							// case DISPLAY_KEY_RELEASED:
 							default: break;
 						}
-					} else if(offs <= 0x48) {
-						// TODO: input stuff
-						// 0xFFFF0040: DISPLAY_KEY_HELD
-						// 0xFFFF0044: DISPLAY_KEY_PRESSED
-						// 0xFFFF0048: DISPLAY_KEY_RELEASED
-					} else if(offs >= 0xC00) {
-						this.writePalette(offs - 0xC00, length, value);
 					}
 					break;
 
 				// MMIO Pages 1-4: framebuffer data
 				case 1: case 2: case 3: case 4:
 					// 0xFFFF1000-0xFFFF4FFF: 128x128 (16,384) 1B pixels
-					this.writeFb((addr & 0xFFFF) - 0x1000, length, value);
+					this.writeFb(addr - DISPLAY_FB_RAM, length, value);
 					break;
 
 				// MMIO Page 5: tilemap table and sprite table
 				case 5:
-					if(offs < 0x800) {
-						// 0xFFFF5000-0xFFFF57FF: 32x32 2B tilemap entries
-						this.writeTmTable(offs, length, value);
-					} else {
+					if(addr >= DISPLAY_SPR_TABLE) {
 						// 0xFFFF5800-0xFFFF5FFF: 256 4B sprite entries
-						this.writeSprTable(offs - 0x800, length, value);
+						this.writeSprTable(addr - DISPLAY_SPR_TABLE, length, value);
+					} else {
+						// 0xFFFF5000-0xFFFF57FF: 32x32 2B tilemap entries
+						this.writeTmTable(addr - DISPLAY_TM_TABLE, length, value);
 					}
 					break;
 
 				// MMIO Pages 6-9: tilemap graphics
 				case 6: case 7: case 8: case 9:
-					this.writeTmGfx((addr & 0xFFFF) - 0x6000, length, value);
+					this.writeTmGfx(addr - DISPLAY_TM_GFX, length, value);
 					break;
 
 				// MMIO Pages A-D: sprite graphics
 				case 0xA: case 0xB: case 0xC: case 0xD:
-					this.writeSprGfx((addr & 0xFFFF) - 0xA000, length, value);
+					this.writeSprGfx(addr - DISPLAY_SPR_GFX, length, value);
 					break;
 
 				// MMIO Pages E-F: unused right now
@@ -1102,11 +1135,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 		@Override
 		public void handleRead(int addr, int length, int value) {
-			int page = (addr >> 12) & 0xF;
-			int offs = addr & 0xFFF;
-
-			// 0xFFFF0004: DISPLAY_SYNC (read to wait for next frame)
-			if(page == 0 && offs == 0x004) {
+			if(addr == DISPLAY_SYNC) {
 				this.waitForNextFrame();
 			}
 		}
@@ -1115,28 +1144,17 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		// Input
 
 		private void putMouseButtonsInRam() {
-			if(sim.okayToWriteToMemory()) {
-				synchronized(Globals.memoryAndRegistersLock) {
-					// (DISPLAY_MOUSE_HELD - MMIO Base) / 4 ==
-					// (0xFFFF0054 - 0xFFFF0000) / 4 == 21
-					Globals.memory.getMMIOPage(0)[21] = mouseButtons;
-					Globals.memory.getMMIOPage(0)[22] = mouseButtons & ~lastMouseButtons;
-					Globals.memory.getMMIOPage(0)[23] = lastMouseButtons & ~mouseButtons;
-				}
+			synchronized(Globals.memoryAndRegistersLock) {
+				sim.writeWordToMemory(DISPLAY_MOUSE_HELD,     mouseButtons);
+				sim.writeWordToMemory(DISPLAY_MOUSE_PRESSED,  mouseButtons & ~lastMouseButtons);
+				sim.writeWordToMemory(DISPLAY_MOUSE_RELEASED, lastMouseButtons & ~mouseButtons);
 			}
 		}
 
 		private void changeMousePosition(int x, int y) {
-			if(sim.okayToWriteToMemory()) {
-				synchronized(Globals.memoryAndRegistersLock) {
-					// (DISPLAY_MOUSE_X - MMIO Base) / 4 ==
-					// (0xFFFF004C - 0xFFFF0000) / 4 == 19
-					Globals.memory.getMMIOPage(0)[19] = x;
-
-					// (DISPLAY_MOUSE_Y - MMIO Base) / 4 ==
-					// (0xFFFF0050 - 0xFFFF0000) / 4 == 20
-					Globals.memory.getMMIOPage(0)[20] = y;
-				}
+			synchronized(Globals.memoryAndRegistersLock) {
+				sim.writeWordToMemory(DISPLAY_MOUSE_X, x);
+				sim.writeWordToMemory(DISPLAY_MOUSE_Y, y);
 			}
 		}
 
