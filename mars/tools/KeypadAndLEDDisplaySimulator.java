@@ -1147,12 +1147,16 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 			this.addMouseWheelListener(new MouseWheelListener() {
 				public void mouseWheelMoved(MouseWheelEvent e) {
-					if(e.getScrollType() == MouseWheelEvent.WHEEL_UNIT_SCROLL) {
-						mouseWheel = e.getUnitsToScroll();
-					} else {
-						// "block" scrolling??? no idea when this happens.
-						// let's do... something.
-						mouseWheel = e.getWheelRotation();
+					// apparently, at least on mac, *horizontal* scroll events are sent
+					// with shift held down. nyokay. ignore them.
+					if(!e.isShiftDown()) {
+						if(e.getScrollType() == MouseWheelEvent.WHEEL_UNIT_SCROLL) {
+							mouseWheel = e.getUnitsToScroll();
+						} else {
+							// "block" scrolling??? no idea when this happens.
+							// let's do... something.
+							mouseWheel = e.getWheelRotation();
+						}
 					}
 				}
 			});
