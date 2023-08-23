@@ -12,14 +12,15 @@
 .end_macro
 
 .include "display_constants_enh.asm"
+.include "display_enh.asm"
 
 .data
 .text
 
 .global main
 main:
-	# turn on enhanced mode, FB only, 16ms/frame
-	li  t0, 16
+	# turn on enhanced mode, FB only, 15ms/frame
+	li  t0, 15
 	sll t0, t0, DISPLAY_MODE_MS_SHIFT
 	or  t0, t0, DISPLAY_MODE_ENHANCED
 	or  t0, t0, DISPLAY_MODE_FB_ENABLE
@@ -32,6 +33,7 @@ main:
 	# reset everything
 	sw zero, DISPLAY_RESET
 
+	j test_mouse_follower
 	j test_fb_palette_offset
 	j test_mouse
 	j test_kb
@@ -86,13 +88,13 @@ test_fb_palette_offset:
 	jal display_load_palette
 
 	# s0 is the palette offset
-	li s0, 7
+	li s0, 6
 
 	_loop:
 		# cycle palette offset
 		sub s0, s0, 1
 		bne s0, -1, _skip
-			li s0, 7
+			li s0, 6
 		_skip:
 
 		sw s0, DISPLAY_FB_PAL_OFFS
@@ -102,24 +104,6 @@ test_fb_palette_offset:
 		# sync
 		lw zero, DISPLAY_SYNC
 	j _loop
-
-# -------------------------------------------------------------------------------------------------
-
-# a0 = pointer to palette array
-# a1 = start color index
-# a2 = number of colors
-display_load_palette:
-	mul a1, a1, 4
-	add a1, a1, DISPLAY_PALETTE_RAM
-
-	_loop:
-		lw t0, (a0)
-		sw t0, (a1)
-		add a0, a0, 4
-		add a1, a1, 4
-	sub a2, a2, 1
-	bgt a2, 0, _loop
-jr ra
 
 # -------------------------------------------------------------------------------------------------
 
@@ -145,15 +129,6 @@ test_mouse:
 		# sync
 		lw zero, DISPLAY_SYNC
 	j _loop
-
-# -------------------------------------------------------------------------------------------------
-
-# a0 = key to check
-# returns 1 if held, 0 if not
-display_is_key_held:
-	sw a0, DISPLAY_KEY_HELD
-	lw v0, DISPLAY_KEY_HELD
-jr ra
 
 # -------------------------------------------------------------------------------------------------
 
@@ -210,6 +185,62 @@ test_kb:
 
 		li t1, COLOR_WHITE
 		sb t1, (t0)
+
+		sw zero, DISPLAY_SYNC
+		lw zero, DISPLAY_SYNC
+	j _loop
+
+# -------------------------------------------------------------------------------------------------
+
+.data
+	follower_x: 0x3F00
+	follower_y: 0x3F00
+.text
+
+test_mouse_follower:
+
+	_loop:
+		lw t0, DISPLAY_MOUSE_X
+		beq t0, -1, _mouse_offscreen
+			lw t1, DISPLAY_MOUSE_Y
+			sll t0, t0, 8
+			sll t1, t1, 8
+
+			# (t0, t1) is mouse position in 24.8
+			# calculate vector to mouse position in (t2, t3)
+			lw  t2, follower_x
+			sub t2, t0, t2
+
+			lw  t3, follower_y
+			sub t3, t1, t3
+
+			# scale vector by 1/4
+			sra t2, t2, 4
+			sra t3, t3, 4
+
+			# add to follower position
+			lw  t0, follower_x
+			add t0, t0, t2
+			sw  t0, follower_x
+
+			lw  t0, follower_y
+			add t0, t0, t3
+			sw  t0, follower_y
+		_mouse_offscreen:
+
+		# clear display
+		sw zero, DISPLAY_FB_CLEAR
+
+		# draw dot at follower position
+		lw  t0, follower_y
+		srl t0, t0, 8
+		mul t0, t0, DISPLAY_W
+		lw  t1, follower_x
+		srl t1, t1, 8
+		add t0, t0, t1
+		add t0, t0, DISPLAY_FB_RAM
+		li  t1, COLOR_WHITE
+		sb  t1, (t0)
 
 		sw zero, DISPLAY_SYNC
 		lw zero, DISPLAY_SYNC

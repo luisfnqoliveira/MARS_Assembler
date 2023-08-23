@@ -870,6 +870,9 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 	/** The new, enhanced display. */
 	private static class EnhancedLEDDisplayPanel extends LEDDisplayPanel {
+		// Debugging!
+		private static final boolean DEBUG_OVERLAY = true;
+
 		// Register addresses
 		private static final int DISPLAY_SYNC           = 0xFFFF0004;
 		private static final int DISPLAY_RESET          = 0xFFFF0008;
@@ -926,7 +929,15 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private static final int MOUSE_RBUTTON = 2;
 		private static final int MOUSE_MBUTTON = 4;
 
+		// ----------------------------------------------------------------------------------------
+		// Instance variables
+
+		// Debug stuff
+		private long dbg_avgFrameLength = 0;
+
 		// Input stuff
+		private int mouseX = -1;
+		private int mouseY = -1;
 		private int mouseButtons = 0;
 		private int lastMouseButtons = 0;
 		private boolean mouseOver = false;
@@ -1031,11 +1042,11 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 			this.addMouseMotionListener(new MouseMotionAdapter() {
 				public void mouseMoved(MouseEvent e) {
-					changeMousePosition(e.getX() / cellSize, e.getY() / cellSize);
+					setMousePosition(e.getX() / cellSize, e.getY() / cellSize);
 				}
 
 				public void mouseDragged(MouseEvent e) {
-					changeMousePosition(e.getX() / cellSize, e.getY() / cellSize);
+					setMousePosition(e.getX() / cellSize, e.getY() / cellSize);
 				}
 			});
 		}
@@ -1054,16 +1065,20 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		public void paintDisplay(Graphics g) {
 			g.drawImage(finalImage, 0, 0, displayWidth, displayHeight, null);
 
-			// g.setColor(Color.WHITE);
-			// g.setFont(bigFont);
+			if(DEBUG_OVERLAY) {
+				g.setColor(Color.WHITE);
+				g.setFont(bigFont);
+				g.drawString(String.format("average frame length: %.2f ms",
+					dbg_avgFrameLength / 1000000.0), 10, 30);
 
-			// if(fbEnabled)
-			// 	g.drawString("FB", 10, 60);
+				// if(fbEnabled)
+				// 	g.drawString("FB", 10, 60);
 
-			// if(tmEnabled)
-			// 	g.drawString("TM", 60, 60);
+				// if(tmEnabled)
+				// 	g.drawString("TM", 60, 60);
 
-			// g.drawString(msPerFrame + " ms/frame", 10, 90);
+				// g.drawString(msPerFrame + " ms/frame", 10, 90);
+			}
 		}
 
 		@Override
@@ -1172,26 +1187,31 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 			// ooh there we go.
 			if(!mouseOver) {
-				this.changeMousePosition(-1, -1);
+				this.setMousePosition(-1, -1);
+			}
+
+			if(DEBUG_OVERLAY) {
+				lastFrameTime = System.nanoTime();
+				dbg_avgFrameLength = 0;
 			}
 		}
 
 		// ----------------------------------------------------------------------------------------
 		// Input
 
-		private void putMouseButtonsInRam() {
+		private void updateMouseRegisters() {
 			synchronized(Globals.memoryAndRegistersLock) {
+				sim.writeWordToMemory(DISPLAY_MOUSE_X,        mouseX);
+				sim.writeWordToMemory(DISPLAY_MOUSE_Y,        mouseY);
 				sim.writeWordToMemory(DISPLAY_MOUSE_HELD,     mouseButtons);
 				sim.writeWordToMemory(DISPLAY_MOUSE_PRESSED,  mouseButtons & ~lastMouseButtons);
 				sim.writeWordToMemory(DISPLAY_MOUSE_RELEASED, lastMouseButtons & ~mouseButtons);
 			}
 		}
 
-		private void changeMousePosition(int x, int y) {
-			synchronized(Globals.memoryAndRegistersLock) {
-				sim.writeWordToMemory(DISPLAY_MOUSE_X, x);
-				sim.writeWordToMemory(DISPLAY_MOUSE_Y, y);
-			}
+		private void setMousePosition(int x, int y) {
+			mouseX = x;
+			mouseY = y;
 		}
 
 		private void updateKeyHeld(int keyCode) {
@@ -1222,8 +1242,13 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			this.compositeFrame();
 
 			// Update input
-			this.putMouseButtonsInRam();
+			this.updateMouseRegisters();
 			lastMouseButtons = mouseButtons;
+
+			// Yep this still needs to be here.
+			if(!mouseOver) {
+				this.setMousePosition(-1, -1);
+			}
 
 			// we're talking n = 4 or 5 at the most, here.
 			lastKeyState.clear();
@@ -1241,7 +1266,19 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 				} catch(InterruptedException e) {}
 			}
 
-			this.lastFrameTime = System.nanoTime();
+			now = System.nanoTime();
+
+			if(DEBUG_OVERLAY) {
+				if(this.lastFrameTime != 0) {
+					long thisFrameLength = now - this.lastFrameTime;
+
+					// the 10 here means something like "over the last 10 frames"
+					dbg_avgFrameLength -= dbg_avgFrameLength / 10;
+					dbg_avgFrameLength += thisFrameLength / 10;
+				}
+			}
+
+			this.lastFrameTime = now;
 		}
 
 		// ----------------------------------------------------------------------------------------
