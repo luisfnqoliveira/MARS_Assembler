@@ -369,6 +369,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			displayPanel.revalidate();
 			this.theWindow.pack();
 			displayPanel.repaint();
+			displayPanel.requestFocusInWindow();
 		});
 		subPanel.add(gridCheckBox);
 
@@ -378,6 +379,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			displayPanel.revalidate();
 			this.theWindow.pack();
 			displayPanel.repaint();
+			displayPanel.requestFocusInWindow();
 		});
 		subPanel.add(zoomCheckBox);
 
@@ -450,6 +452,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	@Override
 	protected void reset() {
 		displayPanel.reset();
+		displayPanel.requestFocusInWindow();
 		updateDisplay();
 	}
 
