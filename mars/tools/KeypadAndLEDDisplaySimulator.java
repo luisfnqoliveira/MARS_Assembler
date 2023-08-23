@@ -1176,6 +1176,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		// Reset
 
 		private void resetEverything() {
+			// reset graphics registers
 			this.initializePaletteRam();
 			this.clearFb();
 			this.clearTmRam();
@@ -1184,14 +1185,18 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			tmScx = 0;
 			tmScy = 0;
 			tmPalOffs = 0;
+			lastFrameTime = System.nanoTime();
 
-			// ooh there we go.
-			if(!mouseOver) {
-				this.setMousePosition(-1, -1);
-			}
+			// reset input stuff
+			mouseButtons = 0;
+			lastMouseButtons = 0;
+			this.setMousePosition(-1, -1);
+			this.updateMouseRegisters();
+
+			keyState.clear();
+			lastKeyState.clear();
 
 			if(DEBUG_OVERLAY) {
-				lastFrameTime = System.nanoTime();
 				dbg_avgFrameLength = 0;
 			}
 		}
