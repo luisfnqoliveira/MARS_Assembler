@@ -37,6 +37,18 @@
 .eqv DISPLAY_TM_GFX         0xFFFF6000
 .eqv DISPLAY_SPR_GFX        0xFFFFA000
 
+.eqv TILE_W            8
+.eqv TILE_H            8
+.eqv BYTES_PER_TILE   64 #= TILE_W * TILE_H
+
+.eqv TM_ENTRY_SIZE     2
+.eqv N_TM_COLUMNS     32
+.eqv N_TM_ROWS        32
+.eqv TM_ROW_BYTE_SIZE 64 #= TM_ENTRY_SIZE * N_TM_COLUMNS
+
+.eqv N_TM_COLUMNS
+.eqv BYTES_PER_TM_ROW 64
+
 .eqv MOUSE_LBUTTON    1
 .eqv MOUSE_RBUTTON    2
 .eqv MOUSE_MBUTTON    4

@@ -66,3 +66,57 @@ display_set_pixel:
 	sb  a2, (t0)
 _return:
 	jr  ra
+
+# -------------------------------------------------------------------------------------------------
+
+# a0 = tile x
+# a1 = tile y
+# a2 = tile index
+# a3 = tile flags
+display_set_tile:
+	mul a1, a1, TM_ROW_BYTE_SIZE
+	mul a0, a0, 2
+	add a1, a1, a0
+	add a1, a1, DISPLAY_TM_TABLE
+	sb a2, (a1)
+	sb a3, 1(a1)
+	jr ra
+
+# -------------------------------------------------------------------------------------------------
+
+# a0 = address of tile graphics to load
+# a1 = start tile index to load it into
+# a2 = number of *tiles* to load
+display_load_tilemap_gfx:
+	mul a1, a1, BYTES_PER_TILE
+	add a1, a1, DISPLAY_TM_GFX
+	mul a2, a2, BYTES_PER_TILE
+	j PRIVATE_tilecpy
+
+# -------------------------------------------------------------------------------------------------
+
+# a0 = address of tile graphics to load
+# a1 = start tile index to load it into
+# a2 = number of *tiles* to load
+display_load_sprite_gfx:
+	mul a1, a1, BYTES_PER_TILE
+	add a1, a1, DISPLAY_SPR_GFX
+	mul a2, a2, BYTES_PER_TILE
+	j PRIVATE_tilecpy
+
+# -------------------------------------------------------------------------------------------------
+
+# like memcpy, but (src, dest, bytes) instead of (dest, src, bytes).
+# also assumes number of tiles is a nonzero multiple of 4
+# a0 = source
+# a1 = target
+# a2 = number of bytes
+PRIVATE_tilecpy:
+	_loop:
+		lw t0, (a0)
+		sw t0, (a1)
+		add a0, a0, 4
+		add a1, a1, 4
+		sub a2, a2, 4
+	bgt a2, 0, _loop
+	jr ra

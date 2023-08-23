@@ -995,13 +995,23 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private static final int CELL_DEFAULT_SIZE = 4;
 		private static final int CELL_ZOOMED_SIZE = 6;
 
-		// Tilemap constants
-		private static final int N_TM_COLUMNS = 32;
-		private static final int N_TM_ROWS = 32;
+		// Tile graphics constants
 		private static final int TILE_W = 8;
 		private static final int TILE_H = 8;
+		private static final int BYTES_PER_TILE = TILE_W * TILE_H;
+
+		// Tilemap constants
+		private static final int TM_ENTRY_SIZE = 2;
+		private static final int N_TM_COLUMNS = 32;
+		private static final int N_TM_ROWS = 32;
 		private static final int TM_PIXEL_W = N_TM_COLUMNS * TILE_W;
 		private static final int TM_PIXEL_H = N_TM_ROWS * TILE_H;
+		private static final int N_TM_GFX_TILES = 256;
+
+		// Sprite constants
+		private static final int N_SPRITES = 256;
+		private static final int SPRITE_ENTRY_SIZE = 4;
+		private static final int N_SPR_GFX_TILES = 256;
 
 		// Tilemap/sprite flag constants
 		private static final int PRIORITY = 1; // for tiles
@@ -1055,12 +1065,12 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private byte[] fbRam = new byte[N_COLUMNS * N_ROWS];
 
 		// Tilemap table and graphics
-		private byte[] tmTable = new byte[N_TM_COLUMNS * N_TM_ROWS * 2];
-		private byte[] tmGraphics = new byte[256 * 8 * 8];
+		private byte[] tmTable = new byte[N_TM_COLUMNS * N_TM_ROWS * TM_ENTRY_SIZE];
+		private byte[] tmGraphics = new byte[N_TM_GFX_TILES * TILE_W * TILE_H];
 
 		// Sprite table and graphics
-		private byte[] sprTable = new byte[256 * 4];
-		private byte[] sprGraphics = new byte[256 * 8 * 8];
+		private byte[] sprTable = new byte[N_SPRITES * SPRITE_ENTRY_SIZE];
+		private byte[] sprGraphics = new byte[N_SPR_GFX_TILES * TILE_W * TILE_H];
 
 		// Dirty flags (set to true if things are changed, forcing a redraw of those layers)
 		private boolean isPalDirty = true;
@@ -1558,8 +1568,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		}
 
 		// TODO
-		private void buildTmLayers() { }
-		/*	// straightforward but...
+		private void buildTmLayers() {
+			// straightforward but...
 			// scrolling is tricky. either we only draw the visible slice of the tilemap
 			// to the tmLayerLo/tmLayerHi images, in which case we have to handle lots of
 			// edge cases on all four sides; or we draw the WHOLE tilemap to auxiliary
@@ -1567,12 +1577,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			// well let's try the simple and wasteful method first. we're native code!
 
 			// clear out layers
-			this.fillImage(tmLayerLo, TRANSPARENT_COLOR);
-			this.fillImage(tmLayerHi, TRANSPARENT_COLOR);
-
-			// get rasters
-			var lo = tmLayerLo.getRaster();
-			var hi = tmLayerLo.getRaster();
+			this.fillRaster(tmLayerLo, 0);
+			this.fillRaster(tmLayerHi, 0);
 
 			// do The Thing
 			int entry = 0;
@@ -1586,18 +1592,28 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 					// 1. get tile index and attributes
 					int tileIndex = tmTable[entry];
 					int flags = tmTable[entry + 1];
+					var hflip = (flags & HFLIP) != 0;
+					var vflip = (flags & VFLIP) != 0;
+					var target = ((flags & PRIORITY) != 0) ? tmLayerHi : tmLayerLo;
 
 					// 2. get graphics
-					int gfxOffset = tileIndex * 64;
-					var target = ((flags & PRIORITY) != 0) ? hi : lo;
+					int gfxOffset = tileIndex * BYTES_PER_TILE;
 
+					// 3. blit!
+					this.blitTileOnto(
+						target,
+						px, py,
+						tmGraphics, gfxOffset,
+						tmPalOffs,
+						hflip, vflip);
 
-					entry += 2;
+					// Next entry
+					entry += TM_ENTRY_SIZE;
 				}
 			}
 
 			isTmDirty = false;
-		}*/
+		}
 
 		// ----------------------------------------------------------------------------------------
 		// Sprite
@@ -1690,13 +1706,6 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			}
 		}
 
-		private void fillImage(BufferedImage img, Color c) {
-			var g = img.createGraphics();
-			g.setColor(c);
-			g.fillRect(0, 0, img.getWidth(), img.getHeight());
-			g.dispose();
-		}
-
 		private void fillRaster(WritableRaster r, int index) {
 			// I guess this is the only way to do this??? seems weird
 			for(int y = 0; y < r.getHeight(); y++) {
@@ -1714,6 +1723,33 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 					if(index != 0) {
 						dest.setSample(x, y, 0, index);
 					}
+				}
+			}
+		}
+
+		private void blitTileOnto(
+			WritableRaster dest,
+			int px,
+			int py,
+			byte[] gfx,
+			int gfxOffset,
+			int palOffset,
+			boolean hflip,
+			boolean vflip
+		) {
+			// TODO: maybe detect totally transparent tiles and do nothing?
+
+			// TODO: hflip/vflip
+
+			for(int y = 0; y < TILE_H; y++) {
+				for(int x = 0; x < TILE_W; x++) {
+					int index = gfx[gfxOffset];
+
+					if(index != 0) {
+						dest.setSample(px + x, py + y, 0, index + palOffset);
+					}
+
+					gfxOffset++;
 				}
 			}
 		}

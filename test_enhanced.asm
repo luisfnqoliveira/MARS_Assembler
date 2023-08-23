@@ -24,6 +24,7 @@ main:
 	sll t0, t0, DISPLAY_MODE_MS_SHIFT
 	or  t0, t0, DISPLAY_MODE_ENHANCED
 	or  t0, t0, DISPLAY_MODE_FB_ENABLE
+	or  t0, t0, DISPLAY_MODE_TM_ENABLE
 	sw  t0, DISPLAY_CTRL
 
 	# put the framebuffer in front of the tilemap
@@ -33,6 +34,7 @@ main:
 	# reset everything
 	sw zero, DISPLAY_RESET
 
+	j test_tilemap
 	j test_default_palette
 	j test_mouse_follower
 	j test_fb_palette_offset
@@ -424,3 +426,72 @@ _sqrt_16_16_break:
 	# v0 >>= 8
 	srl v0, v0, 8
 	jr ra
+
+# -------------------------------------------------------------------------------------------------
+
+.data
+	.eqv NUM_TEST_TILES 1
+	.align 2
+	test_tile_gfx: .byte
+		# using the RGB222 palette indexes
+		0b110000 0b110000 0b110000 0b110000 0b110000 0b110000 0b110000 0b110000
+		0b111000 0b111000 0b111000 0b111000 0b111000 0b111000 0b111000 0b111000
+		0b111100 0b111100 0b111100 0b111100 0b111100 0b111100 0b111100 0b111100
+		0b001100 0b001100 0b001100 0b001100 0b001100 0b001100 0b001100 0b001100
+		0b001111 0b001111 0b001111 0b001111 0b001111 0b001111 0b001111 0b001111
+		0b000011 0b000011 0b000011 0b000011 0b000011 0b000011 0b000011 0b000011
+		0b000010 0b000010 0b000010 0b000010 0b000010 0b000010 0b000010 0b000010
+		0b100010 0b100010 0b100010 0b100010 0b100010 0b100010 0b100010 0b100010
+
+.text
+
+test_tilemap:
+	# load graphics
+	la a0, test_tile_gfx
+	li a1, 1
+	li a2, NUM_TEST_TILES
+	jal display_load_tilemap_gfx
+
+	# put A Tile at (5, 2)
+	li a0, 5
+	li a1, 2
+	li a2, 1
+	li a3, 0
+	jal display_set_tile
+
+	# set bg color to non-black so we can see if the transparency is doing the Thing
+	li t0, 0x332211
+	sw t0, DISPLAY_PALETTE_RAM
+
+	# tilemap palette offset
+	li s0, 0
+
+	_loop:
+		lw t0, DISPLAY_MOUSE_WHEEL
+		beq t0, 0, _endif_wheel
+			add s0, s0, t0
+			and s0, s0, 0xFF
+			sw  s0, DISPLAY_TM_PAL_OFFS
+			move a0, s0
+			li v0, 1
+			syscall
+			print_str "\n"
+		_endif_wheel:
+
+		lw  t1, DISPLAY_MOUSE_HELD
+		and t0, t1, MOUSE_LBUTTON
+		beq t0, 0, _endif_l
+			lw a0, DISPLAY_MOUSE_X
+			blt a0, 0, _endif_l
+			lw a1, DISPLAY_MOUSE_Y
+
+			div a0, a0, TILE_W
+			div a1, a1, TILE_H
+			li a2, 1
+			li a3, 0
+			jal display_set_tile
+		_endif_l:
+
+		sw zero, DISPLAY_SYNC
+		lw zero, DISPLAY_SYNC
+	j _loop
