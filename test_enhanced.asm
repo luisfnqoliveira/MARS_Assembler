@@ -92,7 +92,7 @@ test_default_palette:
 	li s0, 0
 
 	_loop:
-		lw t1, DISPLAY_MOUSE_WHEEL
+		lw t1, DISPLAY_MOUSE_WHEEL_Y
 		beq t1, 0, _endif
 			add s0, s0, t1
 			and s0, s0, 0xFF
@@ -179,7 +179,7 @@ test_mouse:
 	_loop:
 		lw t0, DISPLAY_MOUSE_X
 		blt t0, 0, _endif
-			lw t1, DISPLAY_MOUSE_WHEEL
+			lw t1, DISPLAY_MOUSE_WHEEL_Y
 			beq t1, 0, _endif_wheel
 				add s0, s0, t1
 				and s0, s0, 0xFF
@@ -561,6 +561,25 @@ push ra
 			sb  t0, 1(v0)
 		_endif_shift_r:
 
+		# scroll wheel changes palette offset.
+		# weirdly, we have to use DISPLAY_MOUSE_WHEEL_X here because of the way
+		# scroll wheel events are delivered to Java - holding shift and scrolling
+		# counts as a *horizontal* scroll. Weird.
+		lw t0, DISPLAY_MOUSE_WHEEL_X
+		beq t0, 0, _endif_shift_wheel
+			lw  t0, DISPLAY_MOUSE_X
+			blt t0, 0, _endif_shift_wheel
+
+			jal test_tilemap_mouse_to_tile_addr
+
+			lb  t0, 1(v0)
+			lw  t1, DISPLAY_MOUSE_WHEEL_X
+			sll t1, t1, 4
+			add t0, t0, t1
+			and t0, t0, 0xFF
+			sb  t0, 1(v0)
+		_endif_shift_wheel:
+
 	j _endif_outer
 	_no_shift:
 		lw  t0, DISPLAY_MOUSE_HELD
@@ -607,23 +626,24 @@ push ra
 			li a3, 0
 			jal display_set_tile
 		_endif_r:
+
+		# scroll wheel pans around
+		lw t0, DISPLAY_MOUSE_WHEEL_X
+		beq t0, 0, _endif_wheel_x
+			lw  t1, DISPLAY_TM_SCX
+			add t1, t1, t0
+			and t1, t1, 0xFF
+			sw  t1, DISPLAY_TM_SCX
+		_endif_wheel_x:
+
+		lw t0, DISPLAY_MOUSE_WHEEL_Y
+		beq t0, 0, _endif_wheel_y
+			lw  t1, DISPLAY_TM_SCY
+			add t1, t1, t0
+			and t1, t1, 0xFF
+			sw  t1, DISPLAY_TM_SCY
+		_endif_wheel_y:
 	_endif_outer:
-
-	# scroll wheel changes palette offset.
-	lw t0, DISPLAY_MOUSE_WHEEL
-	beq t0, 0, _endif_wheel
-		lw  t0, DISPLAY_MOUSE_X
-		blt t0, 0, _endif_wheel
-
-		jal test_tilemap_mouse_to_tile_addr
-
-		lb  t0, 1(v0)
-		lw  t1, DISPLAY_MOUSE_WHEEL
-		sll t1, t1, 4
-		add t0, t0, t1
-		and t0, t0, 0xFF
-		sb  t0, 1(v0)
-	_endif_wheel:
 pop ra
 jr ra
 

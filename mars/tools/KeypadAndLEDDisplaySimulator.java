@@ -102,7 +102,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		0xFFFF0054: DISPLAY_MOUSE_HELD.w     (RO, bitflags of mouse buttons held)
 		0xFFFF0058: DISPLAY_MOUSE_PRESSED.w  (RO, bitflags of mouse buttons pressed, incl wheel)
 		0xFFFF005C: DISPLAY_MOUSE_RELEASED.w (RO, bitflags of mouse buttons released)
-		0xFFFF0060: DISPLAY_MOUSE_WHEEL.w    (RO, mouse wheel movement delta)
+		0xFFFF0060: DISPLAY_MOUSE_WHEEL_X.w  (RO, horizontal mouse wheel movement delta)
+		0xFFFF0064: DISPLAY_MOUSE_WHEEL_Y.w  (RO, vertical mouse wheel movement delta)
 
 		-- blank --
 
@@ -366,12 +367,16 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		bitmap arrays. There are constants you can use to extract individual buttons from these
 		values.
 
-		Finally DISPLAY_MOUSE_WHEEL is a read-only integer value. 0 means the wheel has not moved
-		in the last frame. Positive values mean the wheel was rolled up (away from the user);
-		negative values mean the wheel was rolled down (towards the user). This also works with
-		trackpads, and there's some fancy stuff going on in Java that respects user preferences
-		and so on. The magnitude of this value depends on how fast they are scrolling, too, it's
-		not just "-1 or +1".
+		Finally DISPLAY_MOUSE_WHEEL_X/Y are read-only integer values. DISPLAY_MOUSE_WHEEL_Y is
+		for vertical scroll wheel movements (the more common kind); DISPLAY_MOUSE_WHEEL_X is for
+		horizontal scroll wheel movements (less common, but common on trackpads).
+
+		For both of these registers, 0 means the wheel has not moved. Positive values mean
+		scrolling up or to the right; negative values mean scrolling down or to the left.
+
+		These also work with trackpads, and there's some fancy stuff going on in Java that
+		respects user preferences and so on. The magnitudes of these values depend on how fast
+		they are scrolling, too, it's not just "-1 or +1".
 	*/
 
 	// --------------------------------------------------------------------------------------------
@@ -967,7 +972,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private static final int DISPLAY_MOUSE_HELD     = 0xFFFF0054;
 		private static final int DISPLAY_MOUSE_PRESSED  = 0xFFFF0058;
 		private static final int DISPLAY_MOUSE_RELEASED = 0xFFFF005C;
-		private static final int DISPLAY_MOUSE_WHEEL    = 0xFFFF0060;
+		private static final int DISPLAY_MOUSE_WHEEL_X  = 0xFFFF0060;
+		private static final int DISPLAY_MOUSE_WHEEL_Y  = 0xFFFF0064;
 		private static final int DISPLAY_PALETTE_RAM    = 0xFFFF0C00;
 		private static final int DISPLAY_FB_RAM         = 0xFFFF1000;
 		private static final int DISPLAY_TM_TABLE       = 0xFFFF5000;
@@ -1033,7 +1039,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private int mouseX = -1;
 		private int mouseY = -1;
 		private int mouseButtons = 0;
-		private int mouseWheel = 0;
+		private int mouseWheelX = 0;
+		private int mouseWheelY = 0;
 		private int lastMouseButtons = 0;
 		private boolean mouseOver = false;
 
@@ -1152,14 +1159,20 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			this.addMouseWheelListener(new MouseWheelListener() {
 				public void mouseWheelMoved(MouseWheelEvent e) {
 					// apparently, at least on mac, *horizontal* scroll events are sent
-					// with shift held down. nyokay. ignore them.
-					if(!e.isShiftDown()) {
+					// with shift held down. nyokay. Seems like a hack.
+					if(e.isShiftDown()) {
 						if(e.getScrollType() == MouseWheelEvent.WHEEL_UNIT_SCROLL) {
-							mouseWheel = e.getUnitsToScroll();
+							mouseWheelX = e.getUnitsToScroll();
 						} else {
 							// "block" scrolling??? no idea when this happens.
 							// let's do... something.
-							mouseWheel = e.getWheelRotation();
+							mouseWheelX = e.getWheelRotation();
+						}
+					} else {
+						if(e.getScrollType() == MouseWheelEvent.WHEEL_UNIT_SCROLL) {
+							mouseWheelY = e.getUnitsToScroll();
+						} else {
+							mouseWheelY = e.getWheelRotation();
 						}
 					}
 				}
@@ -1324,7 +1337,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 				sim.writeWordToMemory(DISPLAY_MOUSE_HELD,     mouseButtons);
 				sim.writeWordToMemory(DISPLAY_MOUSE_PRESSED,  mouseButtons & ~lastMouseButtons);
 				sim.writeWordToMemory(DISPLAY_MOUSE_RELEASED, lastMouseButtons & ~mouseButtons);
-				sim.writeWordToMemory(DISPLAY_MOUSE_WHEEL,    mouseWheel);
+				sim.writeWordToMemory(DISPLAY_MOUSE_WHEEL_X,  mouseWheelX);
+				sim.writeWordToMemory(DISPLAY_MOUSE_WHEEL_Y,  mouseWheelY);
 			}
 		}
 
@@ -1366,7 +1380,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 			// you never get events to tell you when the wheel STOPPED scrolling, so
 			// we have to fake that.
-			mouseWheel = 0;
+			mouseWheelX = 0;
+			mouseWheelY = 0;
 
 			// Yep this still needs to be here.
 			if(!mouseOver) {
