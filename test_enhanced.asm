@@ -34,8 +34,8 @@ main:
 	# reset everything
 	sw zero, DISPLAY_RESET
 
-	j test_tilemap
-	j test_default_palette
+	#j test_tilemap
+	#j test_default_palette
 	j test_mouse_follower
 	j test_fb_palette_offset
 	j test_mouse
@@ -277,11 +277,46 @@ test_kb:
 	follower_y:   .word 0x3F00
 	follower_vx:  .word 0
 	follower_vy:  .word 0
+
+	.eqv NUM_FOLLOWER_GFX_TILES 1
+
+	.align 2
+	follower_gfx: .byte
+		# lowercase b (obvious when flipped horizontally or vertically)
+		 0  0  0  0  0  0  0  0
+		 0 63 63  0  0  0  0  0
+		 0 63 63  0  0  0  0  0
+		 0 63 63 63 63  0  0  0
+		 0 63 63  0  0 63 63  0
+		 0 63 63  0  0 63 63  0
+		 0 63 63  0  0 63 63  0
+		 0 63 63 63 63  0  0  0
 .text
 
 .eqv VELOCITY_DECAY 0x00F0 # 0.93
 
 test_mouse_follower:
+	# load the graphics
+	la a0, follower_gfx
+	li a1, 0
+	li a2, NUM_FOLLOWER_GFX_TILES
+	jal display_load_sprite_gfx
+
+	# set up the sprite
+	li t1, DISPLAY_SPR_TABLE
+
+	lw  t0, follower_x
+	srl t0, t0, 8
+	sb  t0, 0(t1)
+
+	lw  t0, follower_y
+	srl t0, t0, 8
+	sb  t0, 1(t1)
+
+	sb  zero, 2(t1) # tile index
+
+	li  t0, BIT_ENABLE
+	sb  t0, 3(t1) # flags
 
 	_loop:
 		# update last mouse position
@@ -333,25 +368,35 @@ test_mouse_follower:
 		add t3, t3, t1
 		sw  t3, follower_y
 
-		# clear display
-		sw zero, DISPLAY_FB_CLEAR
+		# position sprite at follower position (minus 4 on each axis, to center it)
+		li  t9, DISPLAY_SPR_TABLE
 
-		# draw dot at follower position (if it's onscreen)
+		lw  t0, follower_x
+		srl t0, t0, 8
+		sub t0, t0, 4
+		sb  t0, 0(t9)
+
 		lw  t0, follower_y
 		srl t0, t0, 8
-		lw  t1, follower_x
-		srl t1, t1, 8
+		sub t0, t0, 4
+		sb  t0, 1(t9)
 
-		blt t0, 0, _nodraw
-		bge t0, DISPLAY_W, _nodraw
-		blt t1, 0, _nodraw
-		bge t1, DISPLAY_H, _nodraw
-			mul t0, t0, DISPLAY_W
-			add t0, t0, t1
-			add t0, t0, DISPLAY_FB_RAM
-			li  t1, COLOR_WHITE
-			sb  t1, (t0)
-		_nodraw:
+		# calculate flip flags based on follower's position relative to mouse
+		li  t8, BIT_ENABLE # t8 = flags
+
+		lw  t0, follower_x
+		lw  t1, last_mouse_x
+		blt t0, t1, _no_flip_x
+			or t8, t8, BIT_HFLIP
+		_no_flip_x:
+
+		lw  t0, follower_y
+		lw  t1, last_mouse_y
+		blt t0, t1, _no_flip_y
+			or t8, t8, BIT_VFLIP
+		_no_flip_y:
+
+		sb t8, 3(t9)
 
 		sw zero, DISPLAY_SYNC
 		lw zero, DISPLAY_SYNC
@@ -359,9 +404,7 @@ test_mouse_follower:
 
 # ------------------------
 normalize_24_8:
-push ra
-push s0
-push s1
+enter s0, s1
 move s0, a0
 move s1, a1
 	jal hypot_24_8
@@ -371,15 +414,12 @@ move s1, a1
 		sll s0, s0, 8
 		div v0, s0, v0
 	_endif:
-pop s1
-pop s0
-pop ra
-jr ra
+leave s0, s1
 
 # ------------------------
 
 hypot_24_8:
-push ra
+enter
 	# square dx and dy; leave in 16.16
 	mul a0, a0, a0
 	mul a1, a1, a1
@@ -390,8 +430,7 @@ push ra
 
 	# 16.16 -> 24.8
 	sra v0, v0, 8
-pop ra
-jr ra
+leave
 
 # ------------------------
 
@@ -529,7 +568,7 @@ test_tilemap_mouse_to_tile_coords:
 jr ra
 
 test_tilemap_mouse_input:
-push ra
+enter
 	# if holding shift...
 	li  a0, KEY_SHIFT
 	jal display_is_key_held
@@ -644,11 +683,10 @@ push ra
 			sw  t1, DISPLAY_TM_SCY
 		_endif_wheel_y:
 	_endif_outer:
-pop ra
-jr ra
+leave
 
 test_tilemap_key_input:
-push ra
+enter
 	li  a0, KEY_SHIFT
 	jal display_is_key_held
 	beq v0, 0, _no_shift
@@ -705,12 +743,11 @@ push ra
 			sw  t0, DISPLAY_TM_SCX
 		_endif_r:
 	_endif_outer:
-pop ra
-jr ra
+leave
 
 # a0 = bitmask that will be XORed with tile flags
 test_tilemap_flippem:
-push ra
+enter
 	li t8, DISPLAY_TM_TABLE # t8 = pointer
 	_loop:
 		lb  t0, 1(t8)
@@ -718,5 +755,4 @@ push ra
 		sb  t0, 1(t8)
 	add t8, t8, 2
 	blt t8, DISPLAY_SPR_TABLE, _loop
-pop ra
-jr ra
+leave

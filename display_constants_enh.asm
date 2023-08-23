@@ -58,6 +58,7 @@
 .eqv BIT_ENABLE 1
 .eqv BIT_VFLIP 2
 .eqv BIT_HFLIP 4
+.eqv BIT_SIZE 8
 
 # Classic color palette indexes in the default palette
 .eqv COLOR_BLACK       64

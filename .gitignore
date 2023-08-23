@@ -9,3 +9,4 @@ astyle*
 !test_enhanced.asm
 !display_constants_enh.asm
 !display_enh.asm
+!macros.asm

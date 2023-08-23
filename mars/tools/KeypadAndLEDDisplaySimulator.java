@@ -90,8 +90,6 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		0xFFFF0020: DISPLAY_TM_SCX.w         (WO, tilemap X scroll position)
 		0xFFFF0024: DISPLAY_TM_SCY.w         (WO, tilemap Y scroll position)
 
-		-- blank --
-
 	INPUT REGISTERS:
 
 		0xFFFF0040: DISPLAY_KEY_HELD.w       (write to choose key, read to get state)
@@ -104,8 +102,6 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		0xFFFF005C: DISPLAY_MOUSE_RELEASED.w (RO, bitflags of mouse buttons released)
 		0xFFFF0060: DISPLAY_MOUSE_WHEEL_X.w  (RO, horizontal mouse wheel movement delta)
 		0xFFFF0064: DISPLAY_MOUSE_WHEEL_Y.w  (RO, vertical mouse wheel movement delta)
-
-		-- blank --
 
 	PALETTE RAM:
 
@@ -1017,12 +1013,15 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private static final int N_SPRITES = 256;
 		private static final int SPRITE_ENTRY_SIZE = 4;
 		private static final int N_SPR_GFX_TILES = 256;
+		private static final int SPRITE_LARGE_W = 16;
+		private static final int SPRITE_LARGE_H = 16;
 
 		// Tilemap/sprite flag constants
-		private static final int PRIORITY = 1; // for tiles
-		private static final int ENABLE = 1; // for sprites
-		private static final int VFLIP = 2; // tiles + sprites
-		private static final int HFLIP = 4; // tiles + sprites
+		private static final int BIT_PRIORITY = 1; // for tiles
+		private static final int BIT_ENABLE = 1; // for sprites
+		private static final int BIT_VFLIP = 2; // tiles + sprites
+		private static final int BIT_HFLIP = 4; // tiles + sprites
+		private static final int BIT_SIZE = 8; // sprites
 
 		// Mouse button constants
 		private static final int MOUSE_LBUTTON = 1;
@@ -1088,6 +1087,11 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			Raster.createBandedRaster(DataBuffer.TYPE_BYTE, TM_PIXEL_W, TM_PIXEL_H, 1, null);
 		private WritableRaster fullTmLayerHi =
 			Raster.createBandedRaster(DataBuffer.TYPE_BYTE, TM_PIXEL_W, TM_PIXEL_H, 1, null);
+
+		// Big enough to accommodate the largest sprites partially offscreen on all 4 sides
+		private WritableRaster fullSpriteLayer =
+			Raster.createBandedRaster(DataBuffer.TYPE_BYTE,
+				N_COLUMNS + (2 * SPRITE_LARGE_W), N_ROWS + (2 * SPRITE_LARGE_H), 1, null);
 
 		// Compositing layers
 		private WritableRaster fbLayer =
@@ -1595,9 +1599,9 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 					// 1. get tile index and attributes
 					int tileIndex = tmTable[entry];
 					int flags = tmTable[entry + 1];
-					var hflip = (flags & HFLIP) != 0;
-					var vflip = (flags & VFLIP) != 0;
-					var target = ((flags & PRIORITY) != 0) ? fullTmLayerHi : fullTmLayerLo;
+					var hflip = (flags & BIT_HFLIP) != 0;
+					var vflip = (flags & BIT_VFLIP) != 0;
+					var target = ((flags & BIT_PRIORITY) != 0) ? fullTmLayerHi : fullTmLayerLo;
 					var palOffs = ((flags >> 4) & 0xF) * 16;
 
 					// 2. get graphics
@@ -1650,6 +1654,59 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 		// TODO
 		private void buildSpriteLayer() {
+			// Clear it out
+			this.fillRaster(fullSpriteLayer, 0);
+
+			// Draw all visible sprites with visible pixels to the full sprite layer
+			int entry = sprTable.length - SPRITE_ENTRY_SIZE;
+
+			for(int i = N_SPRITES - 1; i >= 0; i--) {
+				int flags = sprTable[entry + 3];
+
+				// is sprite enabled?
+				if((flags & BIT_ENABLE) != 0) {
+					var isLarge = (flags & BIT_SIZE) != 0;
+
+					// sign-extends, which is what we want
+					int x = sprTable[entry];
+					int y = sprTable[entry + 1];
+					int x2 = x + (isLarge ? SPRITE_LARGE_W : TILE_W);
+					int y2 = y + (isLarge ? SPRITE_LARGE_W : TILE_W);
+
+					// does sprite overlap screen bounds?
+					if(x < N_COLUMNS && y < N_COLUMNS && x2 > 0 && y2 > 0) {
+						// get tile index and other attributes
+						int tileIndex = sprTable[entry + 2];
+						var hflip = (flags & BIT_HFLIP) != 0;
+						var vflip = (flags & BIT_VFLIP) != 0;
+						var palOffs = ((flags >> 4) & 0xF) * 16;
+
+						// get graphics
+						int gfx = tileIndex * BYTES_PER_TILE;
+
+						// draw the damn thing
+						if(isLarge) {
+							// TODO
+						} else {
+							this.blitTileOnto(fullSpriteLayer,
+								x + SPRITE_LARGE_W, y + SPRITE_LARGE_H,
+								sprGraphics, gfx, palOffs, hflip, vflip);
+						}
+					}
+				}
+
+				entry -= SPRITE_ENTRY_SIZE;
+			}
+
+			// Then extract JUST the visible portion
+			for(int py = 0; py < N_COLUMNS; py++) {
+				for(int px = 0; px < N_ROWS; px++) {
+					spriteLayer.setSample(px, py, 0, fullSpriteLayer.getSample(
+						px + SPRITE_LARGE_W,
+						py + SPRITE_LARGE_H,
+						0));
+				}
+			}
 
 			isSprDirty = false;
 		}
