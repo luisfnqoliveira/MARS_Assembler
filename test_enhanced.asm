@@ -406,14 +406,14 @@ sqrt_16_16:
 	_sqrt_16_16_loop:
 	ble t0, 0x40, _sqrt_16_16_break
 		# t1 = v0 + t0
-		add t1, v0, t0
+		addu t1, v0, t0
 
 		# if( a0 >= t1 )
 		blt a0, t1, _sqrt_16_16_less
 			# a0 -= t1
-			sub a0, a0, t1
+			subu a0, a0, t1
 			# v0 = t1 + t0 // equivalent to v0 += 2*t0
-			add v0, t1, t0
+			addu v0, t1, t0
 		_sqrt_16_16_less:
 
 		# a0 <<= 1
