@@ -33,8 +33,8 @@ main:
 	# reset everything
 	sw zero, DISPLAY_RESET
 
-	j test_mouse_follower
-	j test_fb_palette_offset
+	#j test_mouse_follower
+	#j test_fb_palette_offset
 	j test_mouse
 	j test_kb
 
@@ -108,10 +108,22 @@ test_fb_palette_offset:
 # -------------------------------------------------------------------------------------------------
 
 test_mouse:
+	li s0, 0
 
 	_loop:
 		lw t0, DISPLAY_MOUSE_X
 		blt t0, 0, _endif
+			lw t1, DISPLAY_MOUSE_WHEEL
+			beq t1, 0, _endif_wheel
+				add s0, s0, t1
+				and s0, s0, 0xFF
+				sw  s0, DISPLAY_FB_PAL_OFFS
+				move a0, s0
+				li v0, 1
+				syscall
+				print_str "\n"
+			_endif_wheel:
+
 			lw t1, DISPLAY_MOUSE_Y
 			lw t2, DISPLAY_MOUSE_HELD
 			and t2, t2, MOUSE_LBUTTON
