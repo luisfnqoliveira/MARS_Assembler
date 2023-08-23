@@ -998,6 +998,10 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		// Tilemap constants
 		private static final int N_TM_COLUMNS = 32;
 		private static final int N_TM_ROWS = 32;
+		private static final int TILE_W = 8;
+		private static final int TILE_H = 8;
+		private static final int TM_PIXEL_W = N_TM_COLUMNS * TILE_W;
+		private static final int TM_PIXEL_H = N_TM_ROWS * TILE_H;
 
 		// Tilemap/sprite flag constants
 		private static final int PRIORITY = 1; // for tiles
@@ -1009,6 +1013,9 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private static final int MOUSE_LBUTTON = 1;
 		private static final int MOUSE_RBUTTON = 2;
 		private static final int MOUSE_MBUTTON = 4;
+
+		// Color!!!
+		private static final Color TRANSPARENT_COLOR = new Color(0, 0, 0, 0);
 
 		// ----------------------------------------------------------------------------------------
 		// Instance variables
@@ -1066,6 +1073,12 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private boolean isFbDirty = true;
 		private boolean isTmDirty = true;
 		private boolean isSprDirty = true;
+
+		// Intermediate images
+		private BufferedImage fullTmLayerLo =
+			new BufferedImage(TM_PIXEL_W, TM_PIXEL_H, BufferedImage.TYPE_INT_ARGB);
+		private BufferedImage fullTmLayerHi =
+			new BufferedImage(TM_PIXEL_W, TM_PIXEL_H, BufferedImage.TYPE_INT_ARGB);
 
 		// Compositing layers
 		private BufferedImage fbLayer =
@@ -1472,17 +1485,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		}
 
 		private void writeFb(int offs, int length, int value) {
-			fbRam[offs] = (byte)(value & 0xFF);
-
-			if(length > 1) {
-				fbRam[offs + 1] = (byte)((value >>> 8) & 0xFF);
-
-				if(length > 2) {
-					fbRam[offs + 2] = (byte)((value >>> 16) & 0xFF);
-					fbRam[offs + 3] = (byte)((value >>> 24) & 0xFF);
-				}
-			}
-
+			this.writeIntoByteArray(fbRam, offs, length, value);
 			isFbDirty = true;
 		}
 
@@ -1518,12 +1521,57 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			isTmDirty = true;
 		}
 
-		// TODO
-		private void writeTmTable(int offs, int length, int value) { }
-		// TODO
-		private void writeTmGfx(int offs, int length, int value) { }
+		private void writeTmTable(int offs, int length, int value) {
+			this.writeIntoByteArray(tmTable, offs, length, value);
+			isTmDirty = true;
+		}
+
+		private void writeTmGfx(int offs, int length, int value) {
+			this.writeIntoByteArray(tmGraphics, offs, length, value);
+			isTmDirty = true;
+		}
+
 		// TODO
 		private void buildTmLayers() { }
+		/*	// straightforward but...
+			// scrolling is tricky. either we only draw the visible slice of the tilemap
+			// to the tmLayerLo/tmLayerHi images, in which case we have to handle lots of
+			// edge cases on all four sides; or we draw the WHOLE tilemap to auxiliary
+			// images and then copy just slices, which is simple but wasteful.
+			// well let's try the simple and wasteful method first. we're native code!
+
+			// clear out layers
+			this.fillImage(tmLayerLo, TRANSPARENT_COLOR);
+			this.fillImage(tmLayerHi, TRANSPARENT_COLOR);
+
+			// get rasters
+			var lo = tmLayerLo.getRaster();
+			var hi = tmLayerLo.getRaster();
+
+			// do The Thing
+			int entry = 0;
+
+			for(int ty = 0; ty < N_TM_ROWS; ty++) {
+				int py = ty * TILE_H;
+
+				for(int tx = 0; tx < N_TM_COLUMNS; tx++) {
+					int px = tx * TILE_W;
+
+					// 1. get tile index and attributes
+					int tileIndex = tmTable[entry];
+					int flags = tmTable[entry + 1];
+
+					// 2. get graphics
+					int gfxOffset = tileIndex * 64;
+					var target = ((flags & PRIORITY) != 0) ? hi : lo;
+
+
+					entry += 2;
+				}
+			}
+
+			isTmDirty = false;
+		}*/
 
 		// ----------------------------------------------------------------------------------------
 		// Sprite
@@ -1534,12 +1582,21 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			isSprDirty = true;
 		}
 
+		private void writeSprTable(int offs, int length, int value) {
+			this.writeIntoByteArray(sprTable, offs, length, value);
+			isSprDirty = true;
+		}
+
+		private void writeSprGfx(int offs, int length, int value) {
+			this.writeIntoByteArray(sprGraphics, offs, length, value);
+			isSprDirty = true;
+		}
+
 		// TODO
-		private void writeSprTable(int offs, int length, int value) { }
-		// TODO
-		private void writeSprGfx(int offs, int length, int value) { }
-		// TODO
-		private void buildSpriteLayer() { }
+		private void buildSpriteLayer() {
+
+			isSprDirty = false;
+		}
 
 		// ----------------------------------------------------------------------------------------
 		// Compositing
@@ -1571,27 +1628,53 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			var g = finalImage.createGraphics();
 			var bg = new Color(bgColor[0], bgColor[1], bgColor[2]);
 
-			if(fbEnabled && !tmEnabled) {
+			if(!tmEnabled) {
+				// only the framebuffer must be enabled.
 				g.drawImage(fbLayer,     0, 0, N_COLUMNS, N_ROWS, bg, null);
 				g.drawImage(spriteLayer, 0, 0, N_COLUMNS, N_ROWS, null);
-			} else if(tmEnabled && !fbEnabled) {
-				g.drawImage(tmLayerLo,   0, 0, N_COLUMNS, N_ROWS, bg, null);
-				g.drawImage(spriteLayer, 0, 0, N_COLUMNS, N_ROWS, null);
-				g.drawImage(tmLayerHi,   0, 0, N_COLUMNS, N_ROWS, null);
-			} else if(fbInFront) {
-				g.drawImage(tmLayerLo,   0, 0, N_COLUMNS, N_ROWS, bg, null);
-				g.drawImage(spriteLayer, 0, 0, N_COLUMNS, N_ROWS, null);
-				g.drawImage(tmLayerHi,   0, 0, N_COLUMNS, N_ROWS, null);
-				g.drawImage(fbLayer,     0, 0, N_COLUMNS, N_ROWS, null);
 			} else {
-				g.drawImage(fbLayer,     0, 0, N_COLUMNS, N_ROWS, bg, null);
-				g.drawImage(tmLayerLo,   0, 0, N_COLUMNS, N_ROWS, null);
-				g.drawImage(spriteLayer, 0, 0, N_COLUMNS, N_ROWS, null);
-				g.drawImage(tmLayerHi,   0, 0, N_COLUMNS, N_ROWS, null);
+				if(!fbEnabled) {
+					g.drawImage(tmLayerLo,   0, 0, N_COLUMNS, N_ROWS, bg, null);
+					g.drawImage(spriteLayer, 0, 0, N_COLUMNS, N_ROWS, null);
+					g.drawImage(tmLayerHi,   0, 0, N_COLUMNS, N_ROWS, null);
+				} else if(fbInFront) {
+					g.drawImage(tmLayerLo,   0, 0, N_COLUMNS, N_ROWS, bg, null);
+					g.drawImage(spriteLayer, 0, 0, N_COLUMNS, N_ROWS, null);
+					g.drawImage(tmLayerHi,   0, 0, N_COLUMNS, N_ROWS, null);
+					g.drawImage(fbLayer,     0, 0, N_COLUMNS, N_ROWS, null);
+				} else {
+					g.drawImage(fbLayer,     0, 0, N_COLUMNS, N_ROWS, bg, null);
+					g.drawImage(tmLayerLo,   0, 0, N_COLUMNS, N_ROWS, null);
+					g.drawImage(spriteLayer, 0, 0, N_COLUMNS, N_ROWS, null);
+					g.drawImage(tmLayerHi,   0, 0, N_COLUMNS, N_ROWS, null);
+				}
 			}
 
 			g.dispose();
 			this.repaint();
+		}
+
+		// ----------------------------------------------------------------------------------------
+		// Helpers
+
+		private void writeIntoByteArray(byte[] arr, int offs, int length, int value) {
+			arr[offs] = (byte)(value & 0xFF);
+
+			if(length > 1) {
+				arr[offs + 1] = (byte)((value >>> 8) & 0xFF);
+
+				if(length > 2) {
+					arr[offs + 2] = (byte)((value >>> 16) & 0xFF);
+					arr[offs + 3] = (byte)((value >>> 24) & 0xFF);
+				}
+			}
+		}
+
+		private void fillImage(BufferedImage img, Color c) {
+			var g = img.createGraphics();
+			g.setColor(c);
+			g.fillRect(0, 0, img.getWidth(), img.getHeight());
+			g.dispose();
 		}
 	}
 }

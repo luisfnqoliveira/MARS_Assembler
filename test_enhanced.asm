@@ -34,7 +34,7 @@ main:
 	sw zero, DISPLAY_RESET
 
 	#j test_mouse_follower
-	#j test_fb_palette_offset
+	j test_fb_palette_offset
 	j test_mouse
 	j test_kb
 
