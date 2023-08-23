@@ -1385,7 +1385,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private void waitForNextFrame() {
 			long nsPerFrame = this.msPerFrame * 1000000L;
 			long now = System.nanoTime();
-			long delay = nsPerFrame - Math.min(Math.max(0, now - this.lastFrameTime), nsPerFrame);
+			long processingTime = Math.max(0, now - this.lastFrameTime);
+			long delay = nsPerFrame - Math.min(processingTime, nsPerFrame);
 
 			if(delay > 0) {
 				try {
@@ -1739,17 +1740,79 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		) {
 			// TODO: maybe detect totally transparent tiles and do nothing?
 
-			// TODO: hflip/vflip
+			if(hflip) {
+				if(vflip) {
+					// Flip both ways
+					// start on last column of last row
+					gfxOffset += BYTES_PER_TILE - 1;
 
-			for(int y = 0; y < TILE_H; y++) {
-				for(int x = 0; x < TILE_W; x++) {
-					int index = gfx[gfxOffset];
+					for(int y = 0; y < TILE_H; y++) {
+						for(int x = 0; x < TILE_W; x++) {
+							int index = gfx[gfxOffset];
 
-					if(index != 0) {
-						dest.setSample(px + x, py + y, 0, index + palOffset);
+							if(index != 0) {
+								dest.setSample(px + x, py + y, 0, index + palOffset);
+							}
+
+							// get next pixel to the left
+							gfxOffset--;
+						}
 					}
 
-					gfxOffset++;
+				} else {
+					// Only flip horizontally
+					// start on last column
+					gfxOffset += TILE_W - 1;
+
+					for(int y = 0; y < TILE_H; y++) {
+						for(int x = 0; x < TILE_W; x++) {
+							int index = gfx[gfxOffset];
+
+							if(index != 0) {
+								dest.setSample(px + x, py + y, 0, index + palOffset);
+							}
+
+							// get next pixel to the left
+							gfxOffset--;
+						}
+
+						// move ahead two rows, to go to next row
+						gfxOffset += 2 * TILE_W;
+					}
+				}
+			} else if(vflip) {
+				// Only flip vertically
+
+				// start on last row
+				gfxOffset += BYTES_PER_TILE - TILE_W;
+
+				for(int y = 0; y < TILE_H; y++) {
+					for(int x = 0; x < TILE_W; x++) {
+						int index = gfx[gfxOffset];
+
+						if(index != 0) {
+							dest.setSample(px + x, py + y, 0, index + palOffset);
+						}
+
+						// get next pixel to the right
+						gfxOffset++;
+					}
+
+					// move back two rows, to go to previous row
+					gfxOffset -= 2 * TILE_W;
+				}
+			} else {
+				// No flip
+				for(int y = 0; y < TILE_H; y++) {
+					for(int x = 0; x < TILE_W; x++) {
+						int index = gfx[gfxOffset];
+
+						if(index != 0) {
+							dest.setSample(px + x, py + y, 0, index + palOffset);
+						}
+
+						gfxOffset++;
+					}
 				}
 			}
 		}

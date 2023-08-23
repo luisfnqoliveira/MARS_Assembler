@@ -430,7 +430,7 @@ _sqrt_16_16_break:
 # -------------------------------------------------------------------------------------------------
 
 .data
-	.eqv NUM_TEST_TILES 1
+	.eqv NUM_TEST_TILES 2
 	.align 2
 	test_tile_gfx: .byte
 		# using the RGB222 palette indexes
@@ -443,6 +443,15 @@ _sqrt_16_16_break:
 		0b000010 0b000010 0b000010 0b000010 0b000010 0b000010 0b000010 0b000010
 		0b100010 0b100010 0b100010 0b100010 0b100010 0b100010 0b100010 0b100010
 
+		# lowercase b (obvious when flipped horizontally or vertically)
+		 0  0  0  0  0  0  0  0
+		 0 63 63  0  0  0  0  0
+		 0 63 63  0  0  0  0  0
+		 0 63 63 63 63  0  0  0
+		 0 63 63  0  0 63 63  0
+		 0 63 63  0  0 63 63  0
+		 0 63 63  0  0 63 63  0
+		 0 63 63 63 63  0  0  0
 .text
 
 test_tilemap:
@@ -467,6 +476,7 @@ test_tilemap:
 	li s0, 0
 
 	_loop:
+		# global tilemap palette offset
 		lw t0, DISPLAY_MOUSE_WHEEL
 		beq t0, 0, _endif_wheel
 			add s0, s0, t0
@@ -478,8 +488,67 @@ test_tilemap:
 			print_str "\n"
 		_endif_wheel:
 
-		lw  t1, DISPLAY_MOUSE_HELD
-		and t0, t1, MOUSE_LBUTTON
+		# drawing tiles
+		jal test_tilemap_mouse_input
+
+		# flipping tiles
+		jal test_tilemap_key_input
+
+		# display and sync
+		sw zero, DISPLAY_SYNC
+		lw zero, DISPLAY_SYNC
+	j _loop
+
+test_tilemap_mouse_input:
+push ra
+	# if holding shift...
+	li  a0, KEY_SHIFT
+	jal display_is_key_held
+	beq v0, 0, _no_shift
+		# then clicking will flip tiles.
+		lw  t0, DISPLAY_MOUSE_RELEASED
+		and t1, t0, MOUSE_LBUTTON
+		beq t1, 0, _endif_shift_l
+			lw t1, DISPLAY_MOUSE_X
+			blt t1, 0, _endif_shift_l
+			lw t2, DISPLAY_MOUSE_Y
+
+			div t1, t1, TILE_W
+			div t2, t2, TILE_H
+
+			mul t2, t2, TM_ROW_BYTE_SIZE
+			mul t1, t1, 2
+			add t2, t2, t1
+			add t2, t2, DISPLAY_TM_TABLE
+
+			lb t1, 1(t2)
+			xor t1, t1, BIT_HFLIP
+			sb t1, 1(t2)
+		_endif_shift_l:
+
+		and t1, t0, MOUSE_RBUTTON
+		beq t1, 0, _endif_shift_r
+			lw t1, DISPLAY_MOUSE_X
+			blt t1, 0, _endif_shift_r
+			lw t2, DISPLAY_MOUSE_Y
+
+			div t1, t1, TILE_W
+			div t2, t2, TILE_H
+
+			mul t2, t2, TM_ROW_BYTE_SIZE
+			mul t1, t1, 2
+			add t2, t2, t1
+			add t2, t2, DISPLAY_TM_TABLE
+
+			lb t1, 1(t2)
+			xor t1, t1, BIT_VFLIP
+			sb t1, 1(t2)
+		_endif_shift_r:
+
+	j _endif_outer
+	_no_shift:
+		lw  t0, DISPLAY_MOUSE_HELD
+		and t0, t0, MOUSE_LBUTTON
 		beq t0, 0, _endif_l
 			lw a0, DISPLAY_MOUSE_X
 			blt a0, 0, _endif_l
@@ -492,6 +561,66 @@ test_tilemap:
 			jal display_set_tile
 		_endif_l:
 
-		sw zero, DISPLAY_SYNC
-		lw zero, DISPLAY_SYNC
-	j _loop
+		lw  t0, DISPLAY_MOUSE_HELD
+		and t0, t0, MOUSE_MBUTTON
+		beq t0, 0, _endif_m
+			lw a0, DISPLAY_MOUSE_X
+			blt a0, 0, _endif_m
+			lw a1, DISPLAY_MOUSE_Y
+
+			div a0, a0, TILE_W
+			div a1, a1, TILE_H
+			li a2, 2
+			li a3, 0
+			jal display_set_tile
+		_endif_m:
+
+		lw  t0, DISPLAY_MOUSE_HELD
+		and t0, t0, MOUSE_RBUTTON
+		beq t0, 0, _endif_r
+			lw a0, DISPLAY_MOUSE_X
+			blt a0, 0, _endif_r
+			lw a1, DISPLAY_MOUSE_Y
+
+			div a0, a0, TILE_W
+			div a1, a1, TILE_H
+			li a2, 0
+			li a3, 0
+			jal display_set_tile
+		_endif_r:
+	_endif_outer:
+pop ra
+jr ra
+
+test_tilemap_key_input:
+push ra
+	li  a0, KEY_UP
+	jal display_is_key_pressed
+	bne v0, 1, _endif_u
+		# toggle vflip of all tiles
+		li a0, BIT_VFLIP
+		jal test_tilemap_flippem
+	_endif_u:
+
+	li  a0, KEY_RIGHT
+	jal display_is_key_pressed
+	bne v0, 1, _endif_r
+		# toggle hflip of all tiles
+		li a0, BIT_HFLIP
+		jal test_tilemap_flippem
+	_endif_r:
+pop ra
+jr ra
+
+# a0 = bitmask that will be XORed with tile flags
+test_tilemap_flippem:
+push ra
+	li t8, DISPLAY_TM_TABLE # t8 = pointer
+	_loop:
+		lb  t0, 1(t8)
+		xor t0, t0, a0
+		sb  t0, 1(t8)
+	add t8, t8, 2
+	blt t8, DISPLAY_SPR_TABLE, _loop
+pop ra
+jr ra

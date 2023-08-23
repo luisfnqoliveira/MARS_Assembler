@@ -44,6 +44,7 @@
 .eqv TM_ENTRY_SIZE     2
 .eqv N_TM_COLUMNS     32
 .eqv N_TM_ROWS        32
+.eqv N_TM_TILES       1024 #= N_TM_COLUMNS * N_TM_ROWS
 .eqv TM_ROW_BYTE_SIZE 64 #= TM_ENTRY_SIZE * N_TM_COLUMNS
 
 .eqv N_TM_COLUMNS
@@ -52,6 +53,11 @@
 .eqv MOUSE_LBUTTON    1
 .eqv MOUSE_RBUTTON    2
 .eqv MOUSE_MBUTTON    4
+
+.eqv BIT_PRIORITY 1
+.eqv BIT_ENABLE 1
+.eqv BIT_VFLIP 2
+.eqv BIT_HFLIP 4
 
 # Classic color palette indexes in the default palette
 .eqv COLOR_BLACK       64
