@@ -1007,6 +1007,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private static final int TM_PIXEL_W = N_TM_COLUMNS * TILE_W;
 		private static final int TM_PIXEL_H = N_TM_ROWS * TILE_H;
 		private static final int N_TM_GFX_TILES = 256;
+		private static final int TM_SCX_MASK = TM_PIXEL_W - 1;
+		private static final int TM_SCY_MASK = TM_PIXEL_H - 1;
 
 		// Sprite constants
 		private static final int N_SPRITES = 256;
@@ -1559,12 +1561,12 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		}
 
 		private void setTmScx(int value) {
-			this.tmScx = value & 0x7F;
+			this.tmScx = value & TM_SCX_MASK;
 			isTmDirty = true;
 		}
 
 		private void setTmScy(int value) {
-			this.tmScy = value & 0x7F;
+			this.tmScy = value & TM_SCY_MASK;
 			isTmDirty = true;
 		}
 
@@ -1577,11 +1579,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			// images and then copy just slices, which is simple but wasteful.
 			// well let's try the simple and wasteful method first. we're native code!
 
-			// clear out layers
-			this.fillRaster(tmLayerLo, 0);
-			this.fillRaster(tmLayerHi, 0);
-
-			// do The Thing
+			// First draw the FULL tilemap layers
 			int entry = 0;
 
 			for(int ty = 0; ty < N_TM_ROWS; ty++) {
@@ -1595,21 +1593,32 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 					int flags = tmTable[entry + 1];
 					var hflip = (flags & HFLIP) != 0;
 					var vflip = (flags & VFLIP) != 0;
-					var target = ((flags & PRIORITY) != 0) ? tmLayerHi : tmLayerLo;
+					var target = ((flags & PRIORITY) != 0) ? fullTmLayerHi : fullTmLayerLo;
 
 					// 2. get graphics
 					int gfxOffset = tileIndex * BYTES_PER_TILE;
 
 					// 3. blit!
-					this.blitTileOnto(
-						target,
-						px, py,
-						tmGraphics, gfxOffset,
-						tmPalOffs,
+					this.blitTileOnto(target, px, py, tmGraphics, gfxOffset, tmPalOffs,
 						hflip, vflip);
 
 					// Next entry
 					entry += TM_ENTRY_SIZE;
+				}
+			}
+
+			// then extract JUST the visible portion based on scroll values.
+			for(int py = 0; py < N_COLUMNS; py++) {
+				for(int px = 0; px < N_ROWS; px++) {
+					tmLayerLo.setSample(px, py, 0, fullTmLayerLo.getSample(
+						(px + tmScx) & TM_SCX_MASK,
+						(py + tmScy) & TM_SCY_MASK,
+						0));
+
+					tmLayerHi.setSample(px, py, 0, fullTmLayerHi.getSample(
+						(px + tmScx) & TM_SCX_MASK,
+						(py + tmScy) & TM_SCY_MASK,
+						0));
 				}
 			}
 
@@ -1738,8 +1747,6 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			boolean hflip,
 			boolean vflip
 		) {
-			// TODO: maybe detect totally transparent tiles and do nothing?
-
 			if(hflip) {
 				if(vflip) {
 					// Flip both ways
@@ -1749,10 +1756,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 					for(int y = 0; y < TILE_H; y++) {
 						for(int x = 0; x < TILE_W; x++) {
 							int index = gfx[gfxOffset];
-
-							if(index != 0) {
-								dest.setSample(px + x, py + y, 0, index + palOffset);
-							}
+							index = index == 0 ? 0 : (index + palOffset);
+							dest.setSample(px + x, py + y, 0, index);
 
 							// get next pixel to the left
 							gfxOffset--;
@@ -1767,10 +1772,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 					for(int y = 0; y < TILE_H; y++) {
 						for(int x = 0; x < TILE_W; x++) {
 							int index = gfx[gfxOffset];
-
-							if(index != 0) {
-								dest.setSample(px + x, py + y, 0, index + palOffset);
-							}
+							index = index == 0 ? 0 : (index + palOffset);
+							dest.setSample(px + x, py + y, 0, index);
 
 							// get next pixel to the left
 							gfxOffset--;
@@ -1789,10 +1792,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 				for(int y = 0; y < TILE_H; y++) {
 					for(int x = 0; x < TILE_W; x++) {
 						int index = gfx[gfxOffset];
-
-						if(index != 0) {
-							dest.setSample(px + x, py + y, 0, index + palOffset);
-						}
+						index = index == 0 ? 0 : (index + palOffset);
+						dest.setSample(px + x, py + y, 0, index);
 
 						// get next pixel to the right
 						gfxOffset++;
@@ -1806,10 +1807,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 				for(int y = 0; y < TILE_H; y++) {
 					for(int x = 0; x < TILE_W; x++) {
 						int index = gfx[gfxOffset];
-
-						if(index != 0) {
-							dest.setSample(px + x, py + y, 0, index + palOffset);
-						}
+						index = index == 0 ? 0 : (index + palOffset);
+						dest.setSample(px + x, py + y, 0, index);
 
 						gfxOffset++;
 					}

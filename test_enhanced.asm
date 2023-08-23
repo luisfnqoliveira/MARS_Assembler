@@ -455,6 +455,12 @@ _sqrt_16_16_break:
 .text
 
 test_tilemap:
+	print_str "left/middle/right mouse buttons draw tiles.\n"
+	print_str "shift+LMB/RMB flip individual tiles.\n"
+	print_str "mouse wheel changes tilemap palette offset.\n"
+	print_str "arrows scroll tilemap.\n"
+	print_str "shift+up/right flips all tiles in tilemap.\n"
+
 	# load graphics
 	la a0, test_tile_gfx
 	li a1, 1
@@ -482,10 +488,6 @@ test_tilemap:
 			add s0, s0, t0
 			and s0, s0, 0xFF
 			sw  s0, DISPLAY_TM_PAL_OFFS
-			move a0, s0
-			li v0, 1
-			syscall
-			print_str "\n"
 		_endif_wheel:
 
 		# drawing tiles
@@ -513,6 +515,13 @@ push ra
 			blt t1, 0, _endif_shift_l
 			lw t2, DISPLAY_MOUSE_Y
 
+			lw  t0, DISPLAY_TM_SCX
+			add t1, t1, t0
+			and t1, t1, 0xFF
+			lw  t0, DISPLAY_TM_SCY
+			add t2, t2, t0
+			and t2, t2, 0xFF
+
 			div t1, t1, TILE_W
 			div t2, t2, TILE_H
 
@@ -531,6 +540,13 @@ push ra
 			lw t1, DISPLAY_MOUSE_X
 			blt t1, 0, _endif_shift_r
 			lw t2, DISPLAY_MOUSE_Y
+
+			lw  t0, DISPLAY_TM_SCX
+			add t1, t1, t0
+			and t1, t1, 0xFF
+			lw  t0, DISPLAY_TM_SCY
+			add t2, t2, t0
+			and t2, t2, 0xFF
 
 			div t1, t1, TILE_W
 			div t2, t2, TILE_H
@@ -554,6 +570,13 @@ push ra
 			blt a0, 0, _endif_l
 			lw a1, DISPLAY_MOUSE_Y
 
+			lw  t0, DISPLAY_TM_SCX
+			add a0, a0, t0
+			and a0, a0, 0xFF
+			lw  t0, DISPLAY_TM_SCY
+			add a1, a1, t0
+			and a1, a1, 0xFF
+
 			div a0, a0, TILE_W
 			div a1, a1, TILE_H
 			li a2, 1
@@ -567,6 +590,13 @@ push ra
 			lw a0, DISPLAY_MOUSE_X
 			blt a0, 0, _endif_m
 			lw a1, DISPLAY_MOUSE_Y
+
+			lw  t0, DISPLAY_TM_SCX
+			add a0, a0, t0
+			and a0, a0, 0xFF
+			lw  t0, DISPLAY_TM_SCY
+			add a1, a1, t0
+			and a1, a1, 0xFF
 
 			div a0, a0, TILE_W
 			div a1, a1, TILE_H
@@ -582,6 +612,13 @@ push ra
 			blt a0, 0, _endif_r
 			lw a1, DISPLAY_MOUSE_Y
 
+			lw  t0, DISPLAY_TM_SCX
+			add a0, a0, t0
+			and a0, a0, 0xFF
+			lw  t0, DISPLAY_TM_SCY
+			add a1, a1, t0
+			and a1, a1, 0xFF
+
 			div a0, a0, TILE_W
 			div a1, a1, TILE_H
 			li a2, 0
@@ -594,21 +631,62 @@ jr ra
 
 test_tilemap_key_input:
 push ra
-	li  a0, KEY_UP
-	jal display_is_key_pressed
-	bne v0, 1, _endif_u
-		# toggle vflip of all tiles
-		li a0, BIT_VFLIP
-		jal test_tilemap_flippem
-	_endif_u:
+	li  a0, KEY_SHIFT
+	jal display_is_key_held
+	beq v0, 0, _no_shift
+		li  a0, KEY_UP
+		jal display_is_key_pressed
+		bne v0, 1, _endif_shift_u
+			# toggle vflip of all tiles
+			li a0, BIT_VFLIP
+			jal test_tilemap_flippem
+		_endif_shift_u:
 
-	li  a0, KEY_RIGHT
-	jal display_is_key_pressed
-	bne v0, 1, _endif_r
-		# toggle hflip of all tiles
-		li a0, BIT_HFLIP
-		jal test_tilemap_flippem
-	_endif_r:
+		li  a0, KEY_RIGHT
+		jal display_is_key_pressed
+		bne v0, 1, _endif_shift_r
+			# toggle hflip of all tiles
+			li a0, BIT_HFLIP
+			jal test_tilemap_flippem
+		_endif_shift_r:
+	j _endif_outer
+	_no_shift:
+		li  a0, KEY_UP
+		jal display_is_key_held
+		beq v0, 0, _endif_u
+			lw  t0, DISPLAY_TM_SCY
+			sub t0, t0, 1
+			and t0, t0, 0xFF
+			sw  t0, DISPLAY_TM_SCY
+		_endif_u:
+
+		li  a0, KEY_DOWN
+		jal display_is_key_held
+		beq v0, 0, _endif_d
+			lw  t0, DISPLAY_TM_SCY
+			add t0, t0, 1
+			and t0, t0, 0xFF
+			sw  t0, DISPLAY_TM_SCY
+		_endif_d:
+
+		li  a0, KEY_LEFT
+		jal display_is_key_held
+		beq v0, 0, _endif_l
+			lw  t0, DISPLAY_TM_SCX
+			sub t0, t0, 1
+			and t0, t0, 0xFF
+			sw  t0, DISPLAY_TM_SCX
+		_endif_l:
+
+		li  a0, KEY_RIGHT
+		jal display_is_key_held
+		beq v0, 0, _endif_r
+			lw  t0, DISPLAY_TM_SCX
+			add t0, t0, 1
+			and t0, t0, 0xFF
+			sw  t0, DISPLAY_TM_SCX
+		_endif_r:
+	_endif_outer:
 pop ra
 jr ra
 
