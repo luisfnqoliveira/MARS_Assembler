@@ -89,7 +89,6 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 		0xFFFF0020: DISPLAY_TM_SCX.w         (WO, tilemap X scroll position)
 		0xFFFF0024: DISPLAY_TM_SCY.w         (WO, tilemap Y scroll position)
-		0xFFFF0028: DISPLAY_TM_PAL_OFFS.w    (WO, tilemap palette offset)
 
 		-- blank --
 
@@ -243,10 +242,13 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 		For each tile, graphics are fetched from (0xFFFF6000 + tile_index * 64).
 
-		The tile flags are a bitfield: xxxxxHVP
-			H = horizontal flip
+		The tile flags are a bitfield: PPPPxHVO
+			O = priority (appears over sprites)
 			V = vertical flip
-			P = priority (appears over sprites)
+			H = horizontal flip
+			PPPP = palette row index
+				this value is multiplied by 16 and added to every nonzero color index in this
+				tile's graphics, similar to the framebuffer palette offset but with less precision.
 
 		Because of the priority flag on each tile, you can think of there being two "visual" layers
 		of the tilemap, one on either side of the sprites.
@@ -255,10 +257,6 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		space for 256 8x8-pixel tiles. Each tile is 8x8 = 64 pixels, stored top-to-bottom in row-
 		major order. Each pixel is 1 byte and is a color index into the global palette, just like
 		the framebuffer.
-
-		Also just like the framebuffer, the DISPLAY_TM_PAL_OFFS register offsets the tilemap's
-		palette indexes (except for color 0, which is always transparent). There is no per-tile
-		palette offset, but maybe there should be???
 
 		The tilemap can also be scrolled freely at pixel resolution on both axes. The scroll
 		amount can be written as a signed integer but will be interpreted modulo 256. The tilemap
@@ -961,7 +959,6 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private static final int DISPLAY_FB_PAL_OFFS    = 0xFFFF0018;
 		private static final int DISPLAY_TM_SCX         = 0xFFFF0020;
 		private static final int DISPLAY_TM_SCY         = 0xFFFF0024;
-		private static final int DISPLAY_TM_PAL_OFFS    = 0xFFFF0028;
 		private static final int DISPLAY_KEY_HELD       = 0xFFFF0040;
 		private static final int DISPLAY_KEY_PRESSED    = 0xFFFF0044;
 		private static final int DISPLAY_KEY_RELEASED   = 0xFFFF0048;
@@ -1058,7 +1055,6 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		// Tilemap registers
 		private int tmScx = 0;
 		private int tmScy = 0;
-		private int tmPalOffs = 0;
 
 		// Palette RAM (0 is red, 1 is green, 2 is blue)
 		private byte[][] paletteRam = new byte[3][256];
@@ -1242,7 +1238,6 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 							case DISPLAY_FB_PAL_OFFS:   this.setFbPalOffs(value);      break;
 							case DISPLAY_TM_SCX:        this.setTmScx(value);          break;
 							case DISPLAY_TM_SCY:        this.setTmScy(value);          break;
-							case DISPLAY_TM_PAL_OFFS:   this.setTmPalOffs(value);      break;
 							case DISPLAY_KEY_HELD:      this.updateKeyHeld(value);     break;
 							case DISPLAY_KEY_PRESSED:   this.updateKeyPressed(value);  break;
 							case DISPLAY_KEY_RELEASED:  this.updateKeyReleased(value); break;
@@ -1303,7 +1298,6 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			fbPalOffs = 0;
 			tmScx = 0;
 			tmScy = 0;
-			tmPalOffs = 0;
 			lastFrameTime = System.nanoTime();
 
 			// reset input stuff
@@ -1555,11 +1549,6 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			isTmDirty = true;
 		}
 
-		private void setTmPalOffs(int value) {
-			this.tmPalOffs = value & 0xFF;
-			isTmDirty = true;
-		}
-
 		private void setTmScx(int value) {
 			this.tmScx = value & TM_SCX_MASK;
 			isTmDirty = true;
@@ -1594,13 +1583,13 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 					var hflip = (flags & HFLIP) != 0;
 					var vflip = (flags & VFLIP) != 0;
 					var target = ((flags & PRIORITY) != 0) ? fullTmLayerHi : fullTmLayerLo;
+					var palOffs = ((flags >> 4) & 0xF) * 16;
 
 					// 2. get graphics
-					int gfxOffset = tileIndex * BYTES_PER_TILE;
+					int gfx = tileIndex * BYTES_PER_TILE;
 
 					// 3. blit!
-					this.blitTileOnto(target, px, py, tmGraphics, gfxOffset, tmPalOffs,
-						hflip, vflip);
+					this.blitTileOnto(target, px, py, tmGraphics, gfx, palOffs, hflip, vflip);
 
 					// Next entry
 					entry += TM_ENTRY_SIZE;

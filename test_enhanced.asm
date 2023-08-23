@@ -482,14 +482,6 @@ test_tilemap:
 	li s0, 0
 
 	_loop:
-		# global tilemap palette offset
-		lw t0, DISPLAY_MOUSE_WHEEL
-		beq t0, 0, _endif_wheel
-			add s0, s0, t0
-			and s0, s0, 0xFF
-			sw  s0, DISPLAY_TM_PAL_OFFS
-		_endif_wheel:
-
 		# drawing tiles
 		jal test_tilemap_mouse_input
 
@@ -616,6 +608,22 @@ push ra
 			jal display_set_tile
 		_endif_r:
 	_endif_outer:
+
+	# scroll wheel changes palette offset.
+	lw t0, DISPLAY_MOUSE_WHEEL
+	beq t0, 0, _endif_wheel
+		lw  t0, DISPLAY_MOUSE_X
+		blt t0, 0, _endif_wheel
+
+		jal test_tilemap_mouse_to_tile_addr
+
+		lb  t0, 1(v0)
+		lw  t1, DISPLAY_MOUSE_WHEEL
+		sll t1, t1, 4
+		add t0, t0, t1
+		and t0, t0, 0xFF
+		sb  t0, 1(v0)
+	_endif_wheel:
 pop ra
 jr ra
 
