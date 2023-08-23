@@ -1072,22 +1072,22 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private boolean isSprDirty = true;
 
 		// Intermediate images
-		private BufferedImage fullTmLayerLo =
-			new BufferedImage(TM_PIXEL_W, TM_PIXEL_H, BufferedImage.TYPE_INT_ARGB);
-		private BufferedImage fullTmLayerHi =
-			new BufferedImage(TM_PIXEL_W, TM_PIXEL_H, BufferedImage.TYPE_INT_ARGB);
+		private WritableRaster fullTmLayerLo =
+			Raster.createBandedRaster(DataBuffer.TYPE_BYTE, TM_PIXEL_W, TM_PIXEL_H, 1, null);
+		private WritableRaster fullTmLayerHi =
+			Raster.createBandedRaster(DataBuffer.TYPE_BYTE, TM_PIXEL_W, TM_PIXEL_H, 1, null);
 
 		// Compositing layers
 		private WritableRaster fbLayer =
 			Raster.createBandedRaster(DataBuffer.TYPE_BYTE, N_COLUMNS, N_ROWS, 1, null);
-		private BufferedImage tmLayerLo =
-			new BufferedImage(N_COLUMNS, N_ROWS, BufferedImage.TYPE_INT_ARGB);
-		private BufferedImage tmLayerHi =
-			new BufferedImage(N_COLUMNS, N_ROWS, BufferedImage.TYPE_INT_ARGB);
-		private BufferedImage spriteLayer =
-			new BufferedImage(N_COLUMNS, N_ROWS, BufferedImage.TYPE_INT_ARGB);
+		private WritableRaster tmLayerLo =
+			Raster.createBandedRaster(DataBuffer.TYPE_BYTE, N_COLUMNS, N_ROWS, 1, null);
+		private WritableRaster tmLayerHi =
+			Raster.createBandedRaster(DataBuffer.TYPE_BYTE, N_COLUMNS, N_ROWS, 1, null);
+		private WritableRaster spriteLayer =
+			Raster.createBandedRaster(DataBuffer.TYPE_BYTE, N_COLUMNS, N_ROWS, 1, null);
 		private BufferedImage finalImage =
-			new BufferedImage(N_COLUMNS, N_ROWS, BufferedImage.TYPE_INT_ARGB);
+			new BufferedImage(N_COLUMNS, N_ROWS, BufferedImage.TYPE_INT_RGB);
 
 		// ----------------------------------------------------------------------------------------
 		// Constructor
@@ -1628,28 +1628,33 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 			// 2. create color model for the palette
 			var cm = new IndexColorModel(8, 256, paletteRam[0], paletteRam[1], paletteRam[2], 0);
-			var fbImage = new BufferedImage(cm, fbLayer, false, null);
+			var spriteImage = new BufferedImage(cm, spriteLayer, false, null);
 
 			if(!tmEnabled) {
 				// only the framebuffer must be enabled.
+				var fbImage = new BufferedImage(cm, fbLayer, false, null);
 				g.drawImage(fbImage,     0, 0, N_COLUMNS, N_ROWS, null);
-				g.drawImage(spriteLayer, 0, 0, N_COLUMNS, N_ROWS, null);
+				g.drawImage(spriteImage, 0, 0, N_COLUMNS, N_ROWS, null);
 			} else {
+				var tmImageLo = new BufferedImage(cm, tmLayerLo, false, null);
+				var tmImageHi = new BufferedImage(cm, tmLayerHi, false, null);
+
 				if(!fbEnabled) {
-					g.drawImage(tmLayerLo,   0, 0, N_COLUMNS, N_ROWS, null);
-					g.drawImage(spriteLayer, 0, 0, N_COLUMNS, N_ROWS, null);
-					g.drawImage(tmLayerHi,   0, 0, N_COLUMNS, N_ROWS, null);
+					g.drawImage(tmImageLo,   0, 0, N_COLUMNS, N_ROWS, null);
+					g.drawImage(spriteImage, 0, 0, N_COLUMNS, N_ROWS, null);
+					g.drawImage(tmImageHi,   0, 0, N_COLUMNS, N_ROWS, null);
 				} else if(fbInFront) {
-					g.drawImage(tmLayerLo,   0, 0, N_COLUMNS, N_ROWS, null);
-					g.drawImage(spriteLayer, 0, 0, N_COLUMNS, N_ROWS, null);
-					g.drawImage(tmLayerHi,   0, 0, N_COLUMNS, N_ROWS, null);
+					var fbImage = new BufferedImage(cm, fbLayer, false, null);
+					g.drawImage(tmImageLo,   0, 0, N_COLUMNS, N_ROWS, null);
+					g.drawImage(spriteImage, 0, 0, N_COLUMNS, N_ROWS, null);
+					g.drawImage(tmImageHi,   0, 0, N_COLUMNS, N_ROWS, null);
 					g.drawImage(fbImage,     0, 0, N_COLUMNS, N_ROWS, null);
 				} else {
+					var fbImage = new BufferedImage(cm, fbLayer, false, null);
 					g.drawImage(fbImage,     0, 0, N_COLUMNS, N_ROWS, null);
-
-					g.drawImage(tmLayerLo,   0, 0, N_COLUMNS, N_ROWS, null);
-					g.drawImage(spriteLayer, 0, 0, N_COLUMNS, N_ROWS, null);
-					g.drawImage(tmLayerHi,   0, 0, N_COLUMNS, N_ROWS, null);
+					g.drawImage(tmImageLo,   0, 0, N_COLUMNS, N_ROWS, null);
+					g.drawImage(spriteImage, 0, 0, N_COLUMNS, N_ROWS, null);
+					g.drawImage(tmImageHi,   0, 0, N_COLUMNS, N_ROWS, null);
 				}
 			}
 
