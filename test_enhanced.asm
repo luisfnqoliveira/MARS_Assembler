@@ -33,13 +33,77 @@ main:
 	# reset everything
 	sw zero, DISPLAY_RESET
 
-	#j test_mouse_follower
+	j test_default_palette
+	j test_mouse_follower
 	j test_fb_palette_offset
 	j test_mouse
 	j test_kb
 
 	li v0, 10
 	syscall
+
+# -------------------------------------------------------------------------------------------------
+
+test_default_palette:
+
+	# draw an extremely lazy palette view
+	li s2, 0
+	li s1, 0
+	_yloop:
+		li s0, 0
+		_xloop:
+			mul a0, s0, 2
+			add a0, a0, 10
+			mul a1, s1, 2
+			add a1, a1, 10
+			move a2, s2
+			jal display_set_pixel
+			mul a0, s0, 2
+			add a0, a0, 11
+			mul a1, s1, 2
+			add a1, a1, 10
+			move a2, s2
+			jal display_set_pixel
+			mul a0, s0, 2
+			add a0, a0, 10
+			mul a1, s1, 2
+			add a1, a1, 11
+			move a2, s2
+			jal display_set_pixel
+			mul a0, s0, 2
+			add a0, a0, 11
+			mul a1, s1, 2
+			add a1, a1, 11
+			move a2, s2
+			jal display_set_pixel
+			add s2, s2, 1
+		add s0, s0, 1
+		blt s0, 16, _xloop
+	add s1, s1, 1
+	blt s1, 16, _yloop
+
+	# set bg color to non-black so we can see if the transparency is doing the Thing
+	li t0, 0x332211
+	sw t0, DISPLAY_PALETTE_RAM
+
+	# s0 = fb palette offset
+	li s0, 0
+
+	_loop:
+		lw t1, DISPLAY_MOUSE_WHEEL
+		beq t1, 0, _endif
+			add s0, s0, t1
+			and s0, s0, 0xFF
+			sw  s0, DISPLAY_FB_PAL_OFFS
+			move a0, s0
+			li v0, 1
+			syscall
+			print_str "\n"
+		_endif:
+
+		sw zero, DISPLAY_SYNC
+		lw zero, DISPLAY_SYNC
+	j _loop
 
 # -------------------------------------------------------------------------------------------------
 

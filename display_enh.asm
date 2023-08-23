@@ -45,3 +45,24 @@ display_load_palette:
 	sub a2, a2, 1
 	bgt a2, 0, _loop
 jr ra
+
+# -------------------------------------------------------------------------------------------------
+
+# sets 1 pixel to a given color.
+# (0, 0) is in the top LEFT, and Y increases DOWNWARDS!
+# arguments:
+#	a0 = x
+#	a1 = y
+#	a2 = color
+display_set_pixel:
+	blt a0, 0, _return
+	bge a0, DISPLAY_W, _return
+	blt a1, 0, _return
+	bge a1, DISPLAY_H, _return
+
+	sll t0, a1, DISPLAY_W_SHIFT
+	add t0, t0, a0
+	add t0, t0, DISPLAY_FB_RAM
+	sb  a2, (t0)
+_return:
+	jr  ra
