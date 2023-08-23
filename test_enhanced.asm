@@ -501,6 +501,41 @@ test_tilemap:
 		lw zero, DISPLAY_SYNC
 	j _loop
 
+test_tilemap_mouse_to_tile_addr:
+	lw  t1, DISPLAY_MOUSE_X
+	lw  t0, DISPLAY_TM_SCX
+	add t1, t1, t0
+	and t1, t1, 0xFF
+
+	lw  t2, DISPLAY_MOUSE_Y
+	lw  t0, DISPLAY_TM_SCY
+	add t2, t2, t0
+	and t2, t2, 0xFF
+
+	div t1, t1, TILE_W
+	div t2, t2, TILE_H
+
+	mul t2, t2, TM_ROW_BYTE_SIZE
+	mul t1, t1, 2
+	add t2, t2, t1
+	add v0, t2, DISPLAY_TM_TABLE
+jr ra
+
+test_tilemap_mouse_to_tile_coords:
+	lw  v0, DISPLAY_MOUSE_X
+	lw  t0, DISPLAY_TM_SCX
+	add v0, v0, t0
+	and v0, v0, 0xFF
+
+	lw  v1, DISPLAY_MOUSE_Y
+	lw  t0, DISPLAY_TM_SCY
+	add v1, v1, t0
+	and v1, v1, 0xFF
+
+	div v0, v0, TILE_W
+	div v1, v1, TILE_H
+jr ra
+
 test_tilemap_mouse_input:
 push ra
 	# if holding shift...
@@ -509,56 +544,29 @@ push ra
 	beq v0, 0, _no_shift
 		# then clicking will flip tiles.
 		lw  t0, DISPLAY_MOUSE_RELEASED
-		and t1, t0, MOUSE_LBUTTON
-		beq t1, 0, _endif_shift_l
-			lw t1, DISPLAY_MOUSE_X
-			blt t1, 0, _endif_shift_l
-			lw t2, DISPLAY_MOUSE_Y
+		and t0, t0, MOUSE_LBUTTON
+		beq t0, 0, _endif_shift_l
+			lw  t0, DISPLAY_MOUSE_X
+			blt t0, 0, _endif_shift_l
 
-			lw  t0, DISPLAY_TM_SCX
-			add t1, t1, t0
-			and t1, t1, 0xFF
-			lw  t0, DISPLAY_TM_SCY
-			add t2, t2, t0
-			and t2, t2, 0xFF
+			jal test_tilemap_mouse_to_tile_addr
 
-			div t1, t1, TILE_W
-			div t2, t2, TILE_H
-
-			mul t2, t2, TM_ROW_BYTE_SIZE
-			mul t1, t1, 2
-			add t2, t2, t1
-			add t2, t2, DISPLAY_TM_TABLE
-
-			lb t1, 1(t2)
-			xor t1, t1, BIT_HFLIP
-			sb t1, 1(t2)
+			lb  t0, 1(v0)
+			xor t0, t0, BIT_HFLIP
+			sb  t0, 1(v0)
 		_endif_shift_l:
 
-		and t1, t0, MOUSE_RBUTTON
-		beq t1, 0, _endif_shift_r
-			lw t1, DISPLAY_MOUSE_X
-			blt t1, 0, _endif_shift_r
-			lw t2, DISPLAY_MOUSE_Y
+		lw  t0, DISPLAY_MOUSE_RELEASED
+		and t0, t0, MOUSE_RBUTTON
+		beq t0, 0, _endif_shift_r
+			lw  t0, DISPLAY_MOUSE_X
+			blt t0, 0, _endif_shift_r
 
-			lw  t0, DISPLAY_TM_SCX
-			add t1, t1, t0
-			and t1, t1, 0xFF
-			lw  t0, DISPLAY_TM_SCY
-			add t2, t2, t0
-			and t2, t2, 0xFF
+			jal test_tilemap_mouse_to_tile_addr
 
-			div t1, t1, TILE_W
-			div t2, t2, TILE_H
-
-			mul t2, t2, TM_ROW_BYTE_SIZE
-			mul t1, t1, 2
-			add t2, t2, t1
-			add t2, t2, DISPLAY_TM_TABLE
-
-			lb t1, 1(t2)
-			xor t1, t1, BIT_VFLIP
-			sb t1, 1(t2)
+			lb  t0, 1(v0)
+			xor t0, t0, BIT_VFLIP
+			sb  t0, 1(v0)
 		_endif_shift_r:
 
 	j _endif_outer
@@ -566,19 +574,13 @@ push ra
 		lw  t0, DISPLAY_MOUSE_HELD
 		and t0, t0, MOUSE_LBUTTON
 		beq t0, 0, _endif_l
-			lw a0, DISPLAY_MOUSE_X
-			blt a0, 0, _endif_l
-			lw a1, DISPLAY_MOUSE_Y
+			lw  t0, DISPLAY_MOUSE_X
+			blt t0, 0, _endif_l
 
-			lw  t0, DISPLAY_TM_SCX
-			add a0, a0, t0
-			and a0, a0, 0xFF
-			lw  t0, DISPLAY_TM_SCY
-			add a1, a1, t0
-			and a1, a1, 0xFF
+			jal test_tilemap_mouse_to_tile_coords
 
-			div a0, a0, TILE_W
-			div a1, a1, TILE_H
+			move a0, v0
+			move a1, v1
 			li a2, 1
 			li a3, 0
 			jal display_set_tile
@@ -587,19 +589,13 @@ push ra
 		lw  t0, DISPLAY_MOUSE_HELD
 		and t0, t0, MOUSE_MBUTTON
 		beq t0, 0, _endif_m
-			lw a0, DISPLAY_MOUSE_X
-			blt a0, 0, _endif_m
-			lw a1, DISPLAY_MOUSE_Y
+			lw  t0, DISPLAY_MOUSE_X
+			blt t0, 0, _endif_m
 
-			lw  t0, DISPLAY_TM_SCX
-			add a0, a0, t0
-			and a0, a0, 0xFF
-			lw  t0, DISPLAY_TM_SCY
-			add a1, a1, t0
-			and a1, a1, 0xFF
+			jal test_tilemap_mouse_to_tile_coords
 
-			div a0, a0, TILE_W
-			div a1, a1, TILE_H
+			move a0, v0
+			move a1, v1
 			li a2, 2
 			li a3, 0
 			jal display_set_tile
@@ -608,19 +604,13 @@ push ra
 		lw  t0, DISPLAY_MOUSE_HELD
 		and t0, t0, MOUSE_RBUTTON
 		beq t0, 0, _endif_r
-			lw a0, DISPLAY_MOUSE_X
-			blt a0, 0, _endif_r
-			lw a1, DISPLAY_MOUSE_Y
+			lw  t0, DISPLAY_MOUSE_X
+			blt t0, 0, _endif_r
 
-			lw  t0, DISPLAY_TM_SCX
-			add a0, a0, t0
-			and a0, a0, 0xFF
-			lw  t0, DISPLAY_TM_SCY
-			add a1, a1, t0
-			and a1, a1, 0xFF
+			jal test_tilemap_mouse_to_tile_coords
 
-			div a0, a0, TILE_W
-			div a1, a1, TILE_H
+			move a0, v0
+			move a1, v1
 			li a2, 0
 			li a3, 0
 			jal display_set_tile
