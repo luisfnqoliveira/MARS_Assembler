@@ -1014,9 +1014,6 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private static final int MOUSE_RBUTTON = 2;
 		private static final int MOUSE_MBUTTON = 4;
 
-		// Color!!!
-		private static final Color TRANSPARENT_COLOR = new Color(0, 0, 0, 0);
-
 		// ----------------------------------------------------------------------------------------
 		// Instance variables
 
@@ -1085,6 +1082,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private WritableRaster tmLayerHi =
 			Raster.createBandedRaster(DataBuffer.TYPE_BYTE, N_COLUMNS, N_ROWS, 1, null);
 		private WritableRaster spriteLayer =
+			Raster.createBandedRaster(DataBuffer.TYPE_BYTE, N_COLUMNS, N_ROWS, 1, null);
+		private WritableRaster finalRaster =
 			Raster.createBandedRaster(DataBuffer.TYPE_BYTE, N_COLUMNS, N_ROWS, 1, null);
 		private BufferedImage finalImage =
 			new BufferedImage(N_COLUMNS, N_ROWS, BufferedImage.TYPE_INT_RGB);
@@ -1228,10 +1227,10 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 							case DISPLAY_RESET:         this.resetEverything();        break;
 							case DISPLAY_FB_CLEAR:      this.clearFb();                break;
 							case DISPLAY_FB_IN_FRONT:   this.fbInFront = value != 0;   break;
-							case DISPLAY_FB_PAL_OFFS:   this.fbPalOffs = value & 0xFF; break;
-							case DISPLAY_TM_SCX:        this.tmScx = value & 0x7F;     break;
-							case DISPLAY_TM_SCY:        this.tmScy = value & 0x7F;     break;
-							case DISPLAY_TM_PAL_OFFS:   this.tmPalOffs = value & 0xFF; break;
+							case DISPLAY_FB_PAL_OFFS:   this.setFbPalOffs(value);      break;
+							case DISPLAY_TM_SCX:        this.setTmScx(value);          break;
+							case DISPLAY_TM_SCY:        this.setTmScy(value);          break;
+							case DISPLAY_TM_PAL_OFFS:   this.setTmPalOffs(value);      break;
 							case DISPLAY_KEY_HELD:      this.updateKeyHeld(value);     break;
 							case DISPLAY_KEY_PRESSED:   this.updateKeyPressed(value);  break;
 							case DISPLAY_KEY_RELEASED:  this.updateKeyReleased(value); break;
@@ -1473,6 +1472,18 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			}
 		}
 
+		private void buildPalette() {
+			// if the palette changed, everything has to change.
+			if(fbEnabled)
+				isFbDirty = true;
+			if(tmEnabled)
+				isTmDirty = true;
+
+			isSprDirty = true;
+
+			isPalDirty = false;
+		}
+
 		// ----------------------------------------------------------------------------------------
 		// Framebuffer
 
@@ -1483,6 +1494,11 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 		private void writeFb(int offs, int length, int value) {
 			this.writeIntoByteArray(fbRam, offs, length, value);
+			isFbDirty = true;
+		}
+
+		private void setFbPalOffs(int value) {
+			this.fbPalOffs = value & 0xFF;
 			isFbDirty = true;
 		}
 
@@ -1523,6 +1539,21 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 		private void writeTmGfx(int offs, int length, int value) {
 			this.writeIntoByteArray(tmGraphics, offs, length, value);
+			isTmDirty = true;
+		}
+
+		private void setTmPalOffs(int value) {
+			this.tmPalOffs = value & 0xFF;
+			isTmDirty = true;
+		}
+
+		private void setTmScx(int value) {
+			this.tmScx = value & 0x7F;
+			isTmDirty = true;
+		}
+
+		private void setTmScy(int value) {
+			this.tmScy = value & 0x7F;
 			isTmDirty = true;
 		}
 
@@ -1597,68 +1628,49 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		// Compositing
 
 		private void compositeFrame() {
-			// if the palette changed, everything has to change.
-			if(isPalDirty) {
-				if(fbEnabled)
-					isFbDirty = true;
-				if(tmEnabled)
-					isTmDirty = true;
+			// Update anything that is dirty
+			if(isPalDirty)             { this.buildPalette(); }
+			if(fbEnabled && isFbDirty) { this.buildFbLayer(); }
+			if(tmEnabled && isTmDirty) { this.buildTmLayers(); }
+			if(isSprDirty)             { this.buildSpriteLayer(); }
 
-				isSprDirty = true;
-			}
+			// Build the final image in indexed color.
+			// 1. Fill with background color
+			this.fillRaster(finalRaster, 0);
 
-			if(fbEnabled && isFbDirty) {
-				this.buildFbLayer();
-			}
-
-			if(tmEnabled && isTmDirty) {
-				this.buildTmLayers();
-			}
-
-			if(isSprDirty) {
-				this.buildSpriteLayer();
-			}
-
-			// composite all layers into the final image
-			var g = finalImage.createGraphics();
-
-			// 1. draw background color
-			g.setColor(new Color(paletteRam[0][0], paletteRam[1][0], paletteRam[2][0]));
-			g.fillRect(0, 0, N_COLUMNS, N_ROWS);
-
-			// 2. create color model for the palette
-			var cm = new IndexColorModel(8, 256, paletteRam[0], paletteRam[1], paletteRam[2], 0);
-			var spriteImage = new BufferedImage(cm, spriteLayer, false, null);
-
+			// 2. Draw layers on it
 			if(!tmEnabled) {
 				// only the framebuffer must be enabled.
-				var fbImage = new BufferedImage(cm, fbLayer, false, null);
-				g.drawImage(fbImage,     0, 0, N_COLUMNS, N_ROWS, null);
-				g.drawImage(spriteImage, 0, 0, N_COLUMNS, N_ROWS, null);
+				this.compositeOnto(finalRaster, fbLayer);
+				this.compositeOnto(finalRaster, spriteLayer);
 			} else {
-				var tmImageLo = new BufferedImage(cm, tmLayerLo, false, null);
-				var tmImageHi = new BufferedImage(cm, tmLayerHi, false, null);
 
 				if(!fbEnabled) {
-					g.drawImage(tmImageLo,   0, 0, N_COLUMNS, N_ROWS, null);
-					g.drawImage(spriteImage, 0, 0, N_COLUMNS, N_ROWS, null);
-					g.drawImage(tmImageHi,   0, 0, N_COLUMNS, N_ROWS, null);
+					this.compositeOnto(finalRaster, tmLayerLo);
+					this.compositeOnto(finalRaster, spriteLayer);
+					this.compositeOnto(finalRaster, tmLayerHi);
 				} else if(fbInFront) {
-					var fbImage = new BufferedImage(cm, fbLayer, false, null);
-					g.drawImage(tmImageLo,   0, 0, N_COLUMNS, N_ROWS, null);
-					g.drawImage(spriteImage, 0, 0, N_COLUMNS, N_ROWS, null);
-					g.drawImage(tmImageHi,   0, 0, N_COLUMNS, N_ROWS, null);
-					g.drawImage(fbImage,     0, 0, N_COLUMNS, N_ROWS, null);
+					this.compositeOnto(finalRaster, tmLayerLo);
+					this.compositeOnto(finalRaster, spriteLayer);
+					this.compositeOnto(finalRaster, tmLayerHi);
+					this.compositeOnto(finalRaster, fbLayer);
 				} else {
-					var fbImage = new BufferedImage(cm, fbLayer, false, null);
-					g.drawImage(fbImage,     0, 0, N_COLUMNS, N_ROWS, null);
-					g.drawImage(tmImageLo,   0, 0, N_COLUMNS, N_ROWS, null);
-					g.drawImage(spriteImage, 0, 0, N_COLUMNS, N_ROWS, null);
-					g.drawImage(tmImageHi,   0, 0, N_COLUMNS, N_ROWS, null);
+					this.compositeOnto(finalRaster, fbLayer);
+					this.compositeOnto(finalRaster, tmLayerLo);
+					this.compositeOnto(finalRaster, spriteLayer);
+					this.compositeOnto(finalRaster, tmLayerHi);
 				}
 			}
 
-			g.dispose();
+			// 3. Create the final image from the palette and composited raster
+			// Frustratingly, there seems to be no way to reuse one BufferedImage/ColorModel
+			// repeatedly. ColorModel is read-only, and must be recreated every time the
+			// palette changes. BufferedImage's Raster can be changed, but not its ColorModel.
+			// I guess it would be possible to cache the ColorModel and only update it when
+			// the palette is dirty, but you still have to create the new BufferedImage every
+			// frame. That seems okay, though, because BufferedImage doesn't copy the data.
+			var pal = new IndexColorModel(8, 256, paletteRam[0], paletteRam[1], paletteRam[2]);
+			this.finalImage = new BufferedImage(pal, finalRaster, false, null);
 			this.repaint();
 		}
 
@@ -1683,6 +1695,27 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			g.setColor(c);
 			g.fillRect(0, 0, img.getWidth(), img.getHeight());
 			g.dispose();
+		}
+
+		private void fillRaster(WritableRaster r, int index) {
+			// I guess this is the only way to do this??? seems weird
+			for(int y = 0; y < r.getHeight(); y++) {
+				for(int x = 0; x < r.getWidth(); x++) {
+					r.setSample(x, y, 0, index);
+				}
+			}
+		}
+
+		private void compositeOnto(WritableRaster dest, Raster src) {
+			for(int y = 0; y < dest.getHeight(); y++) {
+				for(int x = 0; x < dest.getWidth(); x++) {
+					int index = src.getSample(x, y, 0);
+
+					if(index != 0) {
+						dest.setSample(x, y, 0, index);
+					}
+				}
+			}
 		}
 	}
 }
