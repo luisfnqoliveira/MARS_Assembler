@@ -193,55 +193,158 @@ test_kb:
 # -------------------------------------------------------------------------------------------------
 
 .data
-	follower_x: 0x3F00
-	follower_y: 0x3F00
+	last_mouse_x: .word 0x3F00
+	last_mouse_y: .word 0x3F00
+	follower_x:   .word 0x3F00
+	follower_y:   .word 0x3F00
+	follower_vx:  .word 0
+	follower_vy:  .word 0
 .text
+
+.eqv VELOCITY_DECAY 0x00F0 # 0.93
 
 test_mouse_follower:
 
 	_loop:
+		# update last mouse position
 		lw t0, DISPLAY_MOUSE_X
 		beq t0, -1, _mouse_offscreen
 			lw t1, DISPLAY_MOUSE_Y
 			sll t0, t0, 8
 			sll t1, t1, 8
-
-			# (t0, t1) is mouse position in 24.8
-			# calculate vector to mouse position in (t2, t3)
-			lw  t2, follower_x
-			sub t2, t0, t2
-
-			lw  t3, follower_y
-			sub t3, t1, t3
-
-			# scale vector by 1/4
-			sra t2, t2, 4
-			sra t3, t3, 4
-
-			# add to follower position
-			lw  t0, follower_x
-			add t0, t0, t2
-			sw  t0, follower_x
-
-			lw  t0, follower_y
-			add t0, t0, t3
-			sw  t0, follower_y
+			sw  t0, last_mouse_x
+			sw  t1, last_mouse_y
 		_mouse_offscreen:
+
+		# (t0, t1) is mouse position in 24.8
+		lw t0, last_mouse_x
+		lw t1, last_mouse_y
+
+		# calculate vector to mouse position in (t2, t3)
+		lw  a0, follower_x
+		sub a0, t0, a0
+
+		lw  a1, follower_y
+		sub a1, t1, a1
+
+		# normalize vector
+		jal normalize_24_8
+
+		# scale it down
+		sra v0, v0, 1
+		sra v1, v1, 1
+
+		# add to follower velocity (and decay velocity)
+		lw  t0, follower_vx
+		add t0, t0, v0
+		mul t0, t0, VELOCITY_DECAY
+		sra t0, t0, 8
+		sw  t0, follower_vx
+		lw  t1, follower_vy
+		mul t1, t1, VELOCITY_DECAY
+		sra t1, t1, 8
+		add t1, t1, v1
+		sw  t1, follower_vy
+
+		# add velocity to position
+		lw  t2, follower_x
+		add t2, t2, t0
+		sw  t2, follower_x
+
+		lw  t3, follower_y
+		add t3, t3, t1
+		sw  t3, follower_y
 
 		# clear display
 		sw zero, DISPLAY_FB_CLEAR
 
-		# draw dot at follower position
+		# draw dot at follower position (if it's onscreen)
 		lw  t0, follower_y
 		srl t0, t0, 8
-		mul t0, t0, DISPLAY_W
 		lw  t1, follower_x
 		srl t1, t1, 8
-		add t0, t0, t1
-		add t0, t0, DISPLAY_FB_RAM
-		li  t1, COLOR_WHITE
-		sb  t1, (t0)
+
+		blt t0, 0, _nodraw
+		bge t0, DISPLAY_W, _nodraw
+		blt t1, 0, _nodraw
+		bge t1, DISPLAY_H, _nodraw
+			mul t0, t0, DISPLAY_W
+			add t0, t0, t1
+			add t0, t0, DISPLAY_FB_RAM
+			li  t1, COLOR_WHITE
+			sb  t1, (t0)
+		_nodraw:
 
 		sw zero, DISPLAY_SYNC
 		lw zero, DISPLAY_SYNC
 	j _loop
+
+# ------------------------
+normalize_24_8:
+push ra
+push s0
+push s1
+move s0, a0
+move s1, a1
+	jal hypot_24_8
+	beq v0, 0, _endif
+		sll s1, s1, 8
+		div v1, s1, v0
+		sll s0, s0, 8
+		div v0, s0, v0
+	_endif:
+pop s1
+pop s0
+pop ra
+jr ra
+
+# ------------------------
+
+hypot_24_8:
+push ra
+	# square dx and dy; leave in 16.16
+	mul a0, a0, a0
+	mul a1, a1, a1
+
+	# sqrt(dx^2 + dy^2)
+	add a0, a0, a1
+	jal sqrt_16_16
+
+	# 16.16 -> 24.8
+	sra v0, v0, 8
+pop ra
+jr ra
+
+# ------------------------
+
+sqrt_16_16:
+	# t0 = 0x40000000
+	li t0, 0x40000000
+
+	# v0 = 0
+	li v0, 0
+
+	# while( t0 > 0x40 )
+	_sqrt_16_16_loop:
+	ble t0, 0x40, _sqrt_16_16_break
+		# t1 = v0 + t0
+		add t1, v0, t0
+
+		# if( a0 >= t1 )
+		blt a0, t1, _sqrt_16_16_less
+			# a0 -= t1
+			sub a0, a0, t1
+			# v0 = t1 + t0 // equivalent to v0 += 2*t0
+			add v0, t1, t0
+		_sqrt_16_16_less:
+
+		# a0 <<= 1
+		sll a0, a0, 1
+		# t0 >>= 1
+		srl t0, t0, 1
+	j _sqrt_16_16_loop
+
+_sqrt_16_16_break:
+	# v0 >>= 8
+	srl v0, v0, 8
+	jr ra
