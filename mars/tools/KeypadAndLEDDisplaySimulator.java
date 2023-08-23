@@ -75,27 +75,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 	GLOBAL REGISTERS:
 
-		0xFFFF0000: DISPLAY_CTRL.w           (WO)
-			low 2 bits are mode:
-				00: undefined
-				01: framebuffer on
-				10: tilemap on
-				11: framebuffer and tilemap on
-
-			bit 8 has no specific meaning but setting it along with mode switches to enhanced mode
-
-			bits 16-23 are the milliseconds per frame used by DISPLAY_SYNC, but limited to
-			the range [10, 100].
-
-			bits 9-15 and 24-31 are undefined atm
-
-			so set DISPLAY_CTRL to:
-				(ms_per_frame << 16) | 0x100 | mode
-
-		0xFFFF0004: DISPLAY_SYNC.w           (RW)
-			write to indicate frame is over and ready for display (value is ignored)
-			read to wait for next frame (always reads 0)
-
+		0xFFFF0000: DISPLAY_CTRL.w           (WO, sets ms/frame and FB/TM enable)
+		0xFFFF0004: DISPLAY_SYNC.w           (RW, write to finish frame, read to sleep until next)
 		0xFFFF0008: DISPLAY_RESET.w          (WO, clears/resets all graphics RAM to defaults)
 
 	FRAMEBUFFER REGISTERS:
@@ -127,8 +108,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 	PALETTE RAM:
 
-		0xFFFF0C00-0xFFFF0FFF: 256 4B palette entries, byte order [BB, GG, RR, 00]
-			(0x00RRGGBB in register becomes that in memory)
+		0xFFFF0C00-0xFFFF0FFF: 256 4B palette entries
 
 	FRAMEBUFFER DATA:
 
@@ -137,27 +117,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	TILEMAP AND SPRITE TABLES:
 
 		0xFFFF5000-0xFFFF57FF: 32x32 2B tilemap entries consisting of (tile, flags)
-			tile graphics are fetched from (0xFFFF6000 + tile * 64)
-			flags is xxxxHVP
-				H = horizontal flip
-				V = vertical flip
-				P = priority (appears over sprites)
-
 		0xFFFF5800-0xFFFF5FFF: 256 4B sprite entries consisting of (X, Y, tile, flags)
-			X and Y are signed
-			tile graphics are fetched from (0xFFFFA000 + tile * 64)
-			flags is PPPPSHVE
-				E = enable (1 for visible)
-				V = vertical flip
-				H = horizontal flip
-				S = size (0 = 8x8 (1 tile), 1 = 16x16 (4 tiles))
-					for 16x16 sprites, tiles are put in order left-to-right, top-to-bottom, like:
-						1 2
-						3 4
-				PPPP = palette row index
-					this * 16 is added to all color indexes in sprite graphics when drawn, so that
-					you can reuse the same sprite graphics with multiple palettes without having
-					to update the palette RAM
 
 	GRAPHICS DATA:
 		0xFFFF6000-0xFFFF9FFF: 256 8x8 1Bpp indexed color tilemap tiles
@@ -168,15 +128,16 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	Modes and how to switch
 	=======================
 
-		MODE 0: Classic mode
+		Classic mode
 
-			It starts in mode 0, classic mode. This mode provides a 64x64-pixel linear
-			framebuffer, 1 byte per pixel, with a fixed 16-color palette.
+			It starts in classic mode. This mode provides a 64x64-pixel linear framebuffer,
+			1 byte per pixel, with a fixed 16-color palette.
 
 			A simple kind of double buffering is used to reduce the likelihood of tearing.
 			The back buffer is readable and writable by the user and exists in memory
-			in the address range [DISPLAY_BASE .. DISPLAY_END). The front buffer is
-			*technically* writable by the user but well-behaved users would never do this.
+			in the address range [DISPLAY_BASE .. DISPLAY_END). (In the old implementation,
+			the front buffer was *technically* writable by MIPS but well-behaved programs
+			would never do this, and the display driver never exposed it.)
 
 			Writing 0 to DISPLAY_CTRL copies the back buffer into the front buffer.
 
@@ -188,114 +149,223 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			each key as bitflags.
 
 			As long as only the values 0 and 1 are written to DISPLAY_CTRL, it will stay
-			in mode 0.
+			in classic mode.
 
-		MODE 1: Enhanced framebuffer
+		Switching modes
 
-			Writing a value > 256 (0x100) to DISPLAY_CTRL will switch into enhanced mode.
-			The mode number is the value written to (DISPLAY_CTRL & 3). If DISPLAY_CTRL & 3
-			is 0 and the value is > 256, the results are undefined. Don't do that.
+			Enhanced mode uses a 128x128 display.
 
-			All enhanced modes use a 128x128 display.
+			Writing a value >= 257 (0x101) to DISPLAY_CTRL will switch into enhanced mode.
 
-			Mode 1 is similar to mode 0, but with higher capabilities. This mode provides
-			a linear framebuffer, 1 byte per pixel, with a user-definable 256-entry palette.
+			The value written to DISPLAY_CTRL is a bitfield:
+				low 2 bits are enables:
+					00: undefined
+					01: framebuffer on
+					10: tilemap on
+					11: framebuffer and tilemap on
 
-			Palette entries are RGB888, padded to 4 bytes. The palette is initialized in
-			some way so that the palette index can be interpreted as RGB222 or RGB232 or
-			something so that you can get to drawing stuff to the screen right away.
+				bit 8 has no specific meaning but setting it along with the enables switches
+				to enhanced mode.
 
-			The framebuffer is 128x128 pixels, the same size as the display. This already
-			takes up 16KB of the tight 64KB of MMIO space, so that's all you get.
+				bits 16-23 are the milliseconds per frame used by DISPLAY_SYNC, but limited to
+				the range [10, 100]. (I guess technically it only needs bits 16-22 but oh well)
 
-		MODE 2: Tilemap
+				bits 9-15 and 24-31 are undefined atm
 
-			Mode 2 is totally different. In this mode, the tilemap is used instead.
-			The tilemap is a 32x32-tile grid, where each tile is 8x8 pixels, for a total
-			of 256x256 pixels (4 full screens).
+				long story short, set DISPLAY_CTRL to:
+					(ms_per_frame << 16) | 0x100 | mode
 
-			Each tile in the tilemap can be one of 256 tile graphics. There is enough
-			space for all 256 tile indexes to have their own 8x8 1Bpp images.
+			There is no way to switch back to classic mode, short of closing the display window
+			and reopening it. (Why would you ever need to? That mode exists for backwards
+			compatibility only.)
 
-			Each tile in the tilemap can also be flipped horizontally and/or vertically,
-			or set to "priority" so that it appears in front of sprites. (Sprites are
-			explained later.)
+	Resetting
+	=========
 
-			The tilemap can be scrolled freely at pixel resolution on both axes. The scroll
-			amount can be written as a signed integer but will be ANDed with 255. The tilemap
-			wraps around at the edges.
+		Because MARS doesn't actually notify tools that a program was assembled/started running,
+		there is a DISPLAY_RESET register. Writing any value to this register clears out all
+		state associated with the display - all graphics RAM, display options, etc. - except
+		for the current graphics mode and milliseconds per frame.
 
-		MODE 3: Both
+		Typically you'd do this immediately after switching into enhanced mode with DISPLAY_CTRL.
 
-			Mode 3 displays the framebuffer and the tilemap, with the tilemap in front of
-			the framebuffer.
-
-	Palette and Transparency
-	========================
+	Palette
+	=======
 
 		There is a single global 256-entry palette. Each palette entry is 4 bytes, and is an
-		RGB888 color with 1 byte unused. The tilemap and the sprites share the palette.
+		RGB888 color with 1 byte unused. In memory the byte order is [BB, GG, RR, 00], which,
+		because virtually every computer today is little-endian and therefore so is MARS, means
+		that a color is represented as a word in the format 0x00RRGGBB. (Let me know if you
+		ever run this plugin on a big-endian machine and run into problems.)
 
-		Palette entry 0 is special as it specifies the background color. In tilemap and sprite
-		graphics, a color index of 0 means "transparent," so this color will not appear in those
-		graphics.
+		The framebuffer, tilemap, and sprites all share the same palette, but they all have
+		"palette offset" features to allow you to split up the palette into different regions.
+
+		When DISPLAY_RESET is written to, the palette is initialized with some useful default
+		colors so that you can get to drawing stuff to the screen right away.
 
 	Background Color
 	================
 
-		Palette entry 0 is the global background color to which the display is cleared before
-		drawing anything else.
+		Palette entry 0 is special as it specifies the background color. This color will "show
+		through" pixels with a color index of 0 in the framebuffer, tilemap, and sprites (as long
+		as there is no opaque pixel behind them.)
 
-		If the framebuffer is visible, writing any value to DISPLAY_FB_CLEAR will fill the
-		entire framebuffer with color index 0.
+	Framebuffer
+	===========
 
-		If the framebuffer is not visible but the tilemap is, the background color will appear
-		behind transparent pixels in tiles.
+		The framebuffer is a 128x128 linear framebuffer, 1 byte per pixel, covering addresses
+		0xFFFF1000 to 0xFFFF4FFF inclusive.
+
+		Each pixel is a color index into the global palette. Any pixels with color index 0 will
+		show the background color through them. Writing any value to DISPLAY_FB_CLEAR will fill
+		the entire framebuffer with color index 0.
+
+		The DISPLAY_FB_PAL_OFFS register controls the framebuffer's palette offset. This is added
+		to every non-zero pixel's color index (mod 256) before fetching the colors from the
+		palette. E.g. if a pixel is color index 16, and the palette offset is 3, then the pixel
+		will be drawn with global palette entry 16 + 3 = 19.
+
+		This not only lets you set aside one part of the palette for use by the framebuffer, but
+		it lets you do Fun Palette Shifting Effects on the framebuffer as well.
+
+	Tilemap
+	=======
+
+		The tilemap is a 32x32-tile grid, where each tile is 8x8 pixels, for a total of 256x256
+		pixels (4 full screens). There are two parts of the tilemap: the table, which specifies
+		which tile is used for each of the 1024 locations; and the graphics, which is the actual
+		pixel data for the 8x8 tiles.
+
+		The tilemap table covers addresses 0xFFFF5000 to 0xFFFF57FF inclusive. Each of the 1024
+		tiles has a 2-byte entry consisting of [tile_index, flags] in that order.
+
+		For each tile, graphics are fetched from (0xFFFF6000 + tile_index * 64).
+
+		The tile flags are a bitfield: xxxxxHVP
+			H = horizontal flip
+			V = vertical flip
+			P = priority (appears over sprites)
+
+		Because of the priority flag on each tile, you can think of there being two "visual" layers
+		of the tilemap, one on either side of the sprites.
+
+		The tilemap graphics cover addresses 0xFFFF6000 to 0xFFFF9FFF inclusive. This is enough
+		space for 256 8x8-pixel tiles. Each tile is 8x8 = 64 pixels, stored top-to-bottom in row-
+		major order. Each pixel is 1 byte and is a color index into the global palette, just like
+		the framebuffer.
+
+		Also just like the framebuffer, the DISPLAY_TM_PAL_OFFS register offsets the tilemap's
+		palette indexes (except for color 0, which is always transparent). There is no per-tile
+		palette offset, but maybe there should be???
+
+		The tilemap can also be scrolled freely at pixel resolution on both axes. The scroll
+		amount can be written as a signed integer but will be interpreted modulo 256. The tilemap
+		wraps around at the edges, so if you see past the right side, you will see the tiles on
+		the left side, etc.
 
 	Sprites
 	=======
 
-		Sprites are available in any enhanced mode.
+		Sprites are independently movable images that can be placed at any pixel coordinate,
+		onscreen or partially offscreen. There can be up to 256 sprites.
 
-		There can be up to 256 sprites onscreen. Each sprite can be either 8x8 pixels (1 tile) or
-		16x16 pixels (4 tiles). Each sprite can be positioned anywhere onscreen including off all
-		four sides. Each sprite can also be flipped horizontally or vertically.
+		Like the tilemap, there are two parts to sprites: the table, which specifies per-sprite
+		attributes, and the graphics area.
+
+		The sprite table covers addresses 0xFFFF5800 to 0xFFFF5FFF inclusive. Each of the 256
+		sprites has a 4-byte entry consisting of [X, Y, tile_index, flags] in that order.
+
+		Each sprite is positioned from its top-left corner. So an 8x8 sprite at position 10, 10
+		will cover a rectangle of pixels from 10, 10 to 17, 17.
+
+		X and Y are signed. This allows you to place sprites "off the sides" of the screen, so
+		that they can enter and exit the screen smoothly.
+
+		For each sprite, graphics are fetched starting at (0xFFFFA000 + tile_index * 64).
+
+		The flags are a bitfield: PPPPSHVE
+			E = enable (1 for visible)
+			V = vertical flip
+			H = horizontal flip
+			S = size (0 = 8x8 (1 tile), 1 = 16x16 (4 tiles))
+				for 16x16 sprites, tiles are fetched sequentially from the graphics area,
+				and are put onscreen in this order:
+					1 2
+					3 4
+				horizontal and vertical flipping flags apply to the *entire* 16x16 sprite,
+				not the individual tiles that make it up.
+			PPPP = palette row index
+				this value is multiplied by 16 and added to every nonzero color index in this
+				sprite's graphics, similar to the framebuffer and tilemap palette offsets but
+				with less precision.
 
 		Sprite priority is by order in the list. Sprite 0 appears on top of sprite 1, which
-		appears on top of sprite 2, etc.
+		appears on top of sprite 2, etc. So you can think of the sprites being drawn from 255
+		down to 0.
 
 		There are no "per-scanline limits" on the number of visible sprites.
 
-		Sprite graphics are specified as 8x8 tiles just like the tilemap. For 16x16 pixel sprites,
-		the four tiles for the sprite are assumed to be contiguous in memory, and are drawn
-		in "reading order" (left-to-right, then top-to-bottom). If tiles 1, 2, 3, 4 are contiguous
-		in memory, then they are drawn in this arrangement:
-			1 2
-			3 4
+		Sprite graphics are stored exactly the same way as tilemap graphics.
 
-	Graphics Data
-	=============
+	Finishing a frame
+	=================
 
-		The tilemap and the sprites each have their own independent graphics data areas.
+		To actually display anything to the screen, you must store a value into DISPLAY_SYNC. The
+		value is ignored; the act of storing is what tells the display, "I'm finished with this
+		frame."
 
-		The graphics are 8x8-pixel tiles, where each pixel is 1 byte, for a total of 64 bytes
-		per tile. The pixels are stored in "reading order". Each pixel is an index into the
-		global palette.
+		Finishing the frame first composites all the graphical elements into the display.
 
-	Screen Compositing
-	==================
-
-		If DISPLAY_ORDER is 0 (the default), the display elements are drawn from back (first drawn)
-		to front (last drawn) like so:
+		If DISPLAY_FB_IN_FRONT is 0 (the default), the display elements are drawn from back
+		(first drawn) to front (last drawn) like so:
 
 			- Background color
-			- Framebuffer
-			- Tilemap tiles without priority
-			- Sprites, from sprite 255 down to sprite 0
-			- Tilemap tiles with priority
+			- Framebuffer (if enabled)
+			- Tilemap tiles without priority (if enabled)
+			- Any enabled sprites, from sprite 255 down to sprite 0
+			- Tilemap tiles with priority (if enabled)
 
-		If DISPLAY_ORDER is set to 1, the framebuffer is instead drawn last, on top of
+		If DISPLAY_FB_IN_FRONT is set to 1, the framebuffer is instead drawn last, on top of
 		everything else.
+
+		Finishing the frame also updates the input subsystem.
+
+	Framerate synchronization
+	=========================
+
+		After finishing a frame, the next thing you should do is to load from DISPLAY_SYNC. Again
+		the value that is loaded is meaningless; the act of loading is what triggers framerate
+		synchronization.
+
+		Loading from DISPLAY_SYNC will cause your program to sleep for a variable amount of time,
+		in an attempt to make every frame take the same amount of time (because the length of
+		processing between frames can vary). The length of a frame is set by bits 16-23 of
+		DISPLAY_CTRL (remember that?). E.g. if that value is 16, then each frame will be ~16
+		milliseconds long, and you will get ~60 frames per second.
+
+	Input
+	=====
+
+		There are many many keyboard keys. Instead of packing them all into a big unwieldy
+		bitmap array, you tell the plugin which key you want to test, and then you get a response.
+
+		DISPLAY_KEY_HELD is the register for asking if a key is held down. For example, if you want
+		to know if the A key is held down, store KEY_A into DISPLAY_KEY_HELD, then load from
+		DISPLAY_KEY_HELD; the loaded value will be 1 for "being held" and 0 for "not held."
+
+		DISPLAY_KEY_PRESSED works similarly, but returns a 1 only on the first frame that a key
+		was pressed; and DISPLAY_KEY_RELEASED returns a 1 only on the first frame that a key was
+		released.
+
+		The mouse can also be used. DISPLAY_MOUSE_X and DISPLAY_MOUSE_Y contain the mouse's
+		coordinates on the display in the range 0 to 127 each; or -1 if the mouse is not over
+		the display. It is sufficient to check if just one of them is -1; either they are both
+		-1 or neither is, because these are only updated when you write to DISPLAY_SYNC.
+
+		DISPLAY_MOUSE_HELD, DISPLAY_MOUSE_PRESSED, and DISPLAY_MOUSE_RELEASED are read-only
+		bitmap arrays. There are constants you can use to extract individual buttons from these
+		values.
 
 	*/
 
