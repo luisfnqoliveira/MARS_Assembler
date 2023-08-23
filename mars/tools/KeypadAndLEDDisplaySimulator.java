@@ -1051,11 +1051,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private int tmScy = 0;
 		private int tmPalOffs = 0;
 
-		// Palette RAM (ints, because setPixel expects ints)
-		private int[][] paletteRam = new int[256][4];
-
-		// Shadow for the background color entry - paletteRam[0] is set to transparent
-		private int[] bgColor = { 0, 0, 0, 255 };
+		// Palette RAM (0 is red, 1 is green, 2 is blue)
+		private byte[][] paletteRam = new byte[3][256];
 
 		// Framebuffer RAM
 		private byte[] fbRam = new byte[N_COLUMNS * N_ROWS];
@@ -1081,8 +1078,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			new BufferedImage(TM_PIXEL_W, TM_PIXEL_H, BufferedImage.TYPE_INT_ARGB);
 
 		// Compositing layers
-		private BufferedImage fbLayer =
-			new BufferedImage(N_COLUMNS, N_ROWS, BufferedImage.TYPE_INT_ARGB);
+		private WritableRaster fbLayer =
+			Raster.createBandedRaster(DataBuffer.TYPE_BYTE, N_COLUMNS, N_ROWS, 1, null);
 		private BufferedImage tmLayerLo =
 			new BufferedImage(N_COLUMNS, N_ROWS, BufferedImage.TYPE_INT_ARGB);
 		private BufferedImage tmLayerHi =
@@ -1410,38 +1407,40 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		// Initialize the palette RAM to a default palette, so you can start
 		// drawing stuff right away without needing to do so from software.
 		private void initializePaletteRam() {
-			// entry 0 of the *array* is transparent, so that the methods for
-			// drawing pixels don't have to special-case.
-			paletteRam[0] = new int[]{ 0, 0, 0, 0 };
-
-			// *this* is what the users actually write into when they write
-			// to palette entry 0 to set the background color.
-			bgColor = new int[]{ 0, 0, 0, 255 };
+			// default background color is black.
+			paletteRam[0][0] = 0;
+			paletteRam[1][0] = 0;
+			paletteRam[2][0] = 0;
 
 			// first 64 entries are the index, interpreted as RGB222.
 			for(int i = 1; i < 64; i++) {
-				int r = Rgb222Intensities[(i >> 4) & 3];
-				int g = Rgb222Intensities[(i >> 2) & 3];
-				int b = Rgb222Intensities[i & 3];
-				paletteRam[i] = new int[]{ r, g, b, 255 };
+				paletteRam[0][i] = (byte)Rgb222Intensities[(i >> 4) & 3];
+				paletteRam[1][i] = (byte)Rgb222Intensities[(i >> 2) & 3];
+				paletteRam[2][i] = (byte)Rgb222Intensities[i & 3];
 			}
 
 			// next 16 entries are the classic display panel colors; so
 			// you can convert classic colors to palette indexes by adding 64
 			for(int i = 64; i < 80; i++) {
 				var c = ClassicLEDDisplayPanel.PixelColors[i - 64];
-				paletteRam[i] = new int[] { c[0], c[1], c[2], 255 };
+				paletteRam[0][i] = (byte)c[0];
+				paletteRam[1][i] = (byte)c[1];
+				paletteRam[2][i] = (byte)c[2];
 			}
 
 			// rest of first half of palette is pure black
 			for(int i = 80; i < 128; i++) {
-				paletteRam[i] = new int[] { 0, 0, 0, 255 };
+				paletteRam[0][i] = 0;
+				paletteRam[1][i] = 0;
+				paletteRam[2][i] = 0;
 			}
 
 			// second half of palette is a smooth grayscale
 			for(int i = 128; i < 256; i++) {
 				int v = (i - 128) * 2;
-				paletteRam[i] = new int[] { v, v, v, 255 };
+				paletteRam[0][i] = (byte)v;
+				paletteRam[1][i] = (byte)v;
+				paletteRam[2][i] = (byte)v;
 			}
 
 			isPalDirty = true;
@@ -1450,33 +1449,27 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private void writePalette(int offs, int length, int value) {
 			int entry = offs / 4;
 
-			if(entry == 0) {
-				// SPECIAL CASE for the BG color
-				this.setColor(bgColor, offs, length, value);
-				// the BG color entry is not used for anything other than the BG
-				// color layer, so we don't have to mark the palette dirty.
-			} else {
-				this.setColor(paletteRam[entry], offs, length, value);
-				isPalDirty = true;
-			}
-		}
-
-		private void setColor(int[] color, int offs, int length, int value) {
 			if(length == 4) {
-				color[0] = (value >>> 16) & 0xFF;
-				color[1] = (value >>> 8) & 0xFF;
-				color[2] = value & 0xFF;
+				paletteRam[0][entry] = (byte)((value >>> 16) & 0xFF);
+				paletteRam[1][entry] = (byte)((value >>> 8) & 0xFF);
+				paletteRam[2][entry] = (byte)(value & 0xFF);
 			} else if(length == 1) {
 				// can't modify alpha
 				if(offs < 3) {
-					// 0 is blue, 1 is green, 2 is red
-					color[2 - offs] = value & 0xFF;
+					// offset 0 is blue, 1 is green, 2 is red
+					paletteRam[2 - offs][entry] = (byte)(value & 0xFF);
 				}
 			} else if(offs == 0) {
-				color[1] = (value >>> 8) & 0xFF;
-				color[2] = value & 0xFF;
+				paletteRam[1][entry] = (byte)((value >>> 8) & 0xFF);
+				paletteRam[2][entry] = (byte)(value & 0xFF);
 			} else {
-				color[0] = value & 0xFF;
+				paletteRam[0][entry] = (byte)(value & 0xFF);
+			}
+
+			// the BG color entry is not used for anything other than the BG
+			// color layer, so we don't have to mark the palette dirty for that.
+			if(entry != 0) {
+				isPalDirty = true;
 			}
 		}
 
@@ -1494,8 +1487,6 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		}
 
 		private void buildFbLayer() {
-			var r = fbLayer.getRaster();
-
 			for(int y = 0; y < N_ROWS; y++) {
 				for(int x = 0; x < N_COLUMNS; x++) {
 					// yes, use the transparent color 0 if the index is 0;
@@ -1504,11 +1495,11 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 					int colorIndex = ((int)fbRam[y*N_COLUMNS + x]) & 0xFF;
 
 					if(colorIndex == 0) {
-						r.setPixel(x, y, paletteRam[0]);
+						fbLayer.setSample(x, y, 0, 0);
 					} else {
 						// technically it'd be possible to have TWO transparent colors since
 						// the palette index wraps around to 0, but whatever.
-						r.setPixel(x, y, paletteRam[(colorIndex + fbPalOffs) & 0xFF]);
+						fbLayer.setSample(x, y, 0, (colorIndex + fbPalOffs) & 0xFF);
 					}
 				}
 			}
@@ -1630,24 +1621,32 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 			// composite all layers into the final image
 			var g = finalImage.createGraphics();
-			var bg = new Color(bgColor[0], bgColor[1], bgColor[2]);
+
+			// 1. draw background color
+			g.setColor(new Color(paletteRam[0][0], paletteRam[1][0], paletteRam[2][0]));
+			g.fillRect(0, 0, N_COLUMNS, N_ROWS);
+
+			// 2. create color model for the palette
+			var cm = new IndexColorModel(8, 256, paletteRam[0], paletteRam[1], paletteRam[2], 0);
+			var fbImage = new BufferedImage(cm, fbLayer, false, null);
 
 			if(!tmEnabled) {
 				// only the framebuffer must be enabled.
-				g.drawImage(fbLayer,     0, 0, N_COLUMNS, N_ROWS, bg, null);
+				g.drawImage(fbImage,     0, 0, N_COLUMNS, N_ROWS, null);
 				g.drawImage(spriteLayer, 0, 0, N_COLUMNS, N_ROWS, null);
 			} else {
 				if(!fbEnabled) {
-					g.drawImage(tmLayerLo,   0, 0, N_COLUMNS, N_ROWS, bg, null);
+					g.drawImage(tmLayerLo,   0, 0, N_COLUMNS, N_ROWS, null);
 					g.drawImage(spriteLayer, 0, 0, N_COLUMNS, N_ROWS, null);
 					g.drawImage(tmLayerHi,   0, 0, N_COLUMNS, N_ROWS, null);
 				} else if(fbInFront) {
-					g.drawImage(tmLayerLo,   0, 0, N_COLUMNS, N_ROWS, bg, null);
+					g.drawImage(tmLayerLo,   0, 0, N_COLUMNS, N_ROWS, null);
 					g.drawImage(spriteLayer, 0, 0, N_COLUMNS, N_ROWS, null);
 					g.drawImage(tmLayerHi,   0, 0, N_COLUMNS, N_ROWS, null);
-					g.drawImage(fbLayer,     0, 0, N_COLUMNS, N_ROWS, null);
+					g.drawImage(fbImage,     0, 0, N_COLUMNS, N_ROWS, null);
 				} else {
-					g.drawImage(fbLayer,     0, 0, N_COLUMNS, N_ROWS, bg, null);
+					g.drawImage(fbImage,     0, 0, N_COLUMNS, N_ROWS, null);
+
 					g.drawImage(tmLayerLo,   0, 0, N_COLUMNS, N_ROWS, null);
 					g.drawImage(spriteLayer, 0, 0, N_COLUMNS, N_ROWS, null);
 					g.drawImage(tmLayerHi,   0, 0, N_COLUMNS, N_ROWS, null);
