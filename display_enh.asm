@@ -3,6 +3,27 @@
 
 # -------------------------------------------------------------------------------------------------
 
+# a0 = milliseconds per frame
+# a1 = enable framebuffer
+# a2 = enable tilemap
+display_init:
+	sll a0, a0, DISPLAY_MODE_MS_SHIFT
+	beq a1, 0, _no_fb
+		or a0, a0, DISPLAY_MODE_FB_ENABLE
+	_no_fb:
+
+	beq a2, 0, _no_tm
+		or a0, a0, DISPLAY_MODE_TM_ENABLE
+	_no_tm:
+	or  a0, a0, DISPLAY_MODE_ENHANCED
+	sw  a0, DISPLAY_CTRL
+
+	# reset everything!
+	sw zero, DISPLAY_RESET
+jr ra
+
+# -------------------------------------------------------------------------------------------------
+
 # a0 = key to check
 # returns 1 if held, 0 if not
 display_is_key_held:

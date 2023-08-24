@@ -1053,9 +1053,9 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private int mouseX = -1;
 		private int mouseY = -1;
 		private int mouseButtons = 0;
+		private int lastMouseButtons = 0;
 		private int mouseWheelX = 0;
 		private int mouseWheelY = 0;
-		private int lastMouseButtons = 0;
 		private boolean mouseOver = false;
 
 		// Sets of held keys. Since there are unlikely to be more than a few keys held
@@ -1332,12 +1332,19 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		// Reset
 
 		private void resetEverything() {
+			// we DON'T reset these, because they were just set by a write to DISPLAY_CTRL:
+			// - msPerFrame
+			// - fbEnabled
+			// - tmEnabled
+			// and mouseOver is its own little thing, not accessible by the user.
+
 			// reset graphics registers
 			this.initializePaletteRam();
 			this.clearFb();
 			this.clearTmRam();
 			this.clearSprRam();
 			frameCounter = 0;
+			fbInFront = false;
 			fbPalOffs = 0;
 			fbScx = 0;
 			fbScy = 0;
@@ -1348,6 +1355,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			// reset input stuff
 			mouseButtons = 0;
 			lastMouseButtons = 0;
+			mouseWheelX = 0;
+			mouseWheelY = 0;
 			this.setMousePosition(-1, -1);
 			this.updateMouseRegisters();
 

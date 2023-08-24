@@ -19,16 +19,11 @@
 
 .global main
 main:
-	# turn on enhanced mode, FB only, 15ms/frame
-	li  t0, 15
-	sll t0, t0, DISPLAY_MODE_MS_SHIFT
-	or  t0, t0, DISPLAY_MODE_ENHANCED
-	or  t0, t0, DISPLAY_MODE_FB_ENABLE
-	or  t0, t0, DISPLAY_MODE_TM_ENABLE
-	sw  t0, DISPLAY_CTRL
-
-	# reset everything
-	sw zero, DISPLAY_RESET
+	# initialize
+	li  a0, 15 # ms/frame
+	li  a1, 1  # enable framebuffer
+	li  a2, 1  # enable tilemap
+	jal display_init
 
 	j test_compositing
 	j test_large_sprites
