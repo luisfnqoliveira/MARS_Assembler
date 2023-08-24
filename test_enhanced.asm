@@ -25,8 +25,8 @@ main:
 	li  a2, 1  # enable tilemap
 	jal display_init
 
-	j test_compositing
-	j test_large_sprites
+	#j test_compositing
+	#j test_large_sprites
 	j test_tilemap
 	j test_default_palette
 	j test_mouse_follower
@@ -96,44 +96,39 @@ test_default_palette:
 			print_str "\n"
 		_endif:
 
-		li  a0, KEY_UP
-		jal display_is_key_held
-		beq v0, 0, _endif_u
+		display_is_key_held t0, KEY_UP
+		beq t0, 0, _endif_u
 			lw  t0, DISPLAY_FB_SCY
 			sub t0, t0, 1
 			and t0, t0, 0x7F
 			sw  t0, DISPLAY_FB_SCY
 		_endif_u:
 
-		li  a0, KEY_DOWN
-		jal display_is_key_held
-		beq v0, 0, _endif_d
+		display_is_key_held t0, KEY_DOWN
+		beq t0, 0, _endif_d
 			lw  t0, DISPLAY_FB_SCY
 			add t0, t0, 1
 			and t0, t0, 0x7F
 			sw  t0, DISPLAY_FB_SCY
 		_endif_d:
 
-		li  a0, KEY_LEFT
-		jal display_is_key_held
-		beq v0, 0, _endif_l
+		display_is_key_held t0, KEY_LEFT
+		beq t0, 0, _endif_l
 			lw  t0, DISPLAY_FB_SCX
 			sub t0, t0, 1
 			and t0, t0, 0x7F
 			sw  t0, DISPLAY_FB_SCX
 		_endif_l:
 
-		li  a0, KEY_RIGHT
-		jal display_is_key_held
-		beq v0, 0, _endif_r
+		display_is_key_held t0, KEY_RIGHT
+		beq t0, 0, _endif_r
 			lw  t0, DISPLAY_FB_SCX
 			add t0, t0, 1
 			and t0, t0, 0x7F
 			sw  t0, DISPLAY_FB_SCX
 		_endif_r:
 
-		sw zero, DISPLAY_SYNC
-		lw zero, DISPLAY_SYNC
+		jal display_finish_frame
 	j _loop
 
 # -------------------------------------------------------------------------------------------------
@@ -190,10 +185,7 @@ test_fb_palette_offset:
 		sub t0, t1, t0
 		sw  t0, DISPLAY_FB_PAL_OFFS
 
-		# flip
-		sw zero, DISPLAY_SYNC
-		# sync
-		lw zero, DISPLAY_SYNC
+		jal display_finish_frame
 	j _loop
 
 # -------------------------------------------------------------------------------------------------
@@ -227,10 +219,7 @@ test_mouse:
 				sb t1, (t0)
 		_endif:
 
-		# flip
-		sw zero, DISPLAY_SYNC
-		# sync
-		lw zero, DISPLAY_SYNC
+		jal display_finish_frame
 	j _loop
 
 # -------------------------------------------------------------------------------------------------
@@ -242,36 +231,32 @@ test_mouse:
 
 test_kb:
 	_loop:
-		li a0, KEY_UP
-		jal display_is_key_held
-		beq v0, 0, _endif_u
+		display_is_key_held t0, KEY_UP
+		beq t0, 0, _endif_u
 			lw t0, dot_y
 			beq t0, 0, _endif_u
 				sub t0, t0, 1
 				sw t0, dot_y
 		_endif_u:
 
-		li a0, KEY_DOWN
-		jal display_is_key_held
-		beq v0, 0, _endif_d
+		display_is_key_held t0, KEY_DOWN
+		beq t0, 0, _endif_d
 			lw t0, dot_y
 			beq t0, 127, _endif_d
 				add t0, t0, 1
 				sw t0, dot_y
 		_endif_d:
 
-		li a0, KEY_LEFT
-		jal display_is_key_held
-		beq v0, 0, _endif_l
+		display_is_key_held t0, KEY_LEFT
+		beq t0, 0, _endif_l
 			lw t0, dot_x
 			beq t0, 0, _endif_l
 				sub t0, t0, 1
 				sw t0, dot_x
 		_endif_l:
 
-		li a0, KEY_RIGHT
-		jal display_is_key_held
-		beq v0, 0, _endif_r
+		display_is_key_held t0, KEY_RIGHT
+		beq t0, 0, _endif_r
 			lw t0, dot_x
 			beq t0, 127, _endif_r
 				add t0, t0, 1
@@ -289,8 +274,7 @@ test_kb:
 		li t1, COLOR_WHITE
 		sb t1, (t0)
 
-		sw zero, DISPLAY_SYNC
-		lw zero, DISPLAY_SYNC
+		jal display_finish_frame
 	j _loop
 
 # -------------------------------------------------------------------------------------------------
@@ -441,8 +425,7 @@ test_mouse_follower:
 		add s0, s0, 1
 		blt s0, NUM_FOLLOWERS, _follower_loop
 
-		sw zero, DISPLAY_SYNC
-		lw zero, DISPLAY_SYNC
+		jal display_finish_frame
 	j _loop
 
 # ------------------------
@@ -571,8 +554,7 @@ test_tilemap:
 		jal test_tilemap_key_input
 
 		# display and sync
-		sw zero, DISPLAY_SYNC
-		lw zero, DISPLAY_SYNC
+		jal display_finish_frame
 	j _loop
 
 test_tilemap_mouse_to_tile_addr:
@@ -613,9 +595,8 @@ jr ra
 test_tilemap_mouse_input:
 enter
 	# if holding shift...
-	li  a0, KEY_SHIFT
-	jal display_is_key_held
-	beq v0, 0, _no_shift
+	display_is_key_held t0, KEY_SHIFT
+	beq t0, 0, _no_shift
 		# then clicking will flip tiles.
 		lw  t0, DISPLAY_MOUSE_RELEASED
 		and t0, t0, MOUSE_LBUTTON
@@ -730,56 +711,49 @@ leave
 
 test_tilemap_key_input:
 enter
-	li  a0, KEY_SHIFT
-	jal display_is_key_held
-	beq v0, 0, _no_shift
-		li  a0, KEY_UP
-		jal display_is_key_pressed
-		bne v0, 1, _endif_shift_u
+	display_is_key_held t0, KEY_SHIFT
+	beq t0, 0, _no_shift
+		display_is_key_pressed t0, KEY_UP
+		bne t0, 1, _endif_shift_u
 			# toggle vflip of all tiles
 			li a0, BIT_VFLIP
 			jal test_tilemap_flippem
 		_endif_shift_u:
 
-		li  a0, KEY_RIGHT
-		jal display_is_key_pressed
-		bne v0, 1, _endif_shift_r
+		display_is_key_pressed t0, KEY_RIGHT
+		bne t0, 1, _endif_shift_r
 			# toggle hflip of all tiles
 			li a0, BIT_HFLIP
 			jal test_tilemap_flippem
 		_endif_shift_r:
 	j _endif_outer
 	_no_shift:
-		li  a0, KEY_UP
-		jal display_is_key_held
-		beq v0, 0, _endif_u
+		display_is_key_held t0, KEY_UP
+		beq t0, 0, _endif_u
 			lw  t0, DISPLAY_TM_SCY
 			sub t0, t0, 1
 			and t0, t0, 0xFF
 			sw  t0, DISPLAY_TM_SCY
 		_endif_u:
 
-		li  a0, KEY_DOWN
-		jal display_is_key_held
-		beq v0, 0, _endif_d
+		display_is_key_held t0, KEY_DOWN
+		beq t0, 0, _endif_d
 			lw  t0, DISPLAY_TM_SCY
 			add t0, t0, 1
 			and t0, t0, 0xFF
 			sw  t0, DISPLAY_TM_SCY
 		_endif_d:
 
-		li  a0, KEY_LEFT
-		jal display_is_key_held
-		beq v0, 0, _endif_l
+		display_is_key_held t0, KEY_LEFT
+		beq t0, 0, _endif_l
 			lw  t0, DISPLAY_TM_SCX
 			sub t0, t0, 1
 			and t0, t0, 0xFF
 			sw  t0, DISPLAY_TM_SCX
 		_endif_l:
 
-		li  a0, KEY_RIGHT
-		jal display_is_key_held
-		beq v0, 0, _endif_r
+		display_is_key_held t0, KEY_RIGHT
+		beq t0, 0, _endif_r
 			lw  t0, DISPLAY_TM_SCX
 			add t0, t0, 1
 			and t0, t0, 0xFF
@@ -902,9 +876,8 @@ test_large_sprites:
 	_loop:
 		li t9, DISPLAY_SPR_TABLE
 
-		li  a0, KEY_UP
-		jal display_is_key_held
-		beq v0, 0, _endif_u
+		display_is_key_held t0, KEY_UP
+		beq t0, 0, _endif_u
 			lb  t0, 1(t9)
 			sub t0, t0, 1
 			sb  t0, 1(t9)
@@ -919,9 +892,8 @@ test_large_sprites:
 			sb  t0, 13(t9)
 		_endif_u:
 
-		li  a0, KEY_DOWN
-		jal display_is_key_held
-		beq v0, 0, _endif_d
+		display_is_key_held t0, KEY_DOWN
+		beq t0, 0, _endif_d
 			lb  t0, 1(t9)
 			add t0, t0, 1
 			sb  t0, 1(t9)
@@ -936,9 +908,8 @@ test_large_sprites:
 			sb  t0, 13(t9)
 		_endif_d:
 
-		li  a0, KEY_LEFT
-		jal display_is_key_held
-		beq v0, 0, _endif_l
+		display_is_key_held t0, KEY_LEFT
+		beq t0, 0, _endif_l
 			lb  t0, 0(t9)
 			sub t0, t0, 1
 			sb  t0, 0(t9)
@@ -953,9 +924,8 @@ test_large_sprites:
 			sb  t0, 12(t9)
 		_endif_l:
 
-		li  a0, KEY_RIGHT
-		jal display_is_key_held
-		beq v0, 0, _endif_r
+		display_is_key_held t0, KEY_RIGHT
+		beq t0, 0, _endif_r
 			lb  t0, 0(t9)
 			add t0, t0, 1
 			sb  t0, 0(t9)
@@ -970,8 +940,7 @@ test_large_sprites:
 			sb  t0, 12(t9)
 		_endif_r:
 
-		sw zero, DISPLAY_SYNC
-		lw zero, DISPLAY_SYNC
+		jal display_finish_frame
 	j _loop
 
 # -------------------------------------------------------------------------------------------------
@@ -1049,70 +1018,60 @@ test_compositing:
 	_loop:
 		li t9, DISPLAY_SPR_TABLE
 
-		li  a0, KEY_UP
-		jal display_is_key_held
-		beq v0, 0, _endif_u
+		display_is_key_held t0, KEY_UP
+		beq t0, 0, _endif_u
 			lb  t0, 1(t9)
 			sub t0, t0, 1
 			sb  t0, 1(t9)
 		_endif_u:
 
-		li  a0, KEY_DOWN
-		jal display_is_key_held
-		beq v0, 0, _endif_d
+		display_is_key_held t0, KEY_DOWN
+		beq t0, 0, _endif_d
 			lb  t0, 1(t9)
 			add t0, t0, 1
 			sb  t0, 1(t9)
 		_endif_d:
 
-		li  a0, KEY_LEFT
-		jal display_is_key_held
-		beq v0, 0, _endif_l
+		display_is_key_held t0, KEY_LEFT
+		beq t0, 0, _endif_l
 			lb  t0, 0(t9)
 			sub t0, t0, 1
 			sb  t0, 0(t9)
 		_endif_l:
 
-		li  a0, KEY_RIGHT
-		jal display_is_key_held
-		beq v0, 0, _endif_r
+		display_is_key_held t0, KEY_RIGHT
+		beq t0, 0, _endif_r
 			lb  t0, 0(t9)
 			add t0, t0, 1
 			sb  t0, 0(t9)
 		_endif_r:
 
-		li  a0, KEY_SPACE
-		jal display_is_key_pressed
-		beq v0, 0, _endif_space
+		display_is_key_pressed t0, KEY_SPACE
+		beq t0, 0, _endif_space
 			lw  t0, DISPLAY_FB_IN_FRONT
 			seq t0, t0, 0
 			sw  t0, DISPLAY_FB_IN_FRONT
 		_endif_space:
 
-		li  a0, KEY_F
-		jal display_is_key_pressed
-		beq v0, 0, _endif_f
+		display_is_key_pressed t0, KEY_F
+		beq t0, 0, _endif_f
 			jal display_enable_fb
 		_endif_f:
 
-		li  a0, KEY_G
-		jal display_is_key_pressed
-		beq v0, 0, _endif_g
+		display_is_key_pressed t0, KEY_G
+		beq t0, 0, _endif_g
 			jal display_disable_fb
 		_endif_g:
 
-		li  a0, KEY_T
-		jal display_is_key_pressed
-		beq v0, 0, _endif_t
+		display_is_key_pressed t0, KEY_T
+		beq t0, 0, _endif_t
 			jal display_enable_tm
 		_endif_t:
 
-		li  a0, KEY_Y
-		jal display_is_key_pressed
-		beq v0, 0, _endif_y
+		display_is_key_pressed t0, KEY_Y
+		beq t0, 0, _endif_y
 			jal display_disable_tm
 		_endif_y:
 
-		sw zero, DISPLAY_SYNC
-		lw zero, DISPLAY_SYNC
+		jal display_finish_frame
 	j _loop

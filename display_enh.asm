@@ -1,6 +1,15 @@
+# driver philosophy: if it's more than a single load or store, or
+# if it isn't blindingly obvious what it does (e.g. "magical stores"),
+# make it a driver function. otherwise, it's unnecessary.
+
+# e.g. loading from DISPLAY_MOUSE_HELD or changing DISPLAY_TM_SCX are
+# both so simple and obvious that they don't need a driver function.
+# but frame sync is "sw zero, DISPLAY_SYNC" which is just baffling.
 
 .include "macros.asm"
 
+# -------------------------------------------------------------------------------------------------
+# Display control and frame sync
 # -------------------------------------------------------------------------------------------------
 
 # void display_init(int msPerFrame, bool enableFB, bool enableTM)
@@ -18,7 +27,9 @@ display_init:
 	or  a0, a0, DISPLAY_MODE_ENHANCED
 	sw  a0, DISPLAY_CTRL
 
-	# reset everything!
+	# reset everything! you might think we should do this *first*, but we
+	# don't actually know if the display is in enhanced mode before the
+	# above store.
 	sw zero, DISPLAY_RESET
 jr ra
 
@@ -80,30 +91,41 @@ jr ra
 
 # -------------------------------------------------------------------------------------------------
 
-# a0 = key to check
-# returns 1 if held, 0 if not
-display_is_key_held:
-	sw a0, DISPLAY_KEY_HELD
-	lw v0, DISPLAY_KEY_HELD
+# call this at the end of each frame to display the graphics, update
+# the input, and wait the appropriate amount of time until the next frame.
+display_finish_frame:
+	sw zero, DISPLAY_SYNC
+	lw zero, DISPLAY_SYNC
 jr ra
 
 # -------------------------------------------------------------------------------------------------
+# Input
+# -------------------------------------------------------------------------------------------------
 
-# a0 = key to check
-# returns 1 if pressed on this frame, 0 if not
-display_is_key_pressed:
-	sw a0, DISPLAY_KEY_PRESSED
-	lw v0, DISPLAY_KEY_PRESSED
-jr ra
+# sets %reg to 1 if %key is being held, 0 if not
+.macro display_is_key_held %reg, %key
+	li %reg, %key
+	sw %reg, DISPLAY_KEY_HELD
+	lw %reg, DISPLAY_KEY_HELD
+.end_macro
 
 # -------------------------------------------------------------------------------------------------
 
-# a0 = key to check
-# returns 1 if released on this frame, 0 if not
-display_is_key_released:
-	sw a0, DISPLAY_KEY_RELEASED
-	lw v0, DISPLAY_KEY_RELEASED
-jr ra
+# sets %reg to 1 if %key was pressed on this frame, 0 if not
+.macro display_is_key_pressed %reg, %key
+	li %reg, %key
+	sw %reg, DISPLAY_KEY_PRESSED
+	lw %reg, DISPLAY_KEY_PRESSED
+.end_macro
+
+# -------------------------------------------------------------------------------------------------
+
+# sets %reg to 1 if %key was released on this frame, 0 if not
+.macro display_is_key_released %reg, %key
+	li %reg, %key
+	sw %reg, DISPLAY_KEY_RELEASED
+	lw %reg, DISPLAY_KEY_RELEASED
+.end_macro
 
 # -------------------------------------------------------------------------------------------------
 
