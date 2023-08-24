@@ -1058,10 +1058,11 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private int mouseWheelY = 0;
 		private boolean mouseOver = false;
 
-		// Sets of held keys. Since there are unlikely to be more than a few keys held
-		// down at any time, a capacity of 16 should be more than sufficient.
-		private Set<Integer> keyState = Collections.synchronizedSet(new HashSet<>(16));
-		private Set<Integer> lastKeyState = Collections.synchronizedSet(new HashSet<>(16));
+		// Sets of keys. Since there are unlikely to be more than a few keys held
+		// down or changing per frame, a capacity of 16 should be more than sufficient.
+		private Set<Integer> keysHeld = Collections.synchronizedSet(new HashSet<>(16));
+		private Set<Integer> keysPressed = Collections.synchronizedSet(new HashSet<>(16));
+		private Set<Integer> keysReleased = Collections.synchronizedSet(new HashSet<>(16));
 
 		// DISPLAY_CTRL
 		private int msPerFrame = 16;
@@ -1138,11 +1139,13 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 				}
 
 				public void keyPressed(KeyEvent e) {
-					keyState.add(e.getKeyCode());
+					keysPressed.add(e.getKeyCode());
+					keysHeld.add(e.getKeyCode());
 				}
 
 				public void keyReleased(KeyEvent e) {
-					keyState.remove(e.getKeyCode());
+					keysReleased.add(e.getKeyCode());
+					keysHeld.remove(e.getKeyCode());
 				}
 			});
 
@@ -1360,8 +1363,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			this.setMousePosition(-1, -1);
 			this.updateMouseRegisters();
 
-			keyState.clear();
-			lastKeyState.clear();
+			keysHeld.clear();
 
 			if(DEBUG_OVERLAY) {
 				dbg_avgFrameLength = 0;
@@ -1390,21 +1392,22 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 		private void updateKeyHeld(int keyCode) {
 			synchronized(Globals.memoryAndRegistersLock) {
-				sim.writeWordToMemory(DISPLAY_KEY_HELD, keyState.contains(keyCode) ? 1 : 0);
+				var held = keysHeld.contains(keyCode) ? 1 : 0;
+				sim.writeWordToMemory(DISPLAY_KEY_HELD, held);
 			}
 		}
 
 		private void updateKeyPressed(int keyCode) {
 			synchronized(Globals.memoryAndRegistersLock) {
-				boolean pressed = keyState.contains(keyCode) && !lastKeyState.contains(keyCode);
-				sim.writeWordToMemory(DISPLAY_KEY_PRESSED, pressed ? 1 : 0);
+				var pressed = keysPressed.contains(keyCode) ? 1 : 0;
+				sim.writeWordToMemory(DISPLAY_KEY_PRESSED, pressed);
 			}
 		}
 
 		private void updateKeyReleased(int keyCode) {
 			synchronized(Globals.memoryAndRegistersLock) {
-				boolean released = lastKeyState.contains(keyCode) && !keyState.contains(keyCode);
-				sim.writeWordToMemory(DISPLAY_KEY_RELEASED, released ? 1 : 0);
+				var released = keysReleased.contains(keyCode) ? 1 : 0;
+				sim.writeWordToMemory(DISPLAY_KEY_RELEASED, released);
 			}
 		}
 
@@ -1430,8 +1433,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			}
 
 			// we're talking n = 4 or 5 at the most, here.
-			lastKeyState.clear();
-			lastKeyState.addAll(keyState);
+			keysPressed.clear();
+			keysReleased.clear();
 
 			this.frameCounter++;
 			this.updateFrameCounterRegister();
