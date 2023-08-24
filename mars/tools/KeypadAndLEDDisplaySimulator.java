@@ -75,7 +75,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 	GLOBAL REGISTERS:
 
-		0xFFFF0000: DISPLAY_CTRL.w           (WO, sets ms/frame and FB/TM enable)
+		0xFFFF0000: DISPLAY_CTRL.w           (RW, sets ms/frame and FB/TM enable)
 		0xFFFF0004: DISPLAY_SYNC.w           (RW, write to finish frame, read to sleep until next)
 		0xFFFF0008: DISPLAY_RESET.w          (WO, clears/resets all graphics RAM to defaults)
 		0xFFFF000C: DISPLAY_FRAME_COUNTER.w  (RO, counts how many frame syncs have occurred)
@@ -88,14 +88,14 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 	TILEMAP REGISTERS:
 
-		0xFFFF0020: DISPLAY_TM_SCX.w         (WO, tilemap X scroll position)
-		0xFFFF0024: DISPLAY_TM_SCY.w         (WO, tilemap Y scroll position)
+		0xFFFF0030: DISPLAY_TM_SCX.w         (RW, tilemap X scroll position)
+		0xFFFF0034: DISPLAY_TM_SCY.w         (RW, tilemap Y scroll position)
 
 	INPUT REGISTERS:
 
-		0xFFFF0040: DISPLAY_KEY_HELD.w       (write to choose key, read to get state)
-		0xFFFF0044: DISPLAY_KEY_PRESSED.w    (write to choose key, read to get state)
-		0xFFFF0048: DISPLAY_KEY_RELEASED.w   (write to choose key, read to get state)
+		0xFFFF0040: DISPLAY_KEY_HELD.w       (RW, write to choose key, read to get state)
+		0xFFFF0044: DISPLAY_KEY_PRESSED.w    (RW, write to choose key, read to get state)
+		0xFFFF0048: DISPLAY_KEY_RELEASED.w   (RW, write to choose key, read to get state)
 		0xFFFF004C: DISPLAY_MOUSE_X.w        (RO, X position of mouse or -1 if mouse not over)
 		0xFFFF0050: DISPLAY_MOUSE_Y.w        (RO, Y position of mouse or -1 if mouse not over)
 		0xFFFF0054: DISPLAY_MOUSE_HELD.w     (RO, bitflags of mouse buttons held)
@@ -104,20 +104,21 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		0xFFFF0060: DISPLAY_MOUSE_WHEEL_X.w  (RO, horizontal mouse wheel movement delta)
 		0xFFFF0064: DISPLAY_MOUSE_WHEEL_Y.w  (RO, vertical mouse wheel movement delta)
 
-	PALETTE RAM:
+	PALETTE RAM (RW):
 
 		0xFFFF0C00-0xFFFF0FFF: 256 4B palette entries
 
-	FRAMEBUFFER DATA:
+	FRAMEBUFFER DATA (RW):
 
 		0xFFFF1000-0xFFFF4FFF: 128x128 (16,384) 1B pixels, each is an index into the palette
 
-	TILEMAP AND SPRITE TABLES:
+	TILEMAP AND SPRITE TABLES (RW):
 
 		0xFFFF5000-0xFFFF57FF: 32x32 2B tilemap entries consisting of (tile, flags)
 		0xFFFF5800-0xFFFF5FFF: 256 4B sprite entries consisting of (X, Y, tile, flags)
 
-	GRAPHICS DATA:
+	GRAPHICS DATA (RW):
+
 		0xFFFF6000-0xFFFF9FFF: 256 8x8 1Bpp indexed color tilemap tiles
 		0xFFFFA000-0xFFFFDFFF: 256 8x8 1Bpp indexed color sprite tiles
 
@@ -960,8 +961,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private static final int DISPLAY_FB_CLEAR       = 0xFFFF0010;
 		private static final int DISPLAY_FB_IN_FRONT    = 0xFFFF0014;
 		private static final int DISPLAY_FB_PAL_OFFS    = 0xFFFF0018;
-		private static final int DISPLAY_TM_SCX         = 0xFFFF0020;
-		private static final int DISPLAY_TM_SCY         = 0xFFFF0024;
+		private static final int DISPLAY_TM_SCX         = 0xFFFF0030;
+		private static final int DISPLAY_TM_SCY         = 0xFFFF0034;
 		private static final int DISPLAY_KEY_HELD       = 0xFFFF0040;
 		private static final int DISPLAY_KEY_PRESSED    = 0xFFFF0044;
 		private static final int DISPLAY_KEY_RELEASED   = 0xFFFF0048;

@@ -35,10 +35,10 @@ main:
 	sw zero, DISPLAY_RESET
 
 	#j test_large_sprites
-	#j test_tilemap
+	j test_tilemap
 	#j test_default_palette
 	#j test_mouse_follower
-	j test_fb_palette_offset
+	#j test_fb_palette_offset
 	j test_mouse
 	j test_kb
 
