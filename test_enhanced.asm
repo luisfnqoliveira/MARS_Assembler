@@ -273,29 +273,34 @@ test_kb:
 .data
 	last_mouse_x: .word 0x3F00
 	last_mouse_y: .word 0x3F00
-	follower_x:   .word 0x3F00
-	follower_y:   .word 0x3F00
-	follower_vx:  .word 0
-	follower_vy:  .word 0
+	follower_x:   .word 0x3F00 0x2F00 0x5F00 0x1F00 0x4F00
+	follower_y:   .word 0x3F00 0x5F00 0x2F00 0x4F00 0x1F00
+	follower_vx:  .word 0 0 0 0 0
+	follower_vy:  .word 0 0 0 0 0
 
+	.eqv NUM_FOLLOWERS 5
+	.eqv FOLLOWER_VELOCITY_DECAY 0x00FE # 0.9765625
 	.eqv NUM_FOLLOWER_GFX_TILES 1
 
 	.align 2
 	follower_gfx: .byte
-		# lowercase b (obvious when flipped horizontally or vertically)
-		 0  0  0  0  0  0  0  0
-		 0 63 63  0  0  0  0  0
-		 0 63 63  0  0  0  0  0
-		 0 63 63 63 63  0  0  0
-		 0 63 63  0  0 63 63  0
-		 0 63 63  0  0 63 63  0
-		 0 63 63  0  0 63 63  0
-		 0 63 63 63 63  0  0  0
+		# lowercase bee
+		 0  0 64  0  0 64 64 64
+		 0  0 65  0  0 63 63 64
+		64 65 64 60 64 64 63 64
+		 0 64 60 64 60 60 64  0
+		 0 64 64 60 60 64 64  0
+		64 63 64 60 64 60 64  0
+		64 63 63 64 64 64  0  0
+		64 64 64  0  0  0  0  0
 .text
 
-.eqv VELOCITY_DECAY 0x00F0 # 0.93
 
 test_mouse_follower:
+	# set the background color
+	li t0, 0x9ED7EC
+	sw t0, DISPLAY_PALETTE_RAM
+
 	# load the graphics
 	la a0, follower_gfx
 	li a1, 0
@@ -305,18 +310,25 @@ test_mouse_follower:
 	# set up the sprite
 	li t1, DISPLAY_SPR_TABLE
 
-	lw  t0, follower_x
-	srl t0, t0, 8
-	sb  t0, 0(t1)
+	li s0, 0
+	_follower_init_loop:
+		mul t7, s0, 4
+		lw  t0, follower_x(t7)
+		srl t0, t0, 8
+		sb  t0, 0(t1)
 
-	lw  t0, follower_y
-	srl t0, t0, 8
-	sb  t0, 1(t1)
+		lw  t0, follower_y(t7)
+		srl t0, t0, 8
+		sb  t0, 1(t1)
 
-	sb  zero, 2(t1) # tile index
+		sb  zero, 2(t1) # tile index
 
-	li  t0, BIT_ENABLE
-	sb  t0, 3(t1) # flags
+		li  t0, BIT_ENABLE
+		sb  t0, 3(t1) # flags
+
+		add t1, t1, 4
+	add s0, s0, 1
+	blt s0, NUM_FOLLOWERS, _follower_init_loop
 
 	_loop:
 		# update last mouse position
@@ -329,74 +341,80 @@ test_mouse_follower:
 			sw  t1, last_mouse_y
 		_mouse_offscreen:
 
-		# (t0, t1) is mouse position in 24.8
-		lw t0, last_mouse_x
-		lw t1, last_mouse_y
+		li s0, 0
+		_follower_loop:
+			# (t0, t1) is mouse position in 24.8
+			lw t0, last_mouse_x
+			lw t1, last_mouse_y
 
-		# calculate vector to mouse position in (t2, t3)
-		lw  a0, follower_x
-		sub a0, t0, a0
+			# calculate vector to mouse position in (t2, t3)
+			mul  t7, s0, 4
+			lw   a0, follower_x(t7)
+			subu a0, t0, a0
 
-		lw  a1, follower_y
-		sub a1, t1, a1
+			lw   a1, follower_y(t7)
+			subu a1, t1, a1
 
-		# normalize vector
-		jal normalize_24_8
+			# normalize vector
+			jal normalize_24_8
 
-		# scale it down
-		sra v0, v0, 1
-		sra v1, v1, 1
+			# scale it down
+			sra v0, v0, 2
+			sra v1, v1, 2
 
-		# add to follower velocity (and decay velocity)
-		lw  t0, follower_vx
-		add t0, t0, v0
-		mul t0, t0, VELOCITY_DECAY
-		sra t0, t0, 8
-		sw  t0, follower_vx
-		lw  t1, follower_vy
-		mul t1, t1, VELOCITY_DECAY
-		sra t1, t1, 8
-		add t1, t1, v1
-		sw  t1, follower_vy
+			# add to follower velocity (and decay velocity)
+			mul  t7, s0, 4
+			lw   t0, follower_vx(t7)
+			addu t0, t0, v0
+			mul  t0, t0, FOLLOWER_VELOCITY_DECAY
+			sra  t0, t0, 8
+			sw   t0, follower_vx(t7)
+			lw   t1, follower_vy(t7)
+			mul  t1, t1, FOLLOWER_VELOCITY_DECAY
+			sra  t1, t1, 8
+			addu t1, t1, v1
+			sw   t1, follower_vy(t7)
 
-		# add velocity to position
-		lw  t2, follower_x
-		add t2, t2, t0
-		sw  t2, follower_x
+			# add velocity to position
+			lw   t2, follower_x(t7)
+			addu t2, t2, t0
+			sw   t2, follower_x(t7)
 
-		lw  t3, follower_y
-		add t3, t3, t1
-		sw  t3, follower_y
+			lw   t3, follower_y(t7)
+			addu t3, t3, t1
+			sw   t3, follower_y(t7)
 
-		# position sprite at follower position (minus 4 on each axis, to center it)
-		li  t9, DISPLAY_SPR_TABLE
+			# position sprite at follower position (minus 4 on each axis, to center it)
+			li  t9, DISPLAY_SPR_TABLE
+			add t9, t9, t7
 
-		lw  t0, follower_x
-		srl t0, t0, 8
-		sub t0, t0, 4
-		sb  t0, 0(t9)
+			lw  t0, follower_x(t7)
+			srl t0, t0, 8
+			sub t0, t0, 4
+			sb  t0, 0(t9)
 
-		lw  t0, follower_y
-		srl t0, t0, 8
-		sub t0, t0, 4
-		sb  t0, 1(t9)
+			lw  t0, follower_y(t7)
+			srl t0, t0, 8
+			sub t0, t0, 4
+			sb  t0, 1(t9)
 
-		# calculate flip flags based on follower's position relative to mouse
-		li  t8, BIT_ENABLE # t8 = flags
+			# calculate flip flags based on follower's position relative to mouse
+			li  t8, BIT_ENABLE # t8 = flags
 
-		lw  t0, follower_x
-		lw  t1, last_mouse_x
-		blt t0, t1, _no_flip_x
-			or t8, t8, BIT_HFLIP
-		_no_flip_x:
+			lw  t0, follower_x(t7)
+			lw  t1, last_mouse_x
+			bge t0, t1, _no_flip_x
+				or t8, t8, BIT_HFLIP
+			_no_flip_x:
 
-		lw  t0, follower_y
-		lw  t1, last_mouse_y
-		blt t0, t1, _no_flip_y
-			or t8, t8, BIT_VFLIP
-		_no_flip_y:
-
-		sb t8, 3(t9)
+			lw  t0, follower_y(t7)
+			lw  t1, last_mouse_y
+			bge t0, t1, _no_flip_y
+				or t8, t8, BIT_VFLIP
+			_no_flip_y:
+			sb t8, 3(t9)
+		add s0, s0, 1
+		blt s0, NUM_FOLLOWERS, _follower_loop
 
 		sw zero, DISPLAY_SYNC
 		lw zero, DISPLAY_SYNC
@@ -425,7 +443,7 @@ enter
 	mul a1, a1, a1
 
 	# sqrt(dx^2 + dy^2)
-	add a0, a0, a1
+	addu a0, a0, a1
 	jal sqrt_16_16
 
 	# 16.16 -> 24.8
