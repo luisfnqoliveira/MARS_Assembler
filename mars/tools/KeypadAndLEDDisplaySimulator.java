@@ -1578,16 +1578,11 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			isTmDirty = true;
 		}
 
-		// TODO
 		private void buildTmLayers() {
-			// straightforward but...
-			// scrolling is tricky. either we only draw the visible slice of the tilemap
-			// to the tmLayerLo/tmLayerHi images, in which case we have to handle lots of
-			// edge cases on all four sides; or we draw the WHOLE tilemap to auxiliary
-			// images and then copy just slices, which is simple but wasteful.
-			// well let's try the simple and wasteful method first. we're native code!
-
 			// First draw the FULL tilemap layers
+			this.fillRaster(fullTmLayerHi, 0);
+			this.fillRaster(fullTmLayerLo, 0);
+
 			int entry = 0;
 
 			for(int ty = 0; ty < N_TM_ROWS; ty++) {
@@ -1652,7 +1647,6 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			isSprDirty = true;
 		}
 
-		// TODO
 		private void buildSpriteLayer() {
 			// Clear it out
 			this.fillRaster(fullSpriteLayer, 0);
@@ -1686,7 +1680,21 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 						// draw the damn thing
 						if(isLarge) {
-							// TODO
+							if(hflip) {
+								if(vflip) {
+									// flipped both ways
+									this.blitLargeSpriteVH(x, y, gfx, palOffs);
+								} else {
+									// only horizontal flip
+									this.blitLargeSpriteH(x, y, gfx, palOffs);
+								}
+							} else if(vflip) {
+								// only vertical flip
+								this.blitLargeSpriteV(x, y, gfx, palOffs);
+							} else {
+								// no flip
+								this.blitLargeSprite(x, y, gfx, palOffs);
+							}
 						} else {
 							this.blitTileOnto(fullSpriteLayer,
 								x + SPRITE_LARGE_W, y + SPRITE_LARGE_H,
@@ -1817,8 +1825,9 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 					for(int y = 0; y < TILE_H; y++) {
 						for(int x = 0; x < TILE_W; x++) {
 							int index = gfx[gfxOffset];
-							index = index == 0 ? 0 : (index + palOffset);
-							dest.setSample(px + x, py + y, 0, index);
+							if(index != 0) {
+								dest.setSample(px + x, py + y, 0, index + palOffset);
+							}
 
 							// get next pixel to the left
 							gfxOffset--;
@@ -1833,8 +1842,9 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 					for(int y = 0; y < TILE_H; y++) {
 						for(int x = 0; x < TILE_W; x++) {
 							int index = gfx[gfxOffset];
-							index = index == 0 ? 0 : (index + palOffset);
-							dest.setSample(px + x, py + y, 0, index);
+							if(index != 0) {
+								dest.setSample(px + x, py + y, 0, index + palOffset);
+							}
 
 							// get next pixel to the left
 							gfxOffset--;
@@ -1853,8 +1863,9 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 				for(int y = 0; y < TILE_H; y++) {
 					for(int x = 0; x < TILE_W; x++) {
 						int index = gfx[gfxOffset];
-						index = index == 0 ? 0 : (index + palOffset);
-						dest.setSample(px + x, py + y, 0, index);
+						if(index != 0) {
+							dest.setSample(px + x, py + y, 0, index + palOffset);
+						}
 
 						// get next pixel to the right
 						gfxOffset++;
@@ -1868,13 +1879,86 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 				for(int y = 0; y < TILE_H; y++) {
 					for(int x = 0; x < TILE_W; x++) {
 						int index = gfx[gfxOffset];
-						index = index == 0 ? 0 : (index + palOffset);
-						dest.setSample(px + x, py + y, 0, index);
+						if(index != 0) {
+							dest.setSample(px + x, py + y, 0, index + palOffset);
+						}
 
 						gfxOffset++;
 					}
 				}
 			}
+		}
+
+		private void blitLargeSprite(int x, int y, int gfx, int palOffs) {
+			this.blitTileOnto(fullSpriteLayer,
+				x + SPRITE_LARGE_W, y + SPRITE_LARGE_H,
+				sprGraphics, gfx, palOffs, false, false);
+			gfx += BYTES_PER_TILE;
+			this.blitTileOnto(fullSpriteLayer,
+				x + SPRITE_LARGE_W + TILE_W, y + SPRITE_LARGE_H,
+				sprGraphics, gfx, palOffs, false, false);
+			gfx += BYTES_PER_TILE;
+			this.blitTileOnto(fullSpriteLayer,
+				x + SPRITE_LARGE_W, y + SPRITE_LARGE_H + TILE_H,
+				sprGraphics, gfx, palOffs, false, false);
+			gfx += BYTES_PER_TILE;
+			this.blitTileOnto(fullSpriteLayer,
+				x + SPRITE_LARGE_W + TILE_W, y + SPRITE_LARGE_H + TILE_H,
+				sprGraphics, gfx, palOffs, false, false);
+		}
+
+		private void blitLargeSpriteV(int x, int y, int gfx, int palOffs) {
+			this.blitTileOnto(fullSpriteLayer,
+				x + SPRITE_LARGE_W, y + SPRITE_LARGE_H + TILE_H,
+				sprGraphics, gfx, palOffs, false, true);
+			gfx += BYTES_PER_TILE;
+			this.blitTileOnto(fullSpriteLayer,
+				x + SPRITE_LARGE_W + TILE_W, y + SPRITE_LARGE_H + TILE_H,
+				sprGraphics, gfx, palOffs, false, true);
+			gfx += BYTES_PER_TILE;
+			this.blitTileOnto(fullSpriteLayer,
+				x + SPRITE_LARGE_W, y + SPRITE_LARGE_H,
+				sprGraphics, gfx, palOffs, false, true);
+			gfx += BYTES_PER_TILE;
+			this.blitTileOnto(fullSpriteLayer,
+				x + SPRITE_LARGE_W + TILE_W, y + SPRITE_LARGE_H,
+				sprGraphics, gfx, palOffs, false, true);
+		}
+
+		private void blitLargeSpriteH(int x, int y, int gfx, int palOffs) {
+			this.blitTileOnto(fullSpriteLayer,
+				x + SPRITE_LARGE_W + TILE_W, y + SPRITE_LARGE_H,
+				sprGraphics, gfx, palOffs, true, false);
+			gfx += BYTES_PER_TILE;
+			this.blitTileOnto(fullSpriteLayer,
+				x + SPRITE_LARGE_W, y + SPRITE_LARGE_H,
+				sprGraphics, gfx, palOffs, true, false);
+			gfx += BYTES_PER_TILE;
+			this.blitTileOnto(fullSpriteLayer,
+				x + SPRITE_LARGE_W + TILE_W, y + SPRITE_LARGE_H + TILE_H,
+				sprGraphics, gfx, palOffs, true, false);
+			gfx += BYTES_PER_TILE;
+			this.blitTileOnto(fullSpriteLayer,
+				x + SPRITE_LARGE_W, y + SPRITE_LARGE_H + TILE_H,
+				sprGraphics, gfx, palOffs, true, false);
+		}
+
+		private void blitLargeSpriteVH(int x, int y, int gfx, int palOffs) {
+			this.blitTileOnto(fullSpriteLayer,
+				x + SPRITE_LARGE_W + TILE_W, y + SPRITE_LARGE_H + TILE_H,
+				sprGraphics, gfx, palOffs, true, true);
+			gfx += BYTES_PER_TILE;
+			this.blitTileOnto(fullSpriteLayer,
+				x + SPRITE_LARGE_W, y + SPRITE_LARGE_H + TILE_H,
+				sprGraphics, gfx, palOffs, true, true);
+			gfx += BYTES_PER_TILE;
+			this.blitTileOnto(fullSpriteLayer,
+				x + SPRITE_LARGE_W + TILE_W, y + SPRITE_LARGE_H,
+				sprGraphics, gfx, palOffs, true, true);
+			gfx += BYTES_PER_TILE;
+			this.blitTileOnto(fullSpriteLayer,
+				x + SPRITE_LARGE_W, y + SPRITE_LARGE_H,
+				sprGraphics, gfx, palOffs, true, true);
 		}
 	}
 }

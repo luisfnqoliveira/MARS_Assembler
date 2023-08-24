@@ -34,6 +34,7 @@ main:
 	# reset everything
 	sw zero, DISPLAY_RESET
 
+	j test_large_sprites
 	#j test_tilemap
 	#j test_default_palette
 	j test_mouse_follower
@@ -774,3 +775,177 @@ enter
 	add t8, t8, 2
 	blt t8, DISPLAY_SPR_TABLE, _loop
 leave
+
+# -------------------------------------------------------------------------------------------------
+
+.data
+	.eqv NUM_LARGE_SPRITE_TILES 4
+
+	.align 2
+	large_sprite_tiles: .byte
+		# uppercase bee
+		  0  0  0 64  0  0  0  0 # top-left
+		  0  0  0  0 64  0  0  0
+		  0  0  0  0 64 64 64 64
+		 64  0  0 64 60 48 60 60
+		  0 64 64 60 60 60 60 60
+		  0  0 64 48 60 60 60 60
+		  0  0 64 60 60 60 60 64
+		  0  0 64 60 60 60 64 60
+
+		  0  0  0 64 64  0  0  0 # top-right
+		  0  0 64 63 63 64  0  0
+		  0 64 63 63 63 63 64  0
+		 64 64 63 63 63 63 64  0
+		 60 64 64 63 63 64  0  0
+		 64 60 60 64 64  0  0  0
+		 60 60 60 60 64  0  0  0
+		 60 60 60 60 64  0  0  0
+
+		  0  0  0 64 60 64 60 60 # bottom-left
+		  0  0 64 64 64 60 60 60
+		  0 64 63 63 64 60 60 60
+		 64 63 63 63 63 64 60 60
+		 64 63 63 63 63 64 64 64
+		  0 64 63 63 64  0  0  0
+		  0  0 64 64  0  0  0  0
+		  0  0  0  0  0  0  0  0
+
+		 60 60 60 64 60 64  0  0 # bottom-right
+		 60 60 64 60 60 64  0  0
+		 60 64 60 60 60 64  0  0
+		 64 60 60 60 60 64  0  0
+		 60 60 60 60 64 64  0  0
+		 64 64 64 64 64 64  0  0
+		  0  0  0  0  0  0  0  0
+		  0  0  0  0  0  0  0  0
+.text
+
+test_large_sprites:
+	# set the background color
+	li t0, 0x9ED7EC
+	sw t0, DISPLAY_PALETTE_RAM
+
+	# load the graphics
+	la a0, large_sprite_tiles
+	li a1, 0
+	li a2, NUM_LARGE_SPRITE_TILES
+	jal display_load_sprite_gfx
+
+	# set up the sprites
+	li t9, DISPLAY_SPR_TABLE
+
+	li t0, 10
+	li t1, 10
+	li t2, 0
+	li t3, 0b00001001
+	sb t0, 0(t9)
+	sb t1, 1(t9)
+	sb t2, 2(t9)
+	sb t3, 3(t9)
+	add t9, t9, 4
+
+	li t0, 30
+	li t1, 10
+	li t2, 0
+	li t3, 0b00001101
+	sb t0, 0(t9)
+	sb t1, 1(t9)
+	sb t2, 2(t9)
+	sb t3, 3(t9)
+	add t9, t9, 4
+
+	li t0, 10
+	li t1, 30
+	li t2, 0
+	li t3, 0b00001011
+	sb t0, 0(t9)
+	sb t1, 1(t9)
+	sb t2, 2(t9)
+	sb t3, 3(t9)
+	add t9, t9, 4
+
+	li t0, 30
+	li t1, 30
+	li t2, 0
+	li t3, 0b00001111
+	sb t0, 0(t9)
+	sb t1, 1(t9)
+	sb t2, 2(t9)
+	sb t3, 3(t9)
+	add t9, t9, 4
+
+	_loop:
+		li t9, DISPLAY_SPR_TABLE
+
+		li  a0, KEY_UP
+		jal display_is_key_held
+		beq v0, 0, _endif_u
+			lb  t0, 1(t9)
+			sub t0, t0, 1
+			sb  t0, 1(t9)
+			lb  t0, 5(t9)
+			sub t0, t0, 1
+			sb  t0, 5(t9)
+			lb  t0, 9(t9)
+			sub t0, t0, 1
+			sb  t0, 9(t9)
+			lb  t0, 13(t9)
+			sub t0, t0, 1
+			sb  t0, 13(t9)
+		_endif_u:
+
+		li  a0, KEY_DOWN
+		jal display_is_key_held
+		beq v0, 0, _endif_d
+			lb  t0, 1(t9)
+			add t0, t0, 1
+			sb  t0, 1(t9)
+			lb  t0, 5(t9)
+			add t0, t0, 1
+			sb  t0, 5(t9)
+			lb  t0, 9(t9)
+			add t0, t0, 1
+			sb  t0, 9(t9)
+			lb  t0, 13(t9)
+			add t0, t0, 1
+			sb  t0, 13(t9)
+		_endif_d:
+
+		li  a0, KEY_LEFT
+		jal display_is_key_held
+		beq v0, 0, _endif_l
+			lb  t0, 0(t9)
+			sub t0, t0, 1
+			sb  t0, 0(t9)
+			lb  t0, 4(t9)
+			sub t0, t0, 1
+			sb  t0, 4(t9)
+			lb  t0, 8(t9)
+			sub t0, t0, 1
+			sb  t0, 8(t9)
+			lb  t0, 12(t9)
+			sub t0, t0, 1
+			sb  t0, 12(t9)
+		_endif_l:
+
+		li  a0, KEY_RIGHT
+		jal display_is_key_held
+		beq v0, 0, _endif_r
+			lb  t0, 0(t9)
+			add t0, t0, 1
+			sb  t0, 0(t9)
+			lb  t0, 4(t9)
+			add t0, t0, 1
+			sb  t0, 4(t9)
+			lb  t0, 8(t9)
+			add t0, t0, 1
+			sb  t0, 8(t9)
+			lb  t0, 12(t9)
+			add t0, t0, 1
+			sb  t0, 12(t9)
+		_endif_r:
+
+		sw zero, DISPLAY_SYNC
+		lw zero, DISPLAY_SYNC
+	j _loop
