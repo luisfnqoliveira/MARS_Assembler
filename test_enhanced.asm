@@ -27,18 +27,15 @@ main:
 	or  t0, t0, DISPLAY_MODE_TM_ENABLE
 	sw  t0, DISPLAY_CTRL
 
-	# put the framebuffer in front of the tilemap
-	#li t0, 1
-	#sw t0, DISPLAY_ORDER
-
 	# reset everything
 	sw zero, DISPLAY_RESET
 
-	#j test_large_sprites
-	#j test_tilemap
+	j test_compositing
+	j test_large_sprites
+	j test_tilemap
 	j test_default_palette
-	#j test_mouse_follower
-	#j test_fb_palette_offset
+	j test_mouse_follower
+	j test_fb_palette_offset
 	j test_mouse
 	j test_kb
 
@@ -977,6 +974,125 @@ test_large_sprites:
 			add t0, t0, 1
 			sb  t0, 12(t9)
 		_endif_r:
+
+		sw zero, DISPLAY_SYNC
+		lw zero, DISPLAY_SYNC
+	j _loop
+
+# -------------------------------------------------------------------------------------------------
+
+test_compositing:
+	# set the background color
+	li t0, 0x9ED7EC
+	sw t0, DISPLAY_PALETTE_RAM
+
+	# load tilemap graphics
+	la a0, test_tile_gfx
+	li a1, 1
+	li a2, NUM_TEST_TILES
+	jal display_load_tilemap_gfx
+
+	# load sprite graphics
+	la a0, large_sprite_tiles
+	li a1, 0
+	li a2, NUM_LARGE_SPRITE_TILES
+	jal display_load_sprite_gfx
+
+	# put some tiles
+	li s0, 1
+	_loop1:
+		move a0, s0
+		li   a1, 1
+		li   a2, 1
+		li   a3, 0
+		jal  display_set_tile
+
+		move a0, s0
+		li   a1, 3
+		li   a2, 1
+		li   a3, 0
+		jal  display_set_tile
+	add s0, s0, 1
+	blt s0, 4, _loop1
+
+	li s0, 1
+	_loop2:
+		move a0, s0
+		li   a1, 2
+		li   a2, 1
+		li   a3, BIT_PRIORITY
+		jal  display_set_tile
+
+		move a0, s0
+		li   a1, 4
+		li   a2, 1
+		li   a3, BIT_PRIORITY
+		jal  display_set_tile
+	add s0, s0, 1
+	blt s0, 4, _loop2
+
+	# put a sprite
+	li t9, DISPLAY_SPR_TABLE
+
+	li t0, 10
+	li t1, 10
+	li t2, 0
+	li t3, 0b00001001
+	sb t0, 0(t9)
+	sb t1, 1(t9)
+	sb t2, 2(t9)
+	sb t3, 3(t9)
+
+	# put some diagonal lines in the framebuffer
+	li t0, DISPLAY_FB_RAM
+	li t1, COLOR_WHITE
+	_loop3:
+		sb t1, (t0)
+	add t0, t0, 3
+	blt t0, DISPLAY_TM_TABLE, _loop3
+
+	_loop:
+		li t9, DISPLAY_SPR_TABLE
+
+		li  a0, KEY_UP
+		jal display_is_key_held
+		beq v0, 0, _endif_u
+			lb  t0, 1(t9)
+			sub t0, t0, 1
+			sb  t0, 1(t9)
+		_endif_u:
+
+		li  a0, KEY_DOWN
+		jal display_is_key_held
+		beq v0, 0, _endif_d
+			lb  t0, 1(t9)
+			add t0, t0, 1
+			sb  t0, 1(t9)
+		_endif_d:
+
+		li  a0, KEY_LEFT
+		jal display_is_key_held
+		beq v0, 0, _endif_l
+			lb  t0, 0(t9)
+			sub t0, t0, 1
+			sb  t0, 0(t9)
+		_endif_l:
+
+		li  a0, KEY_RIGHT
+		jal display_is_key_held
+		beq v0, 0, _endif_r
+			lb  t0, 0(t9)
+			add t0, t0, 1
+			sb  t0, 0(t9)
+		_endif_r:
+
+		li  a0, KEY_SPACE
+		jal display_is_key_pressed
+		beq v0, 0, _endif_space
+			lw  t0, DISPLAY_FB_IN_FRONT
+			seq t0, t0, 0
+			sw  t0, DISPLAY_FB_IN_FRONT
+		_endif_space:
 
 		sw zero, DISPLAY_SYNC
 		lw zero, DISPLAY_SYNC

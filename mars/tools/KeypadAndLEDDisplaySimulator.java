@@ -960,7 +960,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 	/** The new, enhanced display. */
 	private static class EnhancedLEDDisplayPanel extends LEDDisplayPanel {
 		// Debugging!
-		private static final boolean DEBUG_OVERLAY = true;
+		private static final boolean DEBUG_OVERLAY = false;
 
 		// Register addresses
 		private static final int DISPLAY_SYNC           = 0xFFFF0004;
