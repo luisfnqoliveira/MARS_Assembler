@@ -304,7 +304,6 @@ test_kb:
 		64 64 64  0  0  0  0  0
 .text
 
-
 test_mouse_follower:
 	# set the background color
 	li t0, 0x9ED7EC
@@ -316,7 +315,7 @@ test_mouse_follower:
 	li a2, NUM_FOLLOWER_GFX_TILES
 	jal display_load_sprite_gfx
 
-	# set up the sprite
+	# set up the sprites
 	li t1, DISPLAY_SPR_TABLE
 
 	li s0, 0
@@ -530,14 +529,7 @@ test_tilemap:
 	la a0, test_tile_gfx
 	li a1, 1
 	li a2, NUM_TEST_TILES
-	jal display_load_tilemap_gfx
-
-	# put A Tile at (5, 2)
-	li a0, 5
-	li a1, 2
-	li a2, 1
-	li a3, 0
-	jal display_set_tile
+	jal display_load_tm_gfx
 
 	# set bg color to non-black so we can see if the transparency is doing the Thing
 	li t0, 0x332211
@@ -954,7 +946,7 @@ test_compositing:
 	la a0, test_tile_gfx
 	li a1, 1
 	li a2, NUM_TEST_TILES
-	jal display_load_tilemap_gfx
+	jal display_load_tm_gfx
 
 	# load sprite graphics
 	la a0, large_sprite_tiles

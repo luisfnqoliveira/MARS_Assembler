@@ -91,8 +91,9 @@ jr ra
 
 # -------------------------------------------------------------------------------------------------
 
-# call this at the end of each frame to display the graphics, update
-# the input, and wait the appropriate amount of time until the next frame.
+# void display_finish_frame()
+#   call this at the end of each frame to display the graphics, update
+#   input, and wait the appropriate amount of time until the next frame.
 display_finish_frame:
 	sw zero, DISPLAY_SYNC
 	lw zero, DISPLAY_SYNC
@@ -128,12 +129,15 @@ jr ra
 .end_macro
 
 # -------------------------------------------------------------------------------------------------
+# Palette
+# -------------------------------------------------------------------------------------------------
 
-# Loads palette entries into palette RAM. Each palette entry is a word in the format
-# 0xRRGGBB, e.g. 0xFF0000 is pure red, 0x00FF00 is pure green, etc.
-# a0 = address of palette array to load (use la for this argument)
-# a1 = start color index to load it into. don't forget, index 0 is the background color!
-# a2 = number of colors. shouldn't be < 1 or > 256, or else weird shit happens
+# void display_load_palette(int* palette, int startIndex, int numColors)
+#   Loads palette entries into palette RAM. Each palette entry is a word in the format
+#   0xRRGGBB, e.g. 0xFF0000 is pure red, 0x00FF00 is pure green, etc.
+#   a0 is the address of palette array to load (use la for this argument).
+#   a1 is the first color index to load it into. don't forget, index 0 is the background color!
+#   a2 is the number of colors to load. shouldn't be < 1 or > 256, or else weird shit happens
 display_load_palette:
 	mul a1, a1, 4
 	add a1, a1, DISPLAY_PALETTE_RAM
@@ -148,13 +152,12 @@ display_load_palette:
 jr ra
 
 # -------------------------------------------------------------------------------------------------
+# Framebuffer
+# -------------------------------------------------------------------------------------------------
 
-# sets 1 pixel to a given color.
-# (0, 0) is in the top LEFT, and Y increases DOWNWARDS!
-# arguments:
-#	a0 = x
-#	a1 = y
-#	a2 = color
+# void display_set_pixel(int x, int y, int color)
+#   sets 1 pixel to a given color. valid colors are in the range [0, 255].
+#   (0, 0) is in the top LEFT, and Y increases DOWNWARDS!
 display_set_pixel:
 	blt a0, 0, _return
 	bge a0, DISPLAY_W, _return
@@ -166,14 +169,14 @@ display_set_pixel:
 	add t0, t0, DISPLAY_FB_RAM
 	sb  a2, (t0)
 _return:
-	jr  ra
+jr  ra
 
 # -------------------------------------------------------------------------------------------------
+# Tilemap
+# -------------------------------------------------------------------------------------------------
 
-# a0 = tile x
-# a1 = tile y
-# a2 = tile index
-# a3 = tile flags
+# void display_set_tile(int tx, int ty, int tileIndex, int flags)
+#   sets the tile at *tile* coordinates (tx, ty) to the given tile index and flags.
 display_set_tile:
 	mul a1, a1, TM_ROW_BYTE_SIZE
 	mul a0, a0, 2
@@ -181,37 +184,44 @@ display_set_tile:
 	add a1, a1, DISPLAY_TM_TABLE
 	sb a2, (a1)
 	sb a3, 1(a1)
-	jr ra
+jr ra
 
 # -------------------------------------------------------------------------------------------------
+# Graphics data
+# -------------------------------------------------------------------------------------------------
 
-# a0 = address of tile graphics to load
-# a1 = start tile index to load it into
-# a2 = number of *tiles* to load
-display_load_tilemap_gfx:
+# void display_load_tm_gfx(int* src, int firstDestTile, int numTiles)
+#   loads numTiles tiles of graphics into the tilemap graphics area.
+#   a0 is the address of the array from which the graphics will be copied.
+#   a1 is the first tile in the graphics area that will be overwritten.
+#   a2 is the number of tiles to copy. Shouldn't be < 0.
+display_load_tm_gfx:
 	mul a1, a1, BYTES_PER_TILE
 	add a1, a1, DISPLAY_TM_GFX
 	mul a2, a2, BYTES_PER_TILE
-	j PRIVATE_tilecpy
+j PRIVATE_tilecpy
 
 # -------------------------------------------------------------------------------------------------
 
-# a0 = address of tile graphics to load
-# a1 = start tile index to load it into
-# a2 = number of *tiles* to load
+# void display_load_sprite_gfx(int* src, int firstDestTile, int numTiles)
+#   loads numTiles tiles of graphics into the sprite graphics area.
+#   a0 is the address of the array from which the graphics will be copied.
+#   a1 is the first tile in the graphics area that will be overwritten.
+#   a2 is the number of tiles to copy. Shouldn't be < 0.
 display_load_sprite_gfx:
 	mul a1, a1, BYTES_PER_TILE
 	add a1, a1, DISPLAY_SPR_GFX
 	mul a2, a2, BYTES_PER_TILE
-	j PRIVATE_tilecpy
+j PRIVATE_tilecpy
 
 # -------------------------------------------------------------------------------------------------
 
-# like memcpy, but (src, dest, bytes) instead of (dest, src, bytes).
-# also assumes number of tiles is a nonzero multiple of 4
-# a0 = source
-# a1 = target
-# a2 = number of bytes
+# PRIVATE FUNCTION, DO NOT CALL!!!!!!!
+#  like memcpy, but (src, dest, bytes) instead of (dest, src, bytes).
+#  also assumes number of tiles is a nonzero multiple of 4
+#  a0 = source
+#  a1 = target
+#  a2 = number of bytes
 PRIVATE_tilecpy:
 	_loop:
 		lw t0, (a0)
