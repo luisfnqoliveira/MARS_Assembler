@@ -85,6 +85,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		0xFFFF0010: DISPLAY_FB_CLEAR.w       (WO, clears framebuffer to color 0 when written)
 		0xFFFF0014: DISPLAY_FB_IN_FRONT.w    (WO, 1 puts framebuffer in front of everything else)
 		0xFFFF0018: DISPLAY_FB_PAL_OFFS.w    (WO, framebuffer palette offset)
+		0xFFFF001C: DISPLAY_FB_SCX.w         (RW, framebuffer X scroll position)
+		0xFFFF0020: DISPLAY_FB_SCY.w         (RW, framebuffer Y scroll position)
 
 	TILEMAP REGISTERS:
 
@@ -227,6 +229,12 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 		This not only lets you set aside one part of the palette for use by the framebuffer, but
 		it lets you do Fun Palette Shifting Effects on the framebuffer as well.
+
+		Last, the framebuffer can be scrolled freely at pixel resolution on both axes. The
+		scroll amount can be written as a signed integer but will be interpreted modulo 127.
+		The framebuffer wraps around at the edges. Since the framebuffer is the same size as
+		the display itself, this won't let you do "infinite scrolling" any faster than one pixel
+		at a time, but it might be nice for effects.
 
 	Tilemap
 	=======
@@ -961,6 +969,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private static final int DISPLAY_FB_CLEAR       = 0xFFFF0010;
 		private static final int DISPLAY_FB_IN_FRONT    = 0xFFFF0014;
 		private static final int DISPLAY_FB_PAL_OFFS    = 0xFFFF0018;
+		private static final int DISPLAY_FB_SCX         = 0xFFFF001C;
+		private static final int DISPLAY_FB_SCY         = 0xFFFF0020;
 		private static final int DISPLAY_TM_SCX         = 0xFFFF0030;
 		private static final int DISPLAY_TM_SCY         = 0xFFFF0034;
 		private static final int DISPLAY_KEY_HELD       = 0xFFFF0040;
@@ -991,11 +1001,13 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private static final int MIN_MS_PER_FRAME = 10;
 		private static final int MAX_MS_PER_FRAME = 100;
 
-		// Display and framebuffer size
+		// Display and framebuffer constants
 		private static final int N_COLUMNS = 128;
 		private static final int N_ROWS = 128;
 		private static final int CELL_DEFAULT_SIZE = 4;
 		private static final int CELL_ZOOMED_SIZE = 6;
+		private static final int FB_SCX_MASK = N_COLUMNS - 1;
+		private static final int FB_SCY_MASK = N_ROWS - 1;
 
 		// Tile graphics constants
 		private static final int TILE_W = 8;
@@ -1061,6 +1073,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		// Framebuffer registers
 		private boolean fbInFront = false;
 		private int fbPalOffs = 0;
+		private int fbScx = 0;
+		private int fbScy = 0;
 
 		// Tilemap registers
 		private int tmScx = 0;
@@ -1262,6 +1276,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 							case DISPLAY_FB_CLEAR:      this.clearFb();                break;
 							case DISPLAY_FB_IN_FRONT:   this.fbInFront = value != 0;   break;
 							case DISPLAY_FB_PAL_OFFS:   this.setFbPalOffs(value);      break;
+							case DISPLAY_FB_SCX:        this.setFbScx(value);          break;
+							case DISPLAY_FB_SCY:        this.setFbScy(value);          break;
 							case DISPLAY_TM_SCX:        this.setTmScx(value);          break;
 							case DISPLAY_TM_SCY:        this.setTmScy(value);          break;
 							case DISPLAY_KEY_HELD:      this.updateKeyHeld(value);     break;
@@ -1323,6 +1339,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			this.clearSprRam();
 			frameCounter = 0;
 			fbPalOffs = 0;
+			fbScx = 0;
+			fbScy = 0;
 			tmScx = 0;
 			tmScy = 0;
 			lastFrameTime = System.nanoTime();
@@ -1547,6 +1565,16 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			isFbDirty = true;
 		}
 
+		private void setFbScx(int value) {
+			this.fbScx = value & FB_SCX_MASK;
+			isFbDirty = true;
+		}
+
+		private void setFbScy(int value) {
+			this.fbScy = value & FB_SCY_MASK;
+			isFbDirty = true;
+		}
+
 		private void buildFbLayer() {
 			for(int y = 0; y < N_ROWS; y++) {
 				for(int x = 0; x < N_COLUMNS; x++) {
@@ -1555,12 +1583,15 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 					// also have to do some Dumb Shit to zero extend the byte
 					int colorIndex = ((int)fbRam[y*N_COLUMNS + x]) & 0xFF;
 
+					int px = (x + fbScx) & FB_SCX_MASK;
+					int py = (y + fbScy) & FB_SCY_MASK;
+
 					if(colorIndex == 0) {
-						fbLayer.setSample(x, y, 0, 0);
+						fbLayer.setSample(px, py, 0, 0);
 					} else {
 						// technically it'd be possible to have TWO transparent colors since
 						// the palette index wraps around to 0, but whatever.
-						fbLayer.setSample(x, y, 0, (colorIndex + fbPalOffs) & 0xFF);
+						fbLayer.setSample(px, py, 0, (colorIndex + fbPalOffs) & 0xFF);
 					}
 				}
 			}

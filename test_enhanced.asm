@@ -35,8 +35,8 @@ main:
 	sw zero, DISPLAY_RESET
 
 	#j test_large_sprites
-	j test_tilemap
-	#j test_default_palette
+	#j test_tilemap
+	j test_default_palette
 	#j test_mouse_follower
 	#j test_fb_palette_offset
 	j test_mouse
@@ -103,6 +103,42 @@ test_default_palette:
 			syscall
 			print_str "\n"
 		_endif:
+
+		li  a0, KEY_UP
+		jal display_is_key_held
+		beq v0, 0, _endif_u
+			lw  t0, DISPLAY_FB_SCY
+			sub t0, t0, 1
+			and t0, t0, 0x7F
+			sw  t0, DISPLAY_FB_SCY
+		_endif_u:
+
+		li  a0, KEY_DOWN
+		jal display_is_key_held
+		beq v0, 0, _endif_d
+			lw  t0, DISPLAY_FB_SCY
+			add t0, t0, 1
+			and t0, t0, 0x7F
+			sw  t0, DISPLAY_FB_SCY
+		_endif_d:
+
+		li  a0, KEY_LEFT
+		jal display_is_key_held
+		beq v0, 0, _endif_l
+			lw  t0, DISPLAY_FB_SCX
+			sub t0, t0, 1
+			and t0, t0, 0x7F
+			sw  t0, DISPLAY_FB_SCX
+		_endif_l:
+
+		li  a0, KEY_RIGHT
+		jal display_is_key_held
+		beq v0, 0, _endif_r
+			lw  t0, DISPLAY_FB_SCX
+			add t0, t0, 1
+			and t0, t0, 0x7F
+			sw  t0, DISPLAY_FB_SCX
+		_endif_r:
 
 		sw zero, DISPLAY_SYNC
 		lw zero, DISPLAY_SYNC
