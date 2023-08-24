@@ -34,10 +34,10 @@ main:
 	# reset everything
 	sw zero, DISPLAY_RESET
 
-	j test_large_sprites
+	#j test_large_sprites
 	#j test_tilemap
 	#j test_default_palette
-	j test_mouse_follower
+	#j test_mouse_follower
 	j test_fb_palette_offset
 	j test_mouse
 	j test_kb
@@ -154,17 +154,13 @@ test_fb_palette_offset:
 	li a2, 7
 	jal display_load_palette
 
-	# s0 is the palette offset
-	li s0, 6
-
 	_loop:
-		# cycle palette offset
-		sub s0, s0, 1
-		bne s0, -1, _skip
-			li s0, 6
-		_skip:
-
-		sw s0, DISPLAY_FB_PAL_OFFS
+		# DISPLAY_FB_PAL_OFFS = 6 - (DISPLAY_FRAME_COUNTER % 7)
+		lw  t0, DISPLAY_FRAME_COUNTER
+		rem t0, t0, 7
+		li  t1, 6
+		sub t0, t1, t0
+		sw  t0, DISPLAY_FB_PAL_OFFS
 
 		# flip
 		sw zero, DISPLAY_SYNC

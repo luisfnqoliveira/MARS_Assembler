@@ -78,6 +78,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		0xFFFF0000: DISPLAY_CTRL.w           (WO, sets ms/frame and FB/TM enable)
 		0xFFFF0004: DISPLAY_SYNC.w           (RW, write to finish frame, read to sleep until next)
 		0xFFFF0008: DISPLAY_RESET.w          (WO, clears/resets all graphics RAM to defaults)
+		0xFFFF000C: DISPLAY_FRAME_COUNTER.w  (RO, counts how many frame syncs have occurred)
 
 	FRAMEBUFFER REGISTERS:
 
@@ -955,6 +956,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		// Register addresses
 		private static final int DISPLAY_SYNC           = 0xFFFF0004;
 		private static final int DISPLAY_RESET          = 0xFFFF0008;
+		private static final int DISPLAY_FRAME_COUNTER  = 0xFFFF000C;
 		private static final int DISPLAY_FB_CLEAR       = 0xFFFF0010;
 		private static final int DISPLAY_FB_IN_FRONT    = 0xFFFF0014;
 		private static final int DISPLAY_FB_PAL_OFFS    = 0xFFFF0018;
@@ -1053,6 +1055,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private long lastFrameTime = 0;
 		private boolean fbEnabled = false;
 		private boolean tmEnabled = false;
+		private int frameCounter = 0;
 
 		// Framebuffer registers
 		private boolean fbInFront = false;
@@ -1250,6 +1253,11 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 						switch(addr) {
 							case DISPLAY_SYNC:          this.finishFrame();            break;
 							case DISPLAY_RESET:         this.resetEverything();        break;
+
+							// annoyingly, we are handling the write AFTER the RAM has already
+							// been changed. so change it back.
+							case DISPLAY_FRAME_COUNTER: this.updateFrameCounterRegister(); break;
+
 							case DISPLAY_FB_CLEAR:      this.clearFb();                break;
 							case DISPLAY_FB_IN_FRONT:   this.fbInFront = value != 0;   break;
 							case DISPLAY_FB_PAL_OFFS:   this.setFbPalOffs(value);      break;
@@ -1312,6 +1320,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			this.clearFb();
 			this.clearTmRam();
 			this.clearSprRam();
+			frameCounter = 0;
 			fbPalOffs = 0;
 			tmScx = 0;
 			tmScy = 0;
@@ -1395,6 +1404,15 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			// we're talking n = 4 or 5 at the most, here.
 			lastKeyState.clear();
 			lastKeyState.addAll(keyState);
+
+			this.frameCounter++;
+			this.updateFrameCounterRegister();
+		}
+
+		private void updateFrameCounterRegister() {
+			synchronized(Globals.memoryAndRegistersLock) {
+				sim.writeWordToMemory(DISPLAY_FRAME_COUNTER, this.frameCounter);
+			}
 		}
 
 		private void waitForNextFrame() {
