@@ -3,9 +3,9 @@
 
 # -------------------------------------------------------------------------------------------------
 
-# a0 = milliseconds per frame
-# a1 = enable framebuffer
-# a2 = enable tilemap
+# void display_init(int msPerFrame, bool enableFB, bool enableTM)
+#   Initialize the display, putting it into enhanced mode, and resetting everything.
+#   This should be the first thing you call after any non-display-related setup!
 display_init:
 	sll a0, a0, DISPLAY_MODE_MS_SHIFT
 	beq a1, 0, _no_fb
@@ -20,6 +20,62 @@ display_init:
 
 	# reset everything!
 	sw zero, DISPLAY_RESET
+jr ra
+
+# -------------------------------------------------------------------------------------------------
+
+# void display_enable_fb()
+#   enable the framebuffer if it isn't already.
+display_enable_fb:
+	lw t0, DISPLAY_CTRL
+	or t0, t0, DISPLAY_MODE_FB_ENABLE
+	sw t0, DISPLAY_CTRL
+jr ra
+
+# -------------------------------------------------------------------------------------------------
+
+# void display_disable_fb()
+#   disable the framebuffer if it's enabled.
+#   if the tilemap is not enabled, this has no effect. (at least one has to be enabled.)
+display_disable_fb:
+	lw  t0, DISPLAY_CTRL
+	and t1, t0, DISPLAY_MODE_TM_ENABLE
+	beq t1, 0, _return
+
+	# god I wish MARS could do constant expressions.
+	li  t1, DISPLAY_MODE_FB_ENABLE
+	not t1, t1
+	and t0, t0, t1
+	sw  t0, DISPLAY_CTRL
+_return:
+jr ra
+
+# -------------------------------------------------------------------------------------------------
+
+# void display_enable_tm()
+#   enable the tilemap if it isn't already.
+display_enable_tm:
+	lw t0, DISPLAY_CTRL
+	or t0, t0, DISPLAY_MODE_TM_ENABLE
+	sw t0, DISPLAY_CTRL
+jr ra
+
+# -------------------------------------------------------------------------------------------------
+
+# void display_disable_tm()
+#   disable the tilemap if it's enabled.
+#   if the framebuffer is not enabled, this has no effect. (at least one has to be enabled.)
+display_disable_tm:
+	lw  t0, DISPLAY_CTRL
+	and t1, t0, DISPLAY_MODE_FB_ENABLE
+	beq t1, 0, _return
+
+	# god I wish MARS could do constant expressions.
+	li  t1, DISPLAY_MODE_TM_ENABLE
+	not t1, t1
+	and t0, t0, t1
+	sw  t0, DISPLAY_CTRL
+_return:
 jr ra
 
 # -------------------------------------------------------------------------------------------------

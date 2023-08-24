@@ -1089,6 +1089,30 @@ test_compositing:
 			sw  t0, DISPLAY_FB_IN_FRONT
 		_endif_space:
 
+		li  a0, KEY_F
+		jal display_is_key_pressed
+		beq v0, 0, _endif_f
+			jal display_enable_fb
+		_endif_f:
+
+		li  a0, KEY_G
+		jal display_is_key_pressed
+		beq v0, 0, _endif_g
+			jal display_disable_fb
+		_endif_g:
+
+		li  a0, KEY_T
+		jal display_is_key_pressed
+		beq v0, 0, _endif_t
+			jal display_enable_tm
+		_endif_t:
+
+		li  a0, KEY_Y
+		jal display_is_key_pressed
+		beq v0, 0, _endif_y
+			jal display_disable_tm
+		_endif_y:
+
 		sw zero, DISPLAY_SYNC
 		lw zero, DISPLAY_SYNC
 	j _loop
