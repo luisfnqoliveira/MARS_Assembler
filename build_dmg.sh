@@ -1,5 +1,7 @@
 #! /bin/bash
 
+# following https://codetinkering.com/how-to-use-jpackage-tool-cli-for-macos-apps/
+
 if [[ $# -eq 0 ]] ; then
     echo 'gimme the name of the jar file'
     exit 0
