@@ -7,7 +7,3 @@ astyle*
 *.jar
 !downloads/*.jar
 *.asm
-!test_enhanced.asm
-!display_constants_enh.asm
-!display_enh.asm
-!macros.asm
