@@ -1593,7 +1593,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 					// yes, use the transparent color 0 if the index is 0;
 					// the BG color will show through this image if so.
 					// also have to do some Dumb Shit to zero extend the byte
-					int colorIndex = ((int)fbRam[y*N_COLUMNS + x]) & 0xFF;
+					int colorIndex = fbRam[y*N_COLUMNS + x] & 0xFF;
 
 					int px = (x + fbScx) & FB_SCX_MASK;
 					int py = (y + fbScy) & FB_SCY_MASK;
@@ -1654,8 +1654,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 					int px = tx * TILE_W;
 
 					// 1. get tile index and attributes
-					int tileIndex = tmTable[entry];
-					int flags = tmTable[entry + 1];
+					int tileIndex = tmTable[entry] & 0xFF;
+					int flags = tmTable[entry + 1] & 0xFF;
 					var hflip = (flags & BIT_HFLIP) != 0;
 					var vflip = (flags & BIT_VFLIP) != 0;
 					var target = ((flags & BIT_PRIORITY) != 0) ? fullTmLayerHi : fullTmLayerLo;
@@ -1717,7 +1717,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			int entry = sprTable.length - SPRITE_ENTRY_SIZE;
 
 			for(int i = N_SPRITES - 1; i >= 0; i--) {
-				int flags = sprTable[entry + 3];
+				int flags = sprTable[entry + 3] & 0xFF;
 
 				// is sprite enabled?
 				if((flags & BIT_ENABLE) != 0) {
@@ -1732,7 +1732,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 					// does sprite overlap screen bounds?
 					if(x < N_COLUMNS && y < N_COLUMNS && x2 > 0 && y2 > 0) {
 						// get tile index and other attributes
-						int tileIndex = sprTable[entry + 2];
+						int tileIndex = sprTable[entry + 2] & 0xFF;
 						var hflip = (flags & BIT_HFLIP) != 0;
 						var vflip = (flags & BIT_VFLIP) != 0;
 						var palOffs = ((flags >> 4) & 0xF) * 16;
@@ -1886,7 +1886,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 					for(int y = 0; y < TILE_H; y++) {
 						for(int x = 0; x < TILE_W; x++) {
-							int index = gfx[gfxOffset];
+							int index = gfx[gfxOffset] & 0xFF;
 							if(index != 0) {
 								dest.setSample(px + x, py + y, 0, index + palOffset);
 							}
@@ -1903,7 +1903,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 					for(int y = 0; y < TILE_H; y++) {
 						for(int x = 0; x < TILE_W; x++) {
-							int index = gfx[gfxOffset];
+							int index = gfx[gfxOffset] & 0xFF;
 							if(index != 0) {
 								dest.setSample(px + x, py + y, 0, index + palOffset);
 							}
@@ -1924,7 +1924,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 				for(int y = 0; y < TILE_H; y++) {
 					for(int x = 0; x < TILE_W; x++) {
-						int index = gfx[gfxOffset];
+						int index = gfx[gfxOffset] & 0xFF;
 						if(index != 0) {
 							dest.setSample(px + x, py + y, 0, index + palOffset);
 						}
@@ -1940,7 +1940,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 				// No flip
 				for(int y = 0; y < TILE_H; y++) {
 					for(int x = 0; x < TILE_W; x++) {
-						int index = gfx[gfxOffset];
+						int index = gfx[gfxOffset] & 0xFF;
 						if(index != 0) {
 							dest.setSample(px + x, py + y, 0, index + palOffset);
 						}
