@@ -61,6 +61,8 @@ public final class DataTypes
 	public static final int MAX_UHALF_VALUE = 65535;
 	/** Lowest value that can be stored in na unsigned MIPS halfword is 0 **/
 	public static final int MIN_UHALF_VALUE = 0;
+	/** Maximum value that can be stored in an unsigned MIPS byte is 2<sup>8</sup>-1 **/
+	public static final int MAX_UBYTE_VALUE = 255;
 	/** Maximum value that can be stored in a MIPS byte is 2<sup>7</sup>-1 **/
 	public static final int MAX_BYTE_VALUE = Byte.MAX_VALUE;
 	/** Lowest value that can be stored in a MIPS byte is -2<sup>7</sup> **/
@@ -107,9 +109,9 @@ public final class DataTypes
 	 **/
 	public static boolean outOfRange(Directives direct, int value)
 	{
-		if(direct == Directives.HALF && (value < MIN_HALF_VALUE || value > MAX_HALF_VALUE))
+		if(direct == Directives.HALF && (value < MIN_HALF_VALUE || value > MAX_UHALF_VALUE))
 			return true;
-		else if(direct == Directives.BYTE && (value < MIN_BYTE_VALUE || value > MAX_BYTE_VALUE))
+		else if(direct == Directives.BYTE && (value < MIN_BYTE_VALUE || value > MAX_UBYTE_VALUE))
 			return true;
 		else
 			return false;
