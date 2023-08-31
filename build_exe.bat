@@ -1,11 +1,11 @@
 jpackage ^
 	--input .\jar\ ^
 	--dest .\downloads\ ^
-	--name Mars_2241_0828 ^
+	--name Mars_2241_0830 ^
 	--icon .\images\mars.ico ^
-	--main-jar Mars_2241_0828.jar ^
+	--main-jar Mars_2241_0830.jar ^
 	--type exe ^
-	--app-version "4.5.41828" ^
+	--app-version "4.5.41830" ^
 	--vendor "com.jfbillingsley" ^
 	--win-menu ^
 	--verbose
