@@ -411,6 +411,10 @@ public class JEditBasedTextArea extends JEditTextArea implements MARSTextEditing
 	//
 	//////////////////////////////////////////////////////////////////
 
+	private static interface BlockEdit {
+		void doIt(int startLine, int endLine);
+	}
+
 	public int getLineEndOffsetFixed(int line) {
 		int ret = this.getLineEndOffset(line);
 
@@ -420,24 +424,7 @@ public class JEditBasedTextArea extends JEditTextArea implements MARSTextEditing
 		return ret;
 	}
 
-	void insertTabOrIndent() {
-		int selStart = this.getSelectionStart();
-		int selEnd = this.getSelectionEnd();
-
-		if(selStart == selEnd)
-			this.overwriteSetSelectedText("\t");
-		else
-			this.indentOrDedent(true);
-	}
-
-	void dedent() {
-		int selStart = this.getSelectionStart();
-		int selEnd = this.getSelectionEnd();
-
-		this.indentOrDedent(false);
-	}
-
-	void indentOrDedent(boolean indent) {
+	void doBlockEdit(BlockEdit edit) {
 		int selStart = this.getSelectionStart();
 		int selEnd = this.getSelectionEnd();
 
@@ -465,22 +452,7 @@ public class JEditBasedTextArea extends JEditTextArea implements MARSTextEditing
 		this.compoundEdit = new CompoundEdit();
 
 			// do the editing
-			if(indent) {
-				for(int line = startLine; line <= endLine; line++) {
-					this.setCaretPosition(this.getLineStartOffset(line));
-					this.setSelectedText("\t");
-				}
-			} else {
-				for(int line = startLine; line <= endLine; line++) {
-					int lineStart = this.getLineStartOffset(line);
-					String text = this.getText(lineStart, 1);
-
-					if(text.equals("\t")) {
-						this.select(lineStart, lineStart + 1);
-						this.setSelectedText("");
-					}
-				}
-			}
+			edit.doIt(startLine, endLine);
 
 			// restore original selection
 			int newSelStart = this.getLineEndOffsetFixed(startLine) - startInLine;
@@ -499,6 +471,116 @@ public class JEditBasedTextArea extends JEditTextArea implements MARSTextEditing
 		this.compoundEdit.end();
 		this.editPane.updateUndoState();
 		this.editPane.updateRedoState();
+	}
+
+	void insertTabOrIndent() {
+		int selStart = this.getSelectionStart();
+		int selEnd = this.getSelectionEnd();
+
+		if(selStart == selEnd)
+			this.overwriteSetSelectedText("\t");
+		else
+			this.indentOrDedent(true);
+	}
+
+	void dedent() {
+		this.indentOrDedent(false);
+	}
+
+	void indentOrDedent(boolean indent) {
+		if(indent) {
+			doBlockEdit((startLine, endLine) -> {
+				for(int line = startLine; line <= endLine; line++) {
+					this.setCaretPosition(this.getLineStartOffset(line));
+					this.setSelectedText("\t");
+				}
+			});
+		} else {
+			doBlockEdit((startLine, endLine) -> {
+				for(int line = startLine; line <= endLine; line++) {
+					int lineStart = this.getLineStartOffset(line);
+					String text = this.getText(lineStart, 1);
+
+					if(text.equals("\t")) {
+						this.select(lineStart, lineStart + 1);
+						this.setSelectedText("");
+					}
+				}
+			});
+		}
+	}
+
+	void commentOrUncomment() {
+		doBlockEdit((startLine, endLine) -> {
+			if(allLinesAreComments(startLine, endLine)) {
+				uncomment(startLine, endLine);
+			} else {
+				comment(startLine, endLine);
+			}
+		});
+	}
+
+	boolean allLinesAreComments(int startLine, int endLine) {
+		for(int line = startLine; line <= endLine; line++) {
+			if(!isComment(this.getLineText(line))) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	boolean isComment(String s) {
+		s = s.trim();
+		return s.length() == 0 || s.startsWith("#");
+	}
+
+	int firstPrintablePos(String lineText) {
+		for(int position = 0; position < lineText.length(); position++) {
+			if(!Character.isWhitespace(lineText.charAt(position))) {
+				return position;
+			}
+		}
+
+		return -1;
+	}
+
+	void comment(int startLine, int endLine) {
+		for(int line = startLine; line <= endLine; line++) {
+			// find position in line after whitespace
+			String lineText = this.getLineText(line);
+			int position = firstPrintablePos(lineText);
+
+			// if the line is empty or nothing but whitespace, skip it.
+			if(position != -1) {
+				// insert the comment
+				this.setCaretPosition(this.getLineStartOffset(line) + position);
+				this.setSelectedText("# ");
+			}
+		}
+	}
+
+	void uncomment(int startLine, int endLine) {
+		for(int line = startLine; line <= endLine; line++) {
+			String lineText = this.getLineText(line);
+			int position = firstPrintablePos(lineText);
+
+			// if the line is empty or nothing but whitespace, skip it.
+			// the presence of '#' *should* be guaranteed by the caller, but I'm superstitious
+			if(position != -1 && lineText.charAt(position) == '#') {
+				int textPosition = this.getLineStartOffset(line) + position;
+
+				// see if there's a space after
+				if(position + 1 < lineText.length() && lineText.charAt(position + 1) == ' ') {
+					this.select(textPosition, textPosition + 2);
+				} else {
+					this.select(textPosition, textPosition + 1);
+				}
+
+				// remove the comment
+				this.setSelectedText("");
+			}
+		}
 	}
 
 	void insertSpaceOrYell() {

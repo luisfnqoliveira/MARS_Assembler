@@ -52,6 +52,8 @@ public class DefaultInputHandler extends InputHandler
 
 		addKeyBinding("INSERT", OVERWRITE);
 		addKeyBinding("C+\\", TOGGLE_RECT);
+		addKeyBinding("C+/", COMMENT_OR_UNCOMMENT);
+		addKeyBinding("M+/", COMMENT_OR_UNCOMMENT);
 
 		addKeyBinding("HOME", HOME);
 		addKeyBinding("END", END);
@@ -186,6 +188,7 @@ public class DefaultInputHandler extends InputHandler
 				|| keyCode == KeyEvent.VK_ENTER
 				|| keyCode == KeyEvent.VK_TAB
 				|| keyCode == KeyEvent.VK_SPACE
+				|| keyCode == KeyEvent.VK_SLASH
 				|| keyCode == KeyEvent.VK_ESCAPE)
 		{
 			if(grabAction != null)
@@ -250,6 +253,12 @@ public class DefaultInputHandler extends InputHandler
 		// matches KeyEvent.META_MASK.   DPS 30-Nov-2010
 		if((modifiers & KeyEvent.META_MASK) != 0)
 			return;
+
+
+		// lol hax
+		if(c == '/' && (modifiers & KeyEvent.CTRL_MASK) != 0)
+			return;
+
 		// DPS 9-Jan-2013.  Umberto Villano from Italy describes Alt combinations
 		// not working on Italian Mac keyboards, where # requires Alt (Option).
 		// This is preventing him from writing comments.  Similar complaint from
@@ -292,8 +301,7 @@ public class DefaultInputHandler extends InputHandler
 		{
 			if(c > 0x20 && c != 0x7f)
 			{
-				KeyStroke keyStroke = KeyStroke.getKeyStroke(
-										  Character.toUpperCase(c));
+				KeyStroke keyStroke = KeyStroke.getKeyStroke(Character.toUpperCase(c));
 				Object o = currentBindings.get(keyStroke);
 
 				if(o instanceof Hashtable)
@@ -434,6 +442,23 @@ public class DefaultInputHandler extends InputHandler
 
 				if(jeb != null)
 					jeb.dedent();
+			}
+			else
+				textArea.getToolkit().beep();
+		}
+	}
+
+	static final ActionListener COMMENT_OR_UNCOMMENT = new comment_or_uncomment();
+	static class comment_or_uncomment implements ActionListener {
+		public void actionPerformed(ActionEvent evt) {
+			JEditTextArea textArea = getTextArea(evt);
+
+			if(textArea.isEditable()) {
+				// JEB!
+				JEditBasedTextArea jeb = (JEditBasedTextArea)textArea;
+
+				if(jeb != null)
+					jeb.commentOrUncomment();
 			}
 			else
 				textArea.getToolkit().beep();
