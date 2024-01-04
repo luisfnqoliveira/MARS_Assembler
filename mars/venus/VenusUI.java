@@ -95,7 +95,7 @@ public class VenusUI extends JFrame
 	private Action fileNewAction, fileOpenAction, fileCloseAction, fileCloseAllAction, fileSaveAction;
 	private Action fileSaveAsAction, fileSaveAllAction, fileDumpMemoryAction, filePrintAction, fileExitAction;
 	EditUndoAction editUndoAction;
-	EditRedoAction editRedoAction;
+	public EditRedoAction editRedoAction;
 	private Action editCutAction, editCopyAction, editPasteAction, editFindReplaceAction, editSelectAllAction;
 	private Action runAssembleAction, runGoAction, runStepAction, runBackstepAction, runResetAction,
 			runStopAction, runPauseAction, runClearBreakpointsAction, runToggleBreakpointsAction;

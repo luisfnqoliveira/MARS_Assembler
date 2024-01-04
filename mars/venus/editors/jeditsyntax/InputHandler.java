@@ -15,6 +15,8 @@ import java.awt.event.*;
 import java.awt.Component;
 import java.util.*;
 
+import mars.Globals;
+
 /**
  * An input handler converts the user's key strokes into concrete actions.
  * It also takes care of macro recording and action repetition.<p>
@@ -73,6 +75,7 @@ public abstract class InputHandler extends KeyAdapter
 	public static final ActionListener SELECT_PREV_PAGE = new prev_page(true);
 	public static final ActionListener SELECT_PREV_WORD = new prev_word(true);
 	public static final ActionListener REPEAT = new repeat();
+	public static final ActionListener REDO = new redo();
 	public static final ActionListener TOGGLE_RECT = new toggle_rect();
 	// Clipboard
 	public static final ActionListener CLIP_COPY = new clip_copy();
@@ -1045,6 +1048,19 @@ public abstract class InputHandler extends KeyAdapter
 			{
 				textArea.getInputHandler().setRepeatCount(
 					Integer.parseInt(actionCommand));
+			}
+		}
+	}
+
+	public static class redo implements ActionListener
+	{
+		public void actionPerformed(ActionEvent evt)
+		{
+			var redo = Globals.getGui().editRedoAction;
+
+			if(redo.isEnabled())
+			{
+				redo.actionPerformed(evt);
 			}
 		}
 	}

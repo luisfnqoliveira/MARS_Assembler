@@ -59,7 +59,9 @@ public class DefaultInputHandler extends InputHandler
 		addKeyBinding("M+RIGHT", END);
 		addKeyBinding("C+A", SELECT_ALL);
 		addKeyBinding("S+HOME", SELECT_HOME);
+		addKeyBinding("MS+LEFT", SELECT_HOME);
 		addKeyBinding("S+END", SELECT_END);
+		addKeyBinding("MS+RIGHT", SELECT_END);
 		addKeyBinding("C+HOME", DOCUMENT_HOME);
 		addKeyBinding("C+END", DOCUMENT_END);
 		addKeyBinding("CS+HOME", SELECT_DOC_HOME);
@@ -88,6 +90,9 @@ public class DefaultInputHandler extends InputHandler
 		addKeyBinding("S+DOWN", SELECT_NEXT_LINE);
 
 		addKeyBinding("C+ENTER", REPEAT);
+
+		addKeyBinding("CS+Z", REDO);
+		addKeyBinding("MS+Z", REDO);
 
 		// Clipboard
 		addKeyBinding("C+C", CLIP_COPY);
