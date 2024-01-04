@@ -381,7 +381,7 @@ public class ProgramStatement
 			{
 				// attempt to jump beyond 28-bit byte (26-bit word) address range.
 				// SPIM flags as warning, I'll flag as error b/c MARS text segment not long enough for it to be OK.
-				errors.add(new ErrorMessage(this.sourceMIPSprogram, this.sourceLine, 0,
+				errors.add(new ErrorMessage(this.sourceMIPSprogram, strippedTokenList.get(0).getSourceLine(), 0,
 											"Jump target word address beyond 26-bit range"));
 				return;
 			}
