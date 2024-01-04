@@ -198,7 +198,7 @@ public class Settings extends Observable
 		"0",          // LabelSortState
 		"",           // MemoryConfiguration
 		"500",        // CaretBlinkRate
-		"8",          // EditorTabSize
+		"4",          // EditorTabSize
 		"2",          // EditorPopupPrefixLength
 		"", "", "", "", "", "", "", "", "", "" // RecentFile0 ..= RecentFile9
 	};
@@ -814,7 +814,7 @@ public class Settings extends Observable
 	 */
 	public int getEditorTabSize()
 	{
-		int size = 8;
+		int size = 4;
 		try
 		{
 			size = Integer.parseInt(stringSettingsValues[EDITOR_TAB_SIZE]);
