@@ -400,6 +400,17 @@ public class ExtendedInstruction extends Instruction
 				{
 					// this won't happen...
 				}
+
+				// HACKY: tell the assembler to give an error if a pseudo-load is being
+				// given a bad address (e.g. "lw t0, CONSTANT")
+				if(!Globals.memory.usingCompactMemoryConfiguration() && (
+					instruction.startsWith("lw") ||
+					instruction.startsWith("lb") ||
+					instruction.startsWith("lh"))) {
+					if(val >= 0 && val < Globals.memory.dataSegmentBaseAddress)
+						return "<LOAD BAD ADDRESS>";
+				}
+
 				if((instruction.length() > index + 3) && (instruction.charAt(index + 3) == 'U'))
 					instruction = substitute(instruction, "VL" + op + "U", String.valueOf(val & 0xffff));
 				else

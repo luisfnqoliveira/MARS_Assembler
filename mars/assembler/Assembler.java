@@ -360,6 +360,17 @@ MIPSprogram origProgram = statement.getSourceMIPSprogram();
 						String instruction = ExtendedInstruction.makeTemplateSubstitutions(
 												 this.fileCurrentlyBeingAssembled,
 												 (String) templateList.get(instrNumber), theTokenList);
+
+						// HACKY: if we get this, then we know what the token list looks like.
+						if(instruction.equals("<LOAD BAD ADDRESS>")) {
+							Token token = theTokenList.get(2);
+							errors.add(new ErrorMessage(statement.getSourceFile(),
+								statement.getSourceLine(), token.getStartPos(),
+								"that's not a valid address you can load from (if it's a CONSTANT, use li)"));
+							// throw new ProcessingException(errors);
+							break;
+						}
+
 						// 23 Jan 2008 by DPS. Template substitution may result in no instruction.
 						// If this is the case, skip remainder of loop iteration. This should only
 						// happen if template substitution was for "nop" instruction but delayed branching
