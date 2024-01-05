@@ -233,24 +233,28 @@ public class Assembler
 			// tokenList is an ArrayList of TokenList objects, one per source line;
 			// each ArrayList in tokenList consists of Token objects.
 			ArrayList<SourceLine> sourceLineList = fileCurrentlyBeingAssembled.getSourceLineList();
-			ArrayList tokenList = fileCurrentlyBeingAssembled.getTokenList();
-			ArrayList parsedList = fileCurrentlyBeingAssembled.createParsedList();
+			ArrayList<TokenList> tokenLists = fileCurrentlyBeingAssembled.getTokenList();
+			ArrayList<ProgramStatement> parsedList = fileCurrentlyBeingAssembled.createParsedList();
 			// each file keeps its own macro definitions
 			MacroPool macroPool = fileCurrentlyBeingAssembled.createMacroPool();
 			// FIRST PASS OF ASSEMBLER VERIFIES SYNTAX, GENERATES SYMBOL TABLE,
 			// INITIALIZES DATA SEGMENT
 			ArrayList<ProgramStatement> statements;
-			for(int i = 0; i < tokenList.size(); i++)
+			for(int i = 0; i < tokenLists.size(); i++)
 			{
 				if(errors.errorLimitExceeded())
 					break;
-				for(int z = 0; z < ((TokenList)tokenList.get(i)).size(); z++)
+
+				TokenList tokenList = tokenLists.get(i);
+
+				for(int z = 0; z < tokenList.size(); z++)
 				{
-					Token t = ((TokenList) tokenList.get(i)).get(z);
+					Token t = tokenList.get(z);
 					// record this token's original source program and line #. Differs from final, if .include used
 					t.setOriginal(sourceLineList.get(i).getMIPSprogram(), sourceLineList.get(i).getLineNumber());
 				}
-				statements = this.parseLine((TokenList) tokenList.get(i),
+				statements = this.parseLine(tokenList,
+											sourceLineList.get(i).getMIPSprogram(),
 											sourceLineList.get(i).getSource(),
 											sourceLineList.get(i).getLineNumber(),
 											extendedAssemblerEnabled);
@@ -339,8 +343,7 @@ public class Assembler
 					ExtendedInstruction inst = (ExtendedInstruction) statement.getInstruction();
 					String basicAssembly = statement.getBasicAssemblyStatement();
 					int sourceLine = statement.getSourceLine();
-MIPSprogram origProgram = statement.getSourceMIPSprogram();
-// TokenList theTokenList = new Tokenizer(origProgram).tokenizeLine(sourceLine,
+					MIPSprogram origProgram = statement.getOrigMIPSprogram();
 					TokenList theTokenList = new Tokenizer().tokenizeLine(sourceLine,
 							basicAssembly, errors, false);
 
@@ -384,7 +387,6 @@ MIPSprogram origProgram = statement.getSourceMIPSprogram();
 							System.out.println("PSEUDO generated: " + instruction);
 						// For generated instruction: tokenize, build program
 						// statement, add to list.
-// TokenList newTokenList = new Tokenizer(origProgram).tokenizeLine(sourceLine,
 						TokenList newTokenList = new Tokenizer().tokenizeLine(sourceLine,
 								instruction, errors, false);
 						ArrayList instrMatches = this.matchInstruction(newTokenList.get(0));
@@ -393,7 +395,7 @@ MIPSprogram origProgram = statement.getSourceMIPSprogram();
 						// Only first generated instruction is linked to original source
 						ProgramStatement ps = new ProgramStatement(
 							this.fileCurrentlyBeingAssembled,
-// origProgram,
+							origProgram,
 							(instrNumber == 0) ? statement.getSource() : "", newTokenList,
 							newTokenList, instr, textAddress.get(), statement.getSourceLine());
 						textAddress.increment(Instruction.INSTRUCTION_LENGTH);
@@ -486,8 +488,8 @@ MIPSprogram origProgram = statement.getSourceMIPSprogram();
 	 * @return ArrayList of ProgramStatements because parsing a macro expansion
 	 *         request will return a list of ProgramStatements expanded
 	 */
-	private ArrayList<ProgramStatement> parseLine(TokenList tokenList, String source,
-			int sourceLineNumber, boolean extendedAssemblerEnabled)
+	private ArrayList<ProgramStatement> parseLine(TokenList tokenList, MIPSprogram origProgram,
+			String source, int sourceLineNumber, boolean extendedAssemblerEnabled)
 	{
 
 		ArrayList<ProgramStatement> ret = new ArrayList<ProgramStatement>();
@@ -556,11 +558,13 @@ MIPSprogram origProgram = statement.getSourceMIPSprogram();
 						substituted = tokenList2.getProcessedLine();
 
 					// recursively parse lines of expanded macro
-					ArrayList<ProgramStatement> statements = parseLine(tokenList2,
+					// TODO: don't think null is the right thing to pass for origprogram
+					ArrayList<ProgramStatement> statements = parseLine(tokenList2, null,
 							"<" + (i - macro.getFromLine() + macro.getOriginalFromLine()) + "> "
 							+ substituted.trim(), sourceLineNumber, extendedAssemblerEnabled);
-					if(statements != null)
+					if(statements != null) {
 						ret.addAll(statements);
+					}
 				}
 				macroPool.popFromCallStack();
 			}
@@ -634,10 +638,8 @@ MIPSprogram origProgram = statement.getSourceMIPSprogram();
 			{
 				dealWithFunctionLabelReferences(tokens);
 
-				programStatement = new ProgramStatement(this.fileCurrentlyBeingAssembled, source,
+				programStatement = new ProgramStatement(this.fileCurrentlyBeingAssembled, origProgram, source,
 														tokenList, tokens, inst, textAddress.get(), sourceLineNumber);
-				// programStatement = new ProgramStatement(token.getOriginalProgram(), source,
-													// tokenList, tokens, inst, textAddress.get(), sourceLineNumber);
 
 				// instruction length is 4 for all basic instruction, varies for extended instruction
 				// Modified to permit use of compact expansion if address fits

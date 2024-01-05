@@ -46,6 +46,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 public class ProgramStatement
 {
 	private MIPSprogram sourceMIPSprogram;
+	private MIPSprogram originalProgram;
 	private String source, basicAssemblyStatement, machineStatement;
 	private TokenList originalTokenList, strippedTokenList;
 	private BasicStatementList basicStatementList;
@@ -70,10 +71,12 @@ public class ProgramStatement
 	 * @param textAddress The Text Segment address in memory where the binary machine code for this statement
 	 * is stored.
 	 **/
-	public ProgramStatement(MIPSprogram sourceMIPSprogram, String source, TokenList origTokenList, TokenList strippedTokenList,
+	public ProgramStatement(MIPSprogram sourceMIPSprogram, MIPSprogram originalProgram,
+			String source, TokenList origTokenList, TokenList strippedTokenList,
 							Instruction inst, int textAddress, int sourceLine)
 	{
 		this.sourceMIPSprogram = sourceMIPSprogram;
+		this.originalProgram = originalProgram;
 		this.source = source;
 		this.originalTokenList = origTokenList;
 		this.strippedTokenList = strippedTokenList;
@@ -104,6 +107,7 @@ public class ProgramStatement
 	public ProgramStatement(int binaryStatement, int textAddress)
 	{
 		this.sourceMIPSprogram = null;
+		this.originalProgram = null;
 		this.binaryStatement = binaryStatement;
 		this.textAddress = textAddress;
 		this.originalTokenList = this.strippedTokenList = null;
@@ -495,13 +499,20 @@ public class ProgramStatement
 		return sourceMIPSprogram;
 	}
 
+	public MIPSprogram getOrigMIPSprogram() {
+		return (originalProgram != null) ? originalProgram : sourceMIPSprogram;
+	}
+
 	/**
 	 * Produces String name of the source file containing this statement.
 	 * @return The file name.
 	 **/
 	public String getSourceFile()
 	{
-		return (sourceMIPSprogram == null) ? "" : sourceMIPSprogram.getFilename();
+		return
+			(originalProgram != null) ? originalProgram.getFilename() :
+			(sourceMIPSprogram != null) ? sourceMIPSprogram.getFilename() :
+			"";
 	}
 
 
