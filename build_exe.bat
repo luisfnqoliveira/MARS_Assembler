@@ -3,7 +3,7 @@ jpackage ^
 	--dest .\downloads\ ^
 	--name Mars_2244_0105 ^
 	--icon .\images\mars.ico ^
-	--main-jar Mars_Mars_2244_0105.jar ^
+	--main-jar Mars_2244_0105.jar ^
 	--type exe ^
 	--app-version "4.5.44105" ^
 	--vendor "com.jfbillingsley" ^
