@@ -202,6 +202,7 @@ public abstract class AbstractMarsToolAndApplication extends JFrame implements M
 			this.isBeingUsedAsAMarsTool = true;
 			dialog = new JDialog(Globals.getGui(), this.title);
 			// assure the dialog goes away if user clicks the X
+			dialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
 			dialog.addWindowListener(
 				new WindowAdapter()
 			{
@@ -671,11 +672,25 @@ public abstract class AbstractMarsToolAndApplication extends JFrame implements M
 	// Closing duties for MarsTool only.
 	private void performToolClosingDuties()
 	{
-		performSpecialClosingDuties();
-		if(connectButton.isConnected())
-			connectButton.disconnect();
-		dialog.setVisible(false);
-		dialog.dispose();
+		if(!Globals.inputSyscallLock.tryLock()) {
+			JOptionPane.showMessageDialog(
+				null, // parent
+				"You cannot close a tool while an input syscall is in progress.\n" +
+				"Stop the program before closing it.",
+				null, // title,
+				JOptionPane.ERROR_MESSAGE);
+			return;
+		}
+
+		try {
+			performSpecialClosingDuties();
+			if(connectButton.isConnected())
+				connectButton.disconnect();
+			dialog.setVisible(false);
+			dialog.dispose();
+		} finally {
+			Globals.inputSyscallLock.unlock();
+		}
 	}
 
 	// Closing duties for stand-alone application only.
