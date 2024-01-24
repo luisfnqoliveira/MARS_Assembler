@@ -54,12 +54,17 @@ public class SyscallReadChar extends AbstractSyscall
 	*/
 	public void simulate(ProgramStatement statement) throws ProcessingException
 	{
-		int value = SystemIO.readChar(this.getNumber());
+		Globals.inputSyscallLock.lock();
+		try {
+			int value = SystemIO.readChar(this.getNumber());
 
-		if(value == -1)
-			throw new ProcessingException();
+			if(value == -1)
+				throw new ProcessingException();
 
-		RegisterFile.updateRegister(2, value);
+			RegisterFile.updateRegister(2, value);
+		} finally {
+			Globals.inputSyscallLock.unlock();
+		}
 	}
 
 }

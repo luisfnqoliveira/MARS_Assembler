@@ -54,18 +54,23 @@ public class SyscallReadInt extends AbstractSyscall
 	*/
 	public void simulate(ProgramStatement statement) throws ProcessingException
 	{
-		int value = 0;
-		try
-		{
-			value = SystemIO.readInteger(this.getNumber());
+		Globals.inputSyscallLock.lock();
+		try {
+			int value = 0;
+			try
+			{
+				value = SystemIO.readInteger(this.getNumber());
+			}
+			catch(NumberFormatException e)
+			{
+				throw new ProcessingException(statement,
+											  "invalid integer input (syscall " + this.getNumber() + ")",
+											  Exceptions.SYSCALL_EXCEPTION);
+			}
+			RegisterFile.updateRegister(2, value);
+		} finally {
+			Globals.inputSyscallLock.unlock();
 		}
-		catch(NumberFormatException e)
-		{
-			throw new ProcessingException(statement,
-										  "invalid integer input (syscall " + this.getNumber() + ")",
-										  Exceptions.SYSCALL_EXCEPTION);
-		}
-		RegisterFile.updateRegister(2, value);
 	}
 
 }
