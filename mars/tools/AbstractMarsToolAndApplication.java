@@ -186,30 +186,46 @@ public abstract class AbstractMarsToolAndApplication extends JFrame implements M
 
 	public void action()
 	{
-		this.isBeingUsedAsAMarsTool = true;
-		dialog = new JDialog(Globals.getGui(), this.title);
-		// assure the dialog goes away if user clicks the X
-		dialog.addWindowListener(
-			new WindowAdapter()
-		{
-			public void windowClosing(WindowEvent e)
+		// let's avoid a deadlock!
+		if(!Globals.inputSyscallLock.tryLock()) {
+			JOptionPane.showMessageDialog(
+				null, // parent
+				"You cannot open a tool while an input syscall is in progress.\n" +
+				"You should open the tool before you run the program.\n" +
+				"Stop the program, assemble, open the tool, connect it, then run.",
+				null, // title,
+				JOptionPane.ERROR_MESSAGE);
+			return;
+		}
+
+		try {
+			this.isBeingUsedAsAMarsTool = true;
+			dialog = new JDialog(Globals.getGui(), this.title);
+			// assure the dialog goes away if user clicks the X
+			dialog.addWindowListener(
+				new WindowAdapter()
 			{
-				performToolClosingDuties();
-			}
-		});
-		theWindow = dialog;
-		initializePreGUI();
-		JPanel contentPane = new JPanel(new BorderLayout(5, 5));
-		contentPane.setBorder(emptyBorder);
-		contentPane.setOpaque(true);
-		contentPane.add(buildHeadingArea(), BorderLayout.NORTH);
-		contentPane.add(buildMainDisplayArea(), BorderLayout.CENTER);
-		contentPane.add(buildButtonAreaMarsTool(), BorderLayout.SOUTH);
-		initializePostGUI();
-		dialog.setContentPane(contentPane);
-		dialog.pack();
-		dialog.setLocationRelativeTo(Globals.getGui());
-		dialog.setVisible(true);
+				public void windowClosing(WindowEvent e)
+				{
+					performToolClosingDuties();
+				}
+			});
+			theWindow = dialog;
+			initializePreGUI();
+			JPanel contentPane = new JPanel(new BorderLayout(5, 5));
+			contentPane.setBorder(emptyBorder);
+			contentPane.setOpaque(true);
+			contentPane.add(buildHeadingArea(), BorderLayout.NORTH);
+			contentPane.add(buildMainDisplayArea(), BorderLayout.CENTER);
+			contentPane.add(buildButtonAreaMarsTool(), BorderLayout.SOUTH);
+			initializePostGUI();
+			dialog.setContentPane(contentPane);
+			dialog.pack();
+			dialog.setLocationRelativeTo(Globals.getGui());
+			dialog.setVisible(true);
+		} finally {
+			Globals.inputSyscallLock.unlock();
+		}
 	}
 
 
