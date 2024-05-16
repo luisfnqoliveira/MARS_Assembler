@@ -501,7 +501,7 @@ public class JEditBasedTextArea extends JEditTextArea implements MARSTextEditing
 					int lineStart = this.getLineStartOffset(line);
 					String text = this.getText(lineStart, 1);
 
-					if(text.equals("\t")) {
+					if(text.equals("\t") || text.equals(" ")) {
 						this.select(lineStart, lineStart + 1);
 						this.setSelectedText("");
 					}
