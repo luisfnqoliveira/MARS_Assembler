@@ -119,7 +119,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		0xFFFF5000-0xFFFF57FF: 32x32 2B tilemap entries consisting of (tile, flags)
 		0xFFFF5800-0xFFFF5BFF: 256 4B sprite entries consisting of (X, Y, tile, flags)
 
-		0xFFFF5C00-0xFFFF5CFF: unused rn (uhhhhhh crashes the plugin too lol oops)
+		0xFFFF5C00-0xFFFF5FFF: unused rn (uhhhhhh crashes the plugin too lol oops)
 
 	GRAPHICS DATA (RW):
 
@@ -281,7 +281,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		Like the tilemap, there are two parts to sprites: the table, which specifies per-sprite
 		attributes, and the graphics area.
 
-		The sprite table covers addresses 0xFFFF5800 to 0xFFFF5FFF inclusive. Each of the 256
+		The sprite table covers addresses 0xFFFF5800 to 0xFFFF5BFF inclusive. Each of the 256
 		sprites has a 4-byte entry consisting of [X, Y, tile_index, flags] in that order.
 
 		Each sprite is positioned from its top-left corner. So an 8x8 sprite at position 10, 10
@@ -989,6 +989,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private static final int DISPLAY_FB_RAM         = 0xFFFF1000;
 		private static final int DISPLAY_TM_TABLE       = 0xFFFF5000;
 		private static final int DISPLAY_SPR_TABLE      = 0xFFFF5800;
+		private static final int DISPLAY_SPR_TABLE_END  = 0xFFFF5BFF;
 		private static final int DISPLAY_TM_GFX         = 0xFFFF6000;
 		private static final int DISPLAY_SPR_GFX        = 0xFFFFA000;
 
@@ -1301,8 +1302,10 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 				// MMIO Page 5: tilemap table and sprite table
 				case 5:
-					if(addr >= DISPLAY_SPR_TABLE) {
-						// 0xFFFF5800-0xFFFF5FFF: 256 4B sprite entries
+					if(addr > DISPLAY_SPR_TABLE_END) {
+						// 0xFFFF5C00-0xFFFF5FFF: nothing, right now. future expansion??
+					} else if(addr >= DISPLAY_SPR_TABLE) {
+						// 0xFFFF5800-0xFFFF5BFF: 256 4B sprite entries
 						this.writeSprTable(addr - DISPLAY_SPR_TABLE, length, value);
 					} else {
 						// 0xFFFF5000-0xFFFF57FF: 32x32 2B tilemap entries
