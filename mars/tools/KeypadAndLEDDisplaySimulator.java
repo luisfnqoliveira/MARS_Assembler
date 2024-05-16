@@ -119,7 +119,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		0xFFFF5000-0xFFFF57FF: 32x32 2B tilemap entries consisting of (tile, flags)
 		0xFFFF5800-0xFFFF5BFF: 256 4B sprite entries consisting of (X, Y, tile, flags)
 
-		0xFFFF5C00-0xFFFF5FFF: unused rn (uhhhhhh crashes the plugin too lol oops)
+		0xFFFF5C00-0xFFFF5FFF: 1KB unused space rn
 
 	GRAPHICS DATA (RW):
 
