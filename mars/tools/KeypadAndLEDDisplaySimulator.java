@@ -1391,8 +1391,15 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		}
 
 		private void setMousePosition(int x, int y) {
-			mouseX = x;
-			mouseY = y;
+			// this check is here because if you click and drag on the window, the mouse
+			// coords can actually go offscreen without triggering mouseExited.
+			if(x < 0 || x >= N_COLUMNS || y < 0 || y >= N_ROWS) {
+				mouseX = -1;
+				mouseY = -1;
+			} else {
+				mouseX = x;
+				mouseY = y;
+			}
 		}
 
 		private void updateKeyHeld(int keyCode) {
