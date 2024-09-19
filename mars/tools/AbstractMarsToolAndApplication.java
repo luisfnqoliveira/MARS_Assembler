@@ -294,10 +294,24 @@ public abstract class AbstractMarsToolAndApplication extends JFrame implements M
 		{
 			public void actionPerformed(ActionEvent e)
 			{
-				if(connectButton.isConnected())
-					connectButton.disconnect();
-				else
-					connectButton.connect();
+				if(!Globals.inputSyscallLock.tryLock()) {
+					JOptionPane.showMessageDialog(
+						null, // parent
+				"You cannot connect or disconnect a tool while an input syscall is in progress.\n" +
+						"Stop the program before doing so.",
+						null, // title,
+						JOptionPane.ERROR_MESSAGE);
+					return;
+				}
+
+				try {
+					if(connectButton.isConnected())
+						connectButton.disconnect();
+					else
+						connectButton.connect();
+				} finally {
+					Globals.inputSyscallLock.unlock();
+				}
 			}
 		});
 		connectButton.addKeyListener(new EnterKeyListener(connectButton));
