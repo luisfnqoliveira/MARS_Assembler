@@ -849,8 +849,21 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		/** quickly clears the graphics memory to 0 (black). */
 		@Override
 		public void reset() {
-			this.resetGraphicsMemory(true);
-			this.setShouldRepaint(true);
+			if(!Globals.inputSyscallLock.tryLock()) {
+				JOptionPane.showMessageDialog(
+					null, // parent
+					"You cannot reset this tool while an input syscall is in progress.",
+					null, // title,
+					JOptionPane.ERROR_MESSAGE);
+				return;
+			}
+
+			try {
+				this.resetGraphicsMemory(true);
+				this.setShouldRepaint(true);
+			} finally {
+				Globals.inputSyscallLock.unlock();
+			}
 		}
 
 		@Override
