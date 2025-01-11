@@ -1017,7 +1017,7 @@ public class Memory extends Observable
 	{
 		if(address % WORD_LENGTH_BYTES != 0)
 		{
-			throw new AddressErrorException("fetch address not aligned on word boundary ",
+			throw new AddressErrorException("load address not aligned on word boundary ",
 											Exceptions.ADDRESS_EXCEPTION_LOAD, address);
 		}
 		return get(address, WORD_LENGTH_BYTES, true);
@@ -1037,7 +1037,7 @@ public class Memory extends Observable
 	{
 		if(address % WORD_LENGTH_BYTES != 0)
 		{
-			throw new AddressErrorException("fetch address not aligned on word boundary ",
+			throw new AddressErrorException("load address not aligned on word boundary ",
 											Exceptions.ADDRESS_EXCEPTION_LOAD, address);
 		}
 		return get(address, WORD_LENGTH_BYTES, false);
@@ -1057,7 +1057,7 @@ public class Memory extends Observable
 	{
 		if(address % 2 != 0)
 		{
-			throw new AddressErrorException("fetch address not aligned on halfword boundary ",
+			throw new AddressErrorException("load address not aligned on halfword boundary ",
 											Exceptions.ADDRESS_EXCEPTION_LOAD, address);
 		}
 		return get(address, 2);
