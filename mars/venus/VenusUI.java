@@ -4,6 +4,9 @@ import mars.mips.dump.*;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.dnd.*;
+import java.awt.datatransfer.*;
+import java.util.List;
 import javax.swing.event.*;
 import java.io.*;
 import java.net.*;
@@ -280,6 +283,26 @@ public class VenusUI extends JFrame
 			{
 				if(mainUI.editor.closeAll())
 					System.exit(0);
+			}
+		});
+
+		this.setDropTarget(new DropTarget() {
+			public synchronized void drop(DropTargetDropEvent evt) {
+				try {
+					if(evt.getTransferable().isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
+						evt.acceptDrop(DnDConstants.ACTION_COPY);
+						List<File> droppedFiles = (List<File>)
+							evt.getTransferable().getTransferData(DataFlavor.javaFileListFlavor);
+						for (File file : droppedFiles) {
+							// System.out.println("dropped: " + file);
+							((EditTabbedPane) Globals.getGui().getMainPane().getEditTabbedPane())
+								.openFile(file);
+						}
+					}
+					evt.dropComplete(true);
+				} catch (Exception ex) {
+					ex.printStackTrace();
+				}
 			}
 		});
 
