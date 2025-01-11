@@ -1142,6 +1142,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private BufferedImage finalImage =
 			new BufferedImage(N_COLUMNS, N_ROWS, BufferedImage.TYPE_INT_RGB);
 
+		private Object finalImageLock = new Object();
+
 		// ----------------------------------------------------------------------------------------
 		// Constructor
 
@@ -1232,7 +1234,9 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 
 		@Override
 		public void paintDisplay(Graphics g) {
-			g.drawImage(finalImage, 0, 0, displayWidth, displayHeight, null);
+			synchronized(finalImageLock) {
+				g.drawImage(finalImage, 0, 0, displayWidth, displayHeight, null);
+			}
 
 			if(DEBUG_OVERLAY) {
 				g.setColor(Color.WHITE);
@@ -1852,8 +1856,10 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			// the palette is dirty, but you still have to create the new BufferedImage every
 			// frame. That seems okay, though, because BufferedImage doesn't copy the data.
 			var pal = new IndexColorModel(8, 256, paletteRam[0], paletteRam[1], paletteRam[2]);
-			this.finalImage = new BufferedImage(pal, finalRaster, false, null);
-			this.repaint();
+			synchronized(finalImageLock) {
+				this.finalImage = new BufferedImage(pal, finalRaster, false, null);
+				this.repaint();
+			}
 		}
 
 		// ----------------------------------------------------------------------------------------
