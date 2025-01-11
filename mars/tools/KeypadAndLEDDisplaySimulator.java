@@ -586,6 +586,11 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		if(okayToWriteToMemory()) {
 			Globals.memory.getMMIOPage((addr >> 12) & 0xF)[(addr - MMIO_BASE) / 4] = value;
 		}
+		// else {
+		// 	System.err.printf("Couldn't write 0x%08X to 0x%08X\n", value, addr);
+		// 	System.err.println(this.isBeingUsedAsAMarsTool + ", " + this.connectButton + ", " +
+		// 		(this.connectButton != null ? this.connectButton.isConnected() : "x"));
+		// }
 	}
 
 	private void fillMemory(int startAddr, int endAddr, int fillValue) {
@@ -1544,6 +1549,18 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 				paletteRam[0][i] = (byte)v;
 				paletteRam[1][i] = (byte)v;
 				paletteRam[2][i] = (byte)v;
+			}
+
+			// finally, initialize the actual RAM to reflect the default palette
+			synchronized(Globals.memoryAndRegistersLock) {
+				for(int i = 0; i < 256; i++) {
+					int color =
+						((((int)paletteRam[0][i]) & 0xFF) << 16) |
+						((((int)paletteRam[1][i]) & 0xFF) << 8) |
+						(((int)paletteRam[2][i]) & 0xFF);
+
+					sim.writeWordToMemory(DISPLAY_PALETTE_RAM + (i * 4), color);
+				}
 			}
 
 			isPalDirty = true;
