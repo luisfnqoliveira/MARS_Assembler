@@ -105,6 +105,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		0xFFFF005C: DISPLAY_MOUSE_RELEASED.w (RO, bitflags of mouse buttons released)
 		0xFFFF0060: DISPLAY_MOUSE_WHEEL_X.w  (RO, horizontal mouse wheel movement delta)
 		0xFFFF0064: DISPLAY_MOUSE_WHEEL_Y.w  (RO, vertical mouse wheel movement delta)
+		0xFFFF0068: DISPLAY_MOUSE_VISIBLE.w  (RW, whether or not the mouse cursor is visible)
 
 	PALETTE RAM (RW):
 
@@ -1003,6 +1004,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 		private static final int DISPLAY_MOUSE_RELEASED = 0xFFFF005C;
 		private static final int DISPLAY_MOUSE_WHEEL_X  = 0xFFFF0060;
 		private static final int DISPLAY_MOUSE_WHEEL_Y  = 0xFFFF0064;
+		private static final int DISPLAY_MOUSE_VISIBLE  = 0xFFFF0068;
 		private static final int DISPLAY_PALETTE_RAM    = 0xFFFF0C00;
 		private static final int DISPLAY_FB_RAM         = 0xFFFF1000;
 		private static final int DISPLAY_TM_TABLE       = 0xFFFF5000;
@@ -1225,6 +1227,8 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 					}
 				}
 			});
+
+			this.showCursor(false);
 		}
 
 		// ----------------------------------------------------------------------------------------
@@ -1311,6 +1315,7 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 							case DISPLAY_KEY_HELD:      this.updateKeyHeld(value);     break;
 							case DISPLAY_KEY_PRESSED:   this.updateKeyPressed(value);  break;
 							case DISPLAY_KEY_RELEASED:  this.updateKeyReleased(value); break;
+							case DISPLAY_MOUSE_VISIBLE: this.showCursor(value != 0);   break;
 							default: break;
 						}
 					}
@@ -1390,6 +1395,11 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			this.setMousePosition(-1, -1);
 			this.updateMouseRegisters();
 
+			this.showCursor(false);
+			synchronized(Globals.memoryAndRegistersLock) {
+				sim.writeWordToMemory(DISPLAY_MOUSE_VISIBLE, 0);
+			}
+
 			keysHeld.clear();
 
 			if(DEBUG_OVERLAY) {
@@ -1442,6 +1452,23 @@ public class KeypadAndLEDDisplaySimulator extends AbstractMarsToolAndApplication
 			synchronized(Globals.memoryAndRegistersLock) {
 				var released = keysReleased.contains(keyCode) ? 1 : 0;
 				sim.writeWordToMemory(DISPLAY_KEY_RELEASED, released);
+			}
+		}
+
+		private static Cursor blankCursor =
+			Toolkit.getDefaultToolkit().createCustomCursor(
+				new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB),
+				new Point(0, 0),
+				"blank cursor"
+			);
+
+		private void showCursor(boolean show) {
+			if(show) {
+				this.setCursor(Cursor.getDefaultCursor());
+			} else {
+				// apparently this is how you hide the cursor. by setting it to a
+				// blank transparent image. lol
+				this.setCursor(blankCursor);
 			}
 		}
 
