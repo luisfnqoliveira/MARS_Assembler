@@ -176,8 +176,13 @@ public class SystemIO
 	 */
 	public static void printString(String string)
 	{
-		if(Globals.getGui() == null)
+		if(Globals.getGui() == null) {
 			System.out.print(string);
+
+			if(Globals.disableStdoutBuffering) {
+				System.out.flush();
+			}
+		}
 		else
 			Globals.getGui().getMessagesPane().postRunMessage(string);
 

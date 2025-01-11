@@ -451,6 +451,11 @@ public class MarsLaunch
 				countInstructions = true;
 				continue;
 			}
+			if(args[i].toLowerCase().equals("nb"))
+			{
+				Globals.disableStdoutBuffering = true;
+				continue;
+			}
 
 
 			if(args[i].indexOf("$") == 0)

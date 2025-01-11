@@ -98,6 +98,8 @@ public class Globals
 	public static final String[] ASCII_TABLE = getAsciiStrings();
 	/** MARS exit code -- useful with SYSCALL 17 when running from command line (not GUI) */
 	public static int exitCode = 0;
+	/** When true and MARS is run in headless mode, disables buffering of Stdout. */
+	public static boolean disableStdoutBuffering = false;
 
 	public static boolean runSpeedPanelExists = false;
 
