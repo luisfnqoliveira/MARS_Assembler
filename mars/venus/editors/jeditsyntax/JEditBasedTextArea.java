@@ -584,38 +584,39 @@ public class JEditBasedTextArea extends JEditTextArea implements MARSTextEditing
 	}
 
 	void insertSpaceOrYell() {
+
+		// check for possible sins
+		boolean shouldYell = false;
+
 		int offset = this.getSelectionStart();
 
-		if(offset == this.getSelectionEnd()) {
-			// nothing selected, so they are just straight up typing a space.
-			int line = this.getSelectionStartLine();
-			int lineOffset = this.getLineStartOffset(line);
+		int line = this.getSelectionStartLine();
+		int lineOffset = this.getLineStartOffset(line);
 
-			// check for possible sins
-			boolean shouldYell = false;
+		// Removed code to check if there was a selection
+		// if(offset == this.getSelectionEnd()) -> It's always a sin!
 
-			if(offset == lineOffset) {
-				// they're hitting space at the start of a line. always a mistake.
-				shouldYell = true;
-			} else {
-				// hitting space somewhere inside a line. it's a mistake if all the
-				// characters to the left of the cursor are whitespace.
+		if(offset == lineOffset) {
+			// they're hitting space at the start of a line. always a mistake.
+			shouldYell = true;
+		} else {
+			// hitting space somewhere inside a line. it's a mistake if all the
+			// characters to the left of the cursor are whitespace.
 
-				int offsetIntoLine = offset - lineOffset;
+			int offsetIntoLine = offset - lineOffset;
 
-				shouldYell = this.getLineText(line)
-					.substring(0, offsetIntoLine)
-					.chars()
-					.allMatch(Character::isWhitespace);
-			}
+			shouldYell = this.getLineText(line)
+				.substring(0, offsetIntoLine)
+				.chars()
+				.allMatch(Character::isWhitespace);
+		}
 
-			// if a sin has occurred, chastise.
-			if(shouldYell) {
-				// aaaaaaa.
-				this.overwriteSetSelectedText(
-					"Use the tab key to indent. (Undo to erase this message)");
-				return;
-			}
+		// if a sin has occurred, chastise.
+		if(shouldYell) {
+			// aaaaaaa.
+			this.overwriteSetSelectedText(
+				"Use the tab key to indent. (Undo to erase this message)");
+			return;
 		}
 
 		// got through the gauntlet, insert a space.

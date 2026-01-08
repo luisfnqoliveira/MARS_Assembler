@@ -198,7 +198,7 @@ public class Settings extends Observable
 		"0",          // LabelSortState
 		"",           // MemoryConfiguration
 		"500",        // CaretBlinkRate
-		"4",          // EditorTabSize
+		"8",          // EditorTabSize
 		"2",          // EditorPopupPrefixLength
 		"", "", "", "", "", "", "", "", "", "" // RecentFile0 ..= RecentFile9
 	};

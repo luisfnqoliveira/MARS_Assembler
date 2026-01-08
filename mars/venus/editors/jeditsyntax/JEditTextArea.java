@@ -2265,13 +2265,19 @@ public class JEditTextArea extends JComponent
 		if(lineLength > 0)
 		{
 			String text = getText(getLineStartOffset(line), lineLength);
-			for(int position = 0; position < text.length(); position++)
+			int position = 0;
+			while(position < text.length())
 			{
 				char character = text.charAt(position);
-				if(character == '\t' || character == ' ')
+				if(character == '\t')
 					indent += character;
-				else
+				else if(character == ' ') {
+					// If you mixed tabs and spaces, this will look weird, but I don't really care!
+					indent += '\t';
+					position += Globals.getSettings().getEditorTabSize() -1; // Position will be incremented later
+				} else
 					break;
+				position++;
 			}
 		}
 		return indent;
