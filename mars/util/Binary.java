@@ -373,9 +373,10 @@ public class Binary
 	public static String intToAscii(int d)
 	{
 		StringBuilder result = new StringBuilder(8);
+		// Now that I can see memory in bytes, this makes more sense? Rolled-back change
+		for (int i=3; i>=0; i--)
 		// JB: why the heck does it swap the order of ASCII bytes? this makes ASCII look right in memory view
-		// for (int i=3; i>=0; i--) {
-		for(int i = 0; i <= 3; i++)
+		// for(int i = 0; i <= 3; i++)
 		{
 			int byteValue = getByte(d, i);
 			result.append((byteValue < Globals.ASCII_TABLE.length) ? Globals.ASCII_TABLE[byteValue] : Globals.ASCII_NON_PRINT);
