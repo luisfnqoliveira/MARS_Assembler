@@ -407,7 +407,7 @@ public class DataSegmentWindow extends JPanel implements Observer
 			memory_chunch_size = NUMBER_OF_ROWS * bytes_per_row;
 			prev_memory_chunk_size = memory_chunch_size / 2;
 
-			// DataSegmentWindow.this.setupTable();
+			DataSegmentWindow.this.setupTable();
 			DataSegmentWindow.this.updateDataAddresses();
 			DataSegmentWindow.this.updateValues();
 			// Trigger rerender of table
